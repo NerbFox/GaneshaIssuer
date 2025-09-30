@@ -8,7 +8,7 @@ module.exports = {
       args: "start",
 
       exec_mode: "cluster",
-      instances: "max",
+      instances: 1,
       
       env_dev: {
         NODE_ENV: "development",
