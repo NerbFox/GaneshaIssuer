@@ -1,0 +1,40 @@
+name: Deploy GaneshaIssuer to VPS
+
+on:
+  push:
+    branches:
+      - dev
+    
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: DEV
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Deploy Frontend to Development Server
+        uses: appleboy/ssh-action@master
+        with:
+          # Bagian ini tetap sama, pakai secret yang sudah ada
+          host: ${{ secrets.VPS_HOST_DEV }}
+          username: ${{ secrets.VPS_USER_DEV }}
+          key: ${{ secrets.VPS_SSH_KEY_DEV }}
+          
+          # Bagian script disesuaikan untuk proyek Next.js
+          script: |
+            # Masuk ke direktori frontend yang baru
+            cd /www/ganeshaissuer 
+            
+            # Tarik perubahan terbaru
+            git pull origin dev # Sesuaikan nama branch
+            
+            # Install dependensi
+            npm install
+            
+            # Build aplikasi Next.js
+            npm run build
+            
+            pm2 startOrRestart pm2.config.js --env dev
+            pm2 save
