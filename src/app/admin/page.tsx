@@ -26,7 +26,7 @@ export default function AdminPage() {
 
   const fetchPendingInstitutions = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       const response = await fetch(`${apiUrl}/api/auth/pending-institutions`);
       const data = await response.json();
 
@@ -49,7 +49,7 @@ export default function AdminPage() {
 
     setProcessingId(institutionId);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       const response = await fetch(`${apiUrl}/api/auth/approve/${institutionId}`, {
         method: 'POST',
         headers: {
@@ -82,7 +82,7 @@ export default function AdminPage() {
 
     setProcessingId(institutionId);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       const response = await fetch(`${apiUrl}/api/auth/reject/${institutionId}`, {
         method: 'POST',
       });
