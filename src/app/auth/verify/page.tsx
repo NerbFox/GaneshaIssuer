@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getApiUrl } from '@/utils/api';
+import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 
 function VerifyContent() {
   const router = useRouter();
@@ -25,7 +25,7 @@ function VerifyContent() {
 
   const verifyMagicLink = async (token: string) => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/auth/verify-magic-link`, {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.VERIFY_MAGIC_LINK), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

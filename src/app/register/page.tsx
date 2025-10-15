@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getApiUrl } from '@/utils/api';
+import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -31,7 +31,7 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      const response = await fetch(`${getApiUrl()}/api/auth/register`, {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.REGISTER), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
