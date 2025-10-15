@@ -20,7 +20,8 @@ build
 *.log
 
 # Local env files
-.env
+# IMPORTANT: .env is NOT ignored so it can be copied during Docker build
+# .env
 .env.local
 .env.development.local
 .env.test.local

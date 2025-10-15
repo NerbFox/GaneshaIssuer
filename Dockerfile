@@ -10,10 +10,11 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci
 
-# Copy all source files
+# Copy all source files (except those in .dockerignore)
 COPY . .
 
 # Build the application
+# If .env exists, NEXT_PUBLIC_* variables will be embedded into the build
 RUN npm run build
 
 # Stage 2: Production stage
@@ -46,10 +47,6 @@ USER nextjs
 
 # Expose port
 EXPOSE 3000
-
-# Health check - hapus karena tidak ada /api/health endpoint
-# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-#   CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start the application
 CMD ["npm", "start"]
