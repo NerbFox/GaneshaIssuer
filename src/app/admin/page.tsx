@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getApiUrl } from '@/utils/api';
 
 interface Institution {
   id: string;
@@ -26,8 +27,7 @@ export default function AdminPage() {
 
   const fetchPendingInstitutions = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${apiUrl}/api/auth/pending-institutions`);
+      const response = await fetch(`${getApiUrl()}/api/auth/pending-institutions`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -49,8 +49,7 @@ export default function AdminPage() {
 
     setProcessingId(institutionId);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${apiUrl}/api/auth/approve/${institutionId}`, {
+      const response = await fetch(`${getApiUrl()}/api/auth/approve/${institutionId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -82,8 +81,7 @@ export default function AdminPage() {
 
     setProcessingId(institutionId);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${apiUrl}/api/auth/reject/${institutionId}`, {
+      const response = await fetch(`${getApiUrl()}/api/auth/reject/${institutionId}`, {
         method: 'POST',
       });
 
