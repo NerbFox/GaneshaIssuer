@@ -28,16 +28,22 @@ jobs:
             # Pindah ke direktori aplikasi
             cd /var/www/frontend-ganeshadcert-prod
             
+            # --- PERUBAHAN PENTING DIMULAI DI SINI ---
+            echo "🔧 Ensuring correct Git remote URL for SSH alias..."
+            # Atur URL remote agar menggunakan alias SSH yang benar
+            git remote set-url origin git@github.com-ganeshaissuer:NerbFox/GaneshaIssuer.git
+            
             echo "📦 Pulling latest code from master branch..."
             # Ambil source code terbaru dari branch master
             git pull origin master
+            # --- PERUBAHAN PENTING SELESAI ---
             
             echo "📝 Creating .env file from GitHub secrets..."
             # Buat file .env dari secrets GitHub
             echo "${{ secrets.ENTIRE_ENV_FILE }}" > .env
             
             echo "🔨 Building Docker image (this may take a while)..."
-            # 1. Build image baru dengan no-cache untuk memastikan update
+            # Build image baru dengan no-cache untuk memastikan update
             docker compose build --no-cache
             
             # Cek apakah build berhasil
@@ -47,23 +53,22 @@ jobs:
             fi
             
             echo "⏹️  Stopping old containers..."
-            # 2. Hentikan container lama
+            # Hentikan container lama
             docker compose down
             
             echo "🎬 Starting new containers..."
-            # 3. Jalankan container baru di background
+            # Jalankan container baru di background
             docker compose up -d
             
             # Cek apakah container berjalan
             if [ $? -ne 0 ]; then
               echo "❌ Failed to start containers! Rolling back..."
-              # Rollback jika gagal
               docker compose down
               exit 1
             fi
             
             echo "🧹 Cleaning up old Docker images..."
-            # 4. Hapus image yang tidak terpakai untuk hemat space
+            # Hapus image yang tidak terpakai untuk hemat space
             docker image prune -af
             
             echo "✅ Deployment completed successfully!"
