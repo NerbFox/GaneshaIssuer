@@ -19,9 +19,9 @@ jobs:
         if: github.ref == 'refs/heads/master'
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ variables.VPS_HOST_PROD }}
-          username: ${{ variables.VPS_USER_PROD }}
-          key: ${{ variables.VPS_SSH_KEY_PROD }}
+          host: ${{ secrets.VPS_HOST_PROD }}
+          username: ${{ secrets.VPS_USER_PROD }}
+          key: ${{ secrets.VPS_SSH_KEY_PROD }}
           script: |
             echo "🚀 Starting deployment to production..."
             
