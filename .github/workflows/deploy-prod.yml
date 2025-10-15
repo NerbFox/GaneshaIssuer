@@ -1,0 +1,73 @@
+name: Deploy GaneshaIssuer Frontend to VPS (Production)
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: PROD
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Deploy to Production Server
+        if: github.ref == 'refs/heads/master'
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST_PROD }}
+          username: ${{ secrets.VPS_USER_PROD }}
+          key: ${{ secrets.VPS_SSH_KEY_PROD }}
+          script: |
+            echo "🚀 Starting deployment to production..."
+            
+            # Pindah ke direktori aplikasi
+            cd /var/www/frontend-ganeshadcert-prod
+            
+            echo "📦 Pulling latest code from master branch..."
+            # Ambil source code terbaru dari branch master
+            git pull origin master
+            
+            echo "📝 Creating .env file from GitHub secrets..."
+            # Buat file .env dari secrets GitHub
+            echo "${{ secrets.ENTIRE_ENV_FILE }}" > .env
+            
+            echo "🔨 Building Docker image (this may take a while)..."
+            # 1. Build image baru dengan no-cache untuk memastikan update
+            docker compose build --no-cache
+            
+            # Cek apakah build berhasil
+            if [ $? -ne 0 ]; then
+              echo "❌ Docker build failed! Stopping deployment."
+              exit 1
+            fi
+            
+            echo "⏹️  Stopping old containers..."
+            # 2. Hentikan container lama
+            docker compose down
+            
+            echo "🎬 Starting new containers..."
+            # 3. Jalankan container baru di background
+            docker compose up -d
+            
+            # Cek apakah container berjalan
+            if [ $? -ne 0 ]; then
+              echo "❌ Failed to start containers! Rolling back..."
+              # Rollback jika gagal
+              docker compose down
+              exit 1
+            fi
+            
+            echo "🧹 Cleaning up old Docker images..."
+            # 4. Hapus image yang tidak terpakai untuk hemat space
+            docker image prune -af
+            
+            echo "✅ Deployment completed successfully!"
+            
+            # Optional: Tampilkan status container
+            echo "📊 Container status:"
+            docker compose ps
