@@ -35,8 +35,9 @@ export default function AdminPage() {
       }
 
       setInstitutions(data.data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -67,8 +68,9 @@ export default function AdminPage() {
 
       alert('Institusi berhasil disetujui dan magic link telah dikirim!');
       fetchPendingInstitutions();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      alert(errorMessage);
     } finally {
       setProcessingId(null);
     }
@@ -93,8 +95,9 @@ export default function AdminPage() {
 
       alert('Institusi berhasil ditolak');
       fetchPendingInstitutions();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      alert(errorMessage);
     } finally {
       setProcessingId(null);
     }

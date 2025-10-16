@@ -1,29 +1,26 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
+
+interface InstitutionData {
+  name: string;
+  email: string;
+  phone: string;
+  country: string;
+  website: string;
+  address: string;
+}
 
 function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [message, setMessage] = useState('Memverifikasi magic link...');
-  const [institutionData, setInstitutionData] = useState<any>(null);
+  const [institutionData, setInstitutionData] = useState<InstitutionData | null>(null);
 
-  useEffect(() => {
-    const token = searchParams.get('token');
-
-    if (!token) {
-      setStatus('error');
-      setMessage('Token tidak ditemukan');
-      return;
-    }
-
-    verifyMagicLink(token);
-  }, [searchParams]);
-
-  const verifyMagicLink = async (token: string) => {
+  const verifyMagicLink = useCallback(async (token: string) => {
     try {
       const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.VERIFY_MAGIC_LINK), {
         method: 'POST',
@@ -51,11 +48,24 @@ function VerifyContent() {
       setTimeout(() => {
         router.push('/dashboard');
       }, 2000);
-    } catch (err: any) {
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan';
       setStatus('error');
-      setMessage(err.message);
+      setMessage(errorMessage);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    const token = searchParams.get('token');
+
+    if (!token) {
+      setStatus('error');
+      setMessage('Token tidak ditemukan');
+      return;
+    }
+
+    verifyMagicLink(token);
+  }, [searchParams, verifyMagicLink]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">

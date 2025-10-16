@@ -1,18 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+
+interface InstitutionData {
+  name: string;
+  email: string;
+  phone: string;
+  country: string;
+  website: string;
+  address: string;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [institution, setInstitution] = useState<any>(null);
+  const [institution, setInstitution] = useState<InstitutionData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = () => {
+  const checkAuth = useCallback(() => {
     const token = localStorage.getItem('sessionToken');
     const institutionData = localStorage.getItem('institution');
 
@@ -23,7 +28,11 @@ export default function DashboardPage() {
 
     setInstitution(JSON.parse(institutionData));
     setLoading(false);
-  };
+  }, [router]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   const handleLogout = () => {
     localStorage.removeItem('sessionToken');
@@ -37,6 +46,10 @@ export default function DashboardPage() {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
+  }
+
+  if (!institution) {
+    return null;
   }
 
   return (
