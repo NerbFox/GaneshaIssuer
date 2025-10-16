@@ -33,8 +33,17 @@ jobs:
             git remote set-url origin git@github.com-ganeshaissuer:NerbFox/GaneshaIssuer.git
             
             echo "📦 Pulling latest code from dev branch..."
+            # Reset package-lock.json jika ada konflik
+            git checkout HEAD -- package-lock.json 2>/dev/null || true
+            
+            # Stash any local changes
+            git stash
+            
             # Ambil source code terbaru dari branch dev
             git pull origin dev
+            
+            # Pop stashed changes jika ada (tapi abaikan error)
+            git stash pop 2>/dev/null || true
             # --- PERUBAHAN PENTING SELESAI ---
             
             echo "📝 Creating .env file from GitHub secrets..."
@@ -78,4 +87,3 @@ jobs:
             echo "📊 Container status:"
             docker compose ps
             
-          
