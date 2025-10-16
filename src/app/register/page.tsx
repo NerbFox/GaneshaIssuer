@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -32,7 +31,7 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/register`, {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.REGISTER), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

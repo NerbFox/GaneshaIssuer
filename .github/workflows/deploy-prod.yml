@@ -26,7 +26,7 @@ jobs:
             echo "🚀 Starting deployment to production..."
             
             # Pindah ke direktori aplikasi
-            cd /var/www/frontend-ganeshadcert-prod
+            cd /var/www/fe-ganeshadcert-prod
             
             # --- PERUBAHAN PENTING DIMULAI DI SINI ---
             echo "🔧 Ensuring correct Git remote URL for SSH alias..."
@@ -40,10 +40,12 @@ jobs:
             
             echo "📝 Creating .env file from GitHub secrets..."
             # Buat file .env dari secrets GitHub
+            # File ini akan di-copy ke dalam Docker image saat build
             echo "${{ secrets.ENTIRE_ENV_FILE }}" > .env
             
             echo "🔨 Building Docker image (this may take a while)..."
             # Build image baru dengan no-cache untuk memastikan update
+            # .env file akan otomatis di-copy ke dalam build context
             docker compose build --no-cache
             
             # Cek apakah build berhasil
