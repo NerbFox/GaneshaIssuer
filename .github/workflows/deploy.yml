@@ -25,16 +25,57 @@ jobs:
           # Bagian script disesuaikan untuk proyek Next.js
           script: |
             # Masuk ke direktori frontend yang baru
-            cd /www/ganeshaissuer 
+            cd /www/ganeshaissuer
+
+            # --- PERUBAHAN PENTING DIMULAI DI SINI ---
+            echo "🔧 Ensuring correct Git remote URL for SSH alias..."
+            # Atur URL remote agar menggunakan alias SSH yang benar
+            git remote set-url origin git@github.com-ganeshaissuer:NerbFox/GaneshaIssuer.git
             
-            # Tarik perubahan terbaru
-            git pull origin dev # Sesuaikan nama branch
+            echo "📦 Pulling latest code from dev branch..."
+            # Ambil source code terbaru dari branch dev
+            git pull origin dev
+            # --- PERUBAHAN PENTING SELESAI ---
             
-            # Install dependensi
-            npm install
+            echo "📝 Creating .env file from GitHub secrets..."
+            # Buat file .env dari secrets GitHub
+            # File ini akan di-copy ke dalam Docker image saat build
+            echo "${{ secrets.ENTIRE_ENV_FILE_STAGING }}" > .env
             
-            # Build aplikasi Next.js
-            npm run build
+            echo "🔨 Building Docker image (this may take a while)..."
+            # Build image baru dengan no-cache untuk memastikan update
+            # .env file akan otomatis di-copy ke dalam build context
+            docker compose build --no-cache
             
-            pm2 startOrRestart pm2.config.js --env dev
-            pm2 save
+            # Cek apakah build berhasil
+            if [ $? -ne 0 ]; then
+              echo "❌ Docker build failed! Stopping deployment."
+              exit 1
+            fi
+            
+            echo "⏹️  Stopping old containers..."
+            # Hentikan container lama
+            docker compose down
+            
+            echo "🎬 Starting new containers..."
+            # Jalankan container baru di background
+            docker compose up -d
+            
+            # Cek apakah container berjalan
+            if [ $? -ne 0 ]; then
+              echo "❌ Failed to start containers! Rolling back..."
+              docker compose down
+              exit 1
+            fi
+            
+            echo "🧹 Cleaning up old Docker images..."
+            # Hapus image yang tidak terpakai untuk hemat space
+            docker image prune -af
+            
+            echo "✅ Deployment completed successfully!"
+            
+            # Optional: Tampilkan status container
+            echo "📊 Container status:"
+            docker compose ps
+            
+          
