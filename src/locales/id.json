@@ -1,0 +1,132 @@
+{
+  "common": {
+    "loading": "Memuat...",
+    "error": "Kesalahan",
+    "success": "Berhasil",
+    "submit": "Kirim",
+    "cancel": "Batal",
+    "close": "Tutup",
+    "save": "Simpan",
+    "delete": "Hapus",
+    "edit": "Edit",
+    "search": "Cari",
+    "filter": "Filter",
+    "back": "Kembali",
+    "next": "Selanjutnya",
+    "previous": "Sebelumnya",
+    "confirm": "Konfirmasi",
+    "logout": "Keluar"
+  },
+  "nav": {
+    "home": "Beranda",
+    "dashboard": "Dashboard",
+    "admin": "Admin",
+    "register": "Daftar",
+    "login": "Masuk"
+  },
+  "home": {
+    "title": "GaneshaDCERT",
+    "subtitle": "Sistem Manajemen Sertifikat Digital",
+    "adminAccess": "Akses panel admin",
+    "registerInstitution": "Daftarkan institusi Anda"
+  },
+  "verify": {
+    "verifying": "Memverifikasi Magic Link",
+    "pleaseWait": "Mohon tunggu sementara kami memverifikasi link Anda...",
+    "tokenNotFound": "Token tidak ditemukan di URL",
+    "verificationFailed": "Verifikasi gagal",
+    "loginSuccessRedirect": "Login berhasil! Mengarahkan ke dashboard...",
+    "registerNewInstitution": "Daftarkan Institusi Baru",
+    "goToHomepage": "Kembali ke Beranda",
+    "aboutMagicLinks": "Tentang Magic Links",
+    "magicLinkDescription": "Magic link adalah tautan aman yang hanya dapat digunakan satu kali, dikirim ke email Anda setelah persetujuan admin. Link ini akan kedaluwarsa setelah 24 jam."
+  },
+  "auth": {
+    "login": {
+      "title": "Login Admin",
+      "subtitle": "Manajemen GaneshaDCERT",
+      "email": "Email",
+      "password": "Kata Sandi",
+      "emailPlaceholder": "admin@ganeshadcert.com",
+      "passwordPlaceholder": "••••••••",
+      "loginButton": "Masuk",
+      "processing": "Memproses...",
+      "forInstitution": "Untuk institusi?",
+      "registerHere": "Daftar di sini",
+      "loginSuccess": "Login berhasil",
+      "loginFailed": "Login gagal",
+      "invalidCredentials": "Email atau kata sandi salah"
+    },
+    "register": {
+      "title": "Pendaftaran Institusi",
+      "subtitle": "Daftarkan institusi Anda untuk menerbitkan sertifikat digital",
+      "name": "Nama Institusi",
+      "email": "Email",
+      "phone": "Nomor Telepon",
+      "country": "Negara",
+      "website": "Website",
+      "address": "Alamat",
+      "namePlaceholder": "Universitas Indonesia",
+      "emailPlaceholder": "admin@ui.ac.id",
+      "phonePlaceholder": "+62 812-3456-7890",
+      "countryPlaceholder": "Indonesia",
+      "websitePlaceholder": "https://ui.ac.id",
+      "addressPlaceholder": "Kampus UI Depok, Jawa Barat 16424",
+      "registerButton": "Daftar",
+      "processing": "Memproses...",
+      "alreadyHaveAccount": "Sudah punya akun?",
+      "loginHere": "Masuk di sini",
+      "registrationSuccess": "Pendaftaran berhasil. Menunggu persetujuan admin.",
+      "registrationFailed": "Pendaftaran gagal"
+    }
+  },
+  "admin": {
+    "dashboard": {
+      "title": "Dashboard Admin",
+      "subtitle": "Kelola Pendaftaran Institusi",
+      "loggedInAs": "Login sebagai",
+      "noPendingInstitutions": "Tidak ada institusi yang menunggu persetujuan",
+      "table": {
+        "name": "Nama",
+        "email": "Email",
+        "phone": "Telepon",
+        "country": "Negara",
+        "website": "Website",
+        "actions": "Aksi",
+        "approve": "Setuju",
+        "reject": "Tolak",
+        "processing": "Memproses..."
+      },
+      "confirmApprove": "Apakah Anda yakin ingin menyetujui institusi ini?",
+      "confirmReject": "Apakah Anda yakin ingin menolak institusi ini?",
+      "approveSuccess": "Institusi berhasil disetujui dan magic link telah dikirim!",
+      "rejectSuccess": "Institusi berhasil ditolak",
+      "confirmLogout": "Apakah Anda yakin ingin keluar?"
+    }
+  },
+  "dashboard": {
+    "welcome": "Selamat Datang",
+    "overview": "Ringkasan",
+    "statistics": "Statistik",
+    "confirmLogout": "Apakah Anda yakin ingin keluar?",
+    "totalCertificates": "Total Sertifikat",
+    "activeCertificates": "Sertifikat Aktif",
+    "pendingRequests": "Permintaan Tertunda",
+    "quickActions": "Aksi Cepat",
+    "issueCertificate": "Terbitkan Sertifikat",
+    "verifyCertificate": "Verifikasi Sertifikat",
+    "viewTemplates": "Lihat Template",
+    "settings": "Pengaturan",
+    "comingSoon": "Dashboard Segera Hadir",
+    "comingSoonDescription": "Dashboard ini sedang dalam pengembangan. Lebih banyak fitur untuk manajemen sertifikat, verifikasi, dan analitik akan tersedia segera."
+  },
+  "errors": {
+    "somethingWentWrong": "Terjadi kesalahan",
+    "tryAgain": "Silakan coba lagi",
+    "networkError": "Terjadi kesalahan jaringan",
+    "unauthorized": "Akses tidak sah",
+    "forbidden": "Akses ditolak",
+    "notFound": "Tidak ditemukan",
+    "serverError": "Kesalahan server"
+  }
+}

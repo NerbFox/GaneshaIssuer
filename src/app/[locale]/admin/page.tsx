@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 interface Institution {
   id: string;
@@ -24,6 +26,8 @@ interface AdminData {
 
 export default function AdminPage() {
   const router = useRouter();
+  const t = useTranslations('admin.dashboard');
+  const tCommon = useTranslations('common');
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -55,7 +59,6 @@ export default function AdminPage() {
       const data = await response.json();
 
       if (response.status === 401) {
-        // Token invalid atau expired
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminData');
         router.push('/admin/login');
@@ -63,12 +66,12 @@ export default function AdminPage() {
       }
 
       if (!response.ok) {
-        throw new Error(data.message || 'Gagal mengambil data');
+        throw new Error(data.message || 'Failed to fetch data');
       }
 
       setInstitutions(data.data);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -76,7 +79,7 @@ export default function AdminPage() {
   };
 
   const handleApprove = async (institutionId: string) => {
-    if (!confirm('Apakah Anda yakin ingin menyetujui institusi ini?')) {
+    if (!confirm(t('confirmApprove'))) {
       return;
     }
 
@@ -109,13 +112,13 @@ export default function AdminPage() {
       }
 
       if (!response.ok) {
-        throw new Error(data.message || 'Gagal menyetujui institusi');
+        throw new Error(data.message || 'Failed to approve institution');
       }
 
-      alert('Institusi berhasil disetujui dan magic link telah dikirim!');
+      alert(t('approveSuccess'));
       fetchPendingInstitutions(token);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       alert(errorMessage);
     } finally {
       setProcessingId(null);
@@ -123,7 +126,7 @@ export default function AdminPage() {
   };
 
   const handleReject = async (institutionId: string) => {
-    if (!confirm('Apakah Anda yakin ingin menolak institusi ini?')) {
+    if (!confirm(t('confirmReject'))) {
       return;
     }
 
@@ -152,13 +155,13 @@ export default function AdminPage() {
       }
 
       if (!response.ok) {
-        throw new Error(data.message || 'Gagal menolak institusi');
+        throw new Error(data.message || 'Failed to reject institution');
       }
 
-      alert('Institusi berhasil ditolak');
+      alert(t('rejectSuccess'));
       fetchPendingInstitutions(token);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       alert(errorMessage);
     } finally {
       setProcessingId(null);
@@ -166,7 +169,7 @@ export default function AdminPage() {
   };
 
   const handleLogout = () => {
-    if (confirm('Apakah Anda yakin ingin logout?')) {
+    if (confirm(t('confirmLogout'))) {
       localStorage.removeItem('adminToken');
       localStorage.removeItem('adminData');
       router.push('/admin/login');
@@ -178,7 +181,7 @@ export default function AdminPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Memuat data...</p>
+          <p className="mt-4 text-gray-600">{tCommon('loading')}</p>
         </div>
       </div>
     );
@@ -187,23 +190,26 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
-        {/* Header with Logout */}
+        {/* Header with Logout and Language Switcher */}
         <div className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-gray-600 mt-2">Kelola Pendaftaran Institusi</p>
+            <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
+            <p className="text-gray-600 mt-2">{t('subtitle')}</p>
             {adminData && (
               <p className="text-sm text-gray-500 mt-1">
-                Logged in as: <span className="font-medium">{adminData.name}</span> ({adminData.email})
+                {t('loggedInAs')}: <span className="font-medium">{adminData.name}</span> ({adminData.email})
               </p>
             )}
           </div>
-          <button
-            onClick={handleLogout}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Logout
-          </button>
+          <div className="flex items-center space-x-4">
+            <LanguageSwitcher />
+            <button
+              onClick={handleLogout}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              {tCommon('logout')}
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -214,7 +220,7 @@ export default function AdminPage() {
 
         {institutions.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <p className="text-gray-600">Tidak ada institusi yang menunggu persetujuan</p>
+            <p className="text-gray-600">{t('noPendingInstitutions')}</p>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -222,12 +228,12 @@ export default function AdminPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Telepon</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Negara</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Website</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.name')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.email')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.phone')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.country')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.website')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -252,14 +258,14 @@ export default function AdminPage() {
                             disabled={processingId === institution.id}
                             className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 disabled:bg-gray-400"
                           >
-                            {processingId === institution.id ? 'Proses...' : 'Setuju'}
+                            {processingId === institution.id ? t('table.processing') : t('table.approve')}
                           </button>
                           <button
                             onClick={() => handleReject(institution.id)}
                             disabled={processingId === institution.id}
                             className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:bg-gray-400"
                           >
-                            Tolak
+                            {t('table.reject')}
                           </button>
                         </div>
                       </td>

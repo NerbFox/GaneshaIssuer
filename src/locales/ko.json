@@ -1,0 +1,121 @@
+{
+  "common": {
+    "loading": "로딩 중...",
+    "error": "오류",
+    "success": "성공",
+    "submit": "제출",
+    "cancel": "취소",
+    "close": "닫기",
+    "save": "저장",
+    "delete": "삭제",
+    "edit": "편집",
+    "search": "검색",
+    "filter": "필터",
+    "back": "뒤로",
+    "next": "다음",
+    "previous": "이전",
+    "confirm": "확인",
+    "logout": "로그아웃"
+  },
+  "nav": {
+    "home": "홈",
+    "dashboard": "대시보드",
+    "admin": "관리자",
+    "register": "등록",
+    "login": "로그인"
+  },
+  "home": {
+    "title": "GaneshaDCERT",
+    "subtitle": "디지털 인증서 관리 시스템",
+    "adminAccess": "관리자 패널에 액세스",
+    "registerInstitution": "기관 등록"
+  },
+  "auth": {
+    "login": {
+      "title": "관리자 로그인",
+      "subtitle": "GaneshaDCERT 관리",
+      "email": "이메일",
+      "password": "비밀번호",
+      "emailPlaceholder": "admin@ganeshadcert.com",
+      "passwordPlaceholder": "••••••••",
+      "loginButton": "로그인",
+      "processing": "처리 중...",
+      "forInstitution": "기관용?",
+      "registerHere": "여기서 등록",
+      "loginSuccess": "로그인 성공",
+      "loginFailed": "로그인 실패",
+      "invalidCredentials": "잘못된 이메일 또는 비밀번호"
+    },
+    "register": {
+      "title": "기관 등록",
+      "subtitle": "디지털 인증서를 발급하기 위해 기관을 등록하세요",
+      "name": "기관명",
+      "email": "이메일",
+      "phone": "전화번호",
+      "country": "국가",
+      "website": "웹사이트",
+      "address": "주소",
+      "namePlaceholder": "인도네시아 대학교",
+      "emailPlaceholder": "admin@ui.ac.id",
+      "phonePlaceholder": "+62 812-3456-7890",
+      "countryPlaceholder": "인도네시아",
+      "websitePlaceholder": "https://ui.ac.id",
+      "addressPlaceholder": "데폭 UI 캠퍼스, 서부 자바 16424",
+      "registerButton": "등록",
+      "processing": "처리 중...",
+      "alreadyHaveAccount": "이미 계정이 있으신가요?",
+      "loginHere": "여기서 로그인",
+      "registrationSuccess": "등록 성공. 관리자 승인 대기 중입니다.",
+      "registrationFailed": "등록 실패"
+    }
+  },
+  "admin": {
+    "dashboard": {
+      "title": "관리자 대시보드",
+      "subtitle": "기관 등록 관리",
+      "loggedInAs": "로그인:",
+      "noPendingInstitutions": "승인 대기 중인 기관이 없습니다",
+      "table": {
+        "name": "이름",
+        "email": "이메일",
+        "phone": "전화",
+        "country": "국가",
+        "website": "웹사이트",
+        "actions": "작업",
+        "approve": "승인",
+        "reject": "거부",
+        "processing": "처리 중..."
+      },
+      "confirmApprove": "이 기관을 승인하시겠습니까?",
+      "confirmReject": "이 기관을 거부하시겠습니까?",
+      "approveSuccess": "기관이 승인되었으며 매직 링크가 전송되었습니다!",
+      "rejectSuccess": "기관이 성공적으로 거부되었습니다",
+      "confirmLogout": "로그아웃하시겠습니까?"
+    }
+  },
+  "dashboard": {
+    "welcome": "환영합니다",
+    "overview": "개요",
+    "statistics": "통계",
+    "confirmLogout": "로그아웃하시겠습니까?",
+    "totalCertificates": "총 인증서",
+    "activeCertificates": "활성 인증서",
+    "pendingRequests": "대기 중인 요청",
+    "quickActions": "빠른 작업",
+    "issueCertificate": "인증서 발급",
+    "verifyCertificate": "인증서 검증",
+    "viewTemplates": "템플릿 보기",
+    "settings": "설정",
+    "comingSoon": "곧 출시 예정",
+    "comingSoonDescription": "대시보드 기능이 곧 제공될 예정입니다. 기대해 주세요!"
+  },
+  "errors": {
+    "somethingWentWrong": "문제가 발생했습니다",
+    "tryAgain": "다시 시도해주세요",
+    "networkError": "네트워크 오류가 발생했습니다",
+    "unauthorized": "권한이 없습니다",
+    "forbidden": "접근 금지",
+    "notFound": "찾을 수 없음",
+    "serverError": "서버 오류"
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "filter": "Filter",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "confirm": "Confirm",
+    "logout": "Logout"
+  },
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "admin": "Admin",
+    "register": "Register",
+    "login": "Login"
+  },
+  "home": {
+    "title": "GaneshaDCERT",
+    "subtitle": "Digital Certificate Management System",
+    "adminAccess": "Access admin panel",
+    "registerInstitution": "Register your institution"
+  },
+  "verify": {
+    "verifying": "Verifying Magic Link",
+    "pleaseWait": "Please wait while we verify your link...",
+    "tokenNotFound": "Token not found in URL",
+    "verificationFailed": "Verification failed",
+    "loginSuccessRedirect": "Login successful! Redirecting to dashboard...",
+    "registerNewInstitution": "Register New Institution",
+    "goToHomepage": "Go to Homepage",
+    "aboutMagicLinks": "About Magic Links",
+    "magicLinkDescription": "Magic links are secure, one-time use links sent to your email after admin approval. They expire after 24 hours."
+  },
+  "auth": {
+    "login": {
+      "title": "Admin Login",
+      "subtitle": "GaneshaDCERT Management",
+      "email": "Email",
+      "password": "Password",
+      "emailPlaceholder": "admin@ganeshadcert.com",
+      "passwordPlaceholder": "••••••••",
+      "loginButton": "Login",
+      "processing": "Processing...",
+      "forInstitution": "For institutions?",
+      "registerHere": "Register here",
+      "loginSuccess": "Login successful",
+      "loginFailed": "Login failed",
+      "invalidCredentials": "Invalid email or password"
+    },
+    "register": {
+      "title": "Institution Registration",
+      "subtitle": "Register your institution to issue digital certificates",
+      "name": "Institution Name",
+      "email": "Email",
+      "phone": "Phone Number",
+      "country": "Country",
+      "website": "Website",
+      "address": "Address",
+      "namePlaceholder": "University of Indonesia",
+      "emailPlaceholder": "admin@ui.ac.id",
+      "phonePlaceholder": "+62 812-3456-7890",
+      "countryPlaceholder": "Indonesia",
+      "websitePlaceholder": "https://ui.ac.id",
+      "addressPlaceholder": "UI Campus Depok, West Java 16424",
+      "registerButton": "Register",
+      "processing": "Processing...",
+      "alreadyHaveAccount": "Already have an account?",
+      "loginHere": "Login here",
+      "registrationSuccess": "Registration successful. Waiting for admin approval.",
+      "registrationFailed": "Registration failed"
+    }
+  },
+  "admin": {
+    "dashboard": {
+      "title": "Admin Dashboard",
+      "subtitle": "Manage Institution Registration",
+      "loggedInAs": "Logged in as",
+      "noPendingInstitutions": "No institutions waiting for approval",
+      "table": {
+        "name": "Name",
+        "email": "Email",
+        "phone": "Phone",
+        "country": "Country",
+        "website": "Website",
+        "actions": "Actions",
+        "approve": "Approve",
+        "reject": "Reject",
+        "processing": "Processing..."
+      },
+      "confirmApprove": "Are you sure you want to approve this institution?",
+      "confirmReject": "Are you sure you want to reject this institution?",
+      "approveSuccess": "Institution approved successfully and magic link has been sent!",
+      "rejectSuccess": "Institution rejected successfully",
+      "confirmLogout": "Are you sure you want to logout?"
+    }
+  },
+  "dashboard": {
+    "welcome": "Welcome",
+    "overview": "Overview",
+    "statistics": "Statistics",
+    "confirmLogout": "Are you sure you want to logout?",
+    "totalCertificates": "Total Certificates",
+    "activeCertificates": "Active Certificates",
+    "pendingRequests": "Pending Requests",
+    "quickActions": "Quick Actions",
+    "issueCertificate": "Issue Certificate",
+    "verifyCertificate": "Verify Certificate",
+    "viewTemplates": "View Templates",
+    "settings": "Settings",
+    "comingSoon": "Dashboard Coming Soon",
+    "comingSoonDescription": "This dashboard is under development. More features for certificate management, verification, and analytics will be available soon."
+  },
+  "errors": {
+    "somethingWentWrong": "Something went wrong",
+    "tryAgain": "Please try again",
+    "networkError": "Network error occurred",
+    "unauthorized": "Unauthorized access",
+    "forbidden": "Access forbidden",
+    "notFound": "Not found",
+    "serverError": "Server error"
+  }
+}

@@ -2,10 +2,13 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const t = useTranslations('auth.login');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -30,7 +33,7 @@ export default function AdminLoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Login gagal');
+        throw new Error(data.message || t('loginFailed'));
       }
 
       // Simpan token ke localStorage
@@ -40,7 +43,7 @@ export default function AdminLoginPage() {
       // Redirect ke admin dashboard
       router.push('/admin');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      const errorMessage = err instanceof Error ? err.message : t('loginFailed');
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -49,12 +52,16 @@ export default function AdminLoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+      <div className="absolute top-4 right-4">
+        <LanguageSwitcher />
+      </div>
+      
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Logo/Header */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Login</h1>
-            <p className="text-gray-600">GaneshaDCERT Management</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('title')}</h1>
+            <p className="text-gray-600">{t('subtitle')}</p>
           </div>
 
           {/* Error Message */}
@@ -68,7 +75,7 @@ export default function AdminLoginPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email
+                {t('email')}
               </label>
               <input
                 type="email"
@@ -77,14 +84,14 @@ export default function AdminLoginPage() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="admin@ganeshadcert.com"
+                placeholder={t('emailPlaceholder')}
                 disabled={loading}
               />
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+                {t('password')}
               </label>
               <input
                 type="password"
@@ -93,7 +100,7 @@ export default function AdminLoginPage() {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="••••••••"
+                placeholder={t('passwordPlaceholder')}
                 disabled={loading}
               />
             </div>
@@ -109,10 +116,10 @@ export default function AdminLoginPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Memproses...
+                  {t('processing')}
                 </span>
               ) : (
-                'Login'
+                t('loginButton')
               )}
             </button>
           </form>
@@ -120,9 +127,9 @@ export default function AdminLoginPage() {
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-500">
-              Untuk institusi?{' '}
+              {t('forInstitution')}{' '}
               <a href="/register" className="text-blue-600 hover:text-blue-700 font-medium">
-                Daftar di sini
+                {t('registerHere')}
               </a>
             </p>
           </div>
