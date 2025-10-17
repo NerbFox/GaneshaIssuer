@@ -19,6 +19,13 @@ export const API_ENDPOINTS = {
     VERIFY_MAGIC_LINK: '/api/v1/auth/verify-magic-link',
     PROFILE: '/api/v1/auth/profile',
   },
+  // Admin Auth endpoints
+  ADMIN: {
+    LOGIN: '/api/v1/admin/auth/login',
+    PROFILE: '/api/v1/admin/auth/profile',
+    CREATE: '/api/v1/admin/auth/create',
+    CHANGE_PASSWORD: '/api/v1/admin/auth/change-password',
+  },
   // Institution Registration endpoints
   INSTITUTION: {
     LIST: '/api/v1/institution-registration',
