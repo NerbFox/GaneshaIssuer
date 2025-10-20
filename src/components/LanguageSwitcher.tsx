@@ -28,15 +28,15 @@ export default function LanguageSwitcher({ preserveQuery = false }: LanguageSwit
     startTransition(() => {
       // Get current path without locale prefix
       const pathWithoutLocale = pathname.replace(/^\/(en|ko|id)/, '');
-      
+
       // Build new path with new locale
       let newPath = `/${newLocale}${pathWithoutLocale}`;
-      
+
       // Preserve query parameters if needed
       if (preserveQuery && searchParams.toString()) {
         newPath += `?${searchParams.toString()}`;
       }
-      
+
       router.push(newPath);
       setIsOpen(false);
     });
@@ -63,10 +63,7 @@ export default function LanguageSwitcher({ preserveQuery = false }: LanguageSwit
 
       {isOpen && (
         <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setIsOpen(false)}
-          />
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-20">
             {languages.map((lang) => (
               <button

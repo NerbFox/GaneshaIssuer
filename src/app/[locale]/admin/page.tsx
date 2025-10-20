@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
@@ -34,6 +34,38 @@ export default function AdminPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [adminData, setAdminData] = useState<AdminData | null>(null);
 
+  const fetchPendingInstitutions = useCallback(
+    async (token: string) => {
+      try {
+        const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.PENDING_INSTITUTIONS), {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+
+        if (response.status === 401) {
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminData');
+          router.push('/admin/login');
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to fetch data');
+        }
+
+        setInstitutions(data.data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [router]
+  );
+
   useEffect(() => {
     // Cek apakah admin sudah login
     const token = localStorage.getItem('adminToken');
@@ -46,37 +78,7 @@ export default function AdminPage() {
 
     setAdminData(JSON.parse(admin));
     fetchPendingInstitutions(token);
-  }, [router]);
-
-  const fetchPendingInstitutions = async (token: string) => {
-    try {
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.PENDING_INSTITUTIONS), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.status === 401) {
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminData');
-        router.push('/admin/login');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch data');
-      }
-
-      setInstitutions(data.data);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [router, fetchPendingInstitutions]);
 
   const handleApprove = async (institutionId: string) => {
     if (!confirm(t('confirmApprove'))) {
@@ -95,7 +97,7 @@ export default function AdminPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           approvedBy: adminData?.name || 'Admin',
@@ -141,7 +143,7 @@ export default function AdminPage() {
       const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.REJECT(institutionId)), {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -197,7 +199,8 @@ export default function AdminPage() {
             <p className="text-gray-600 mt-2">{t('subtitle')}</p>
             {adminData && (
               <p className="text-sm text-gray-500 mt-1">
-                {t('loggedInAs')}: <span className="font-medium">{adminData.name}</span> ({adminData.email})
+                {t('loggedInAs')}: <span className="font-medium">{adminData.name}</span> (
+                {adminData.email})
               </p>
             )}
           </div>
@@ -228,12 +231,24 @@ export default function AdminPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.name')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.email')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.phone')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.country')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.website')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('table.actions')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t('table.name')}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t('table.email')}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t('table.phone')}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t('table.country')}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t('table.website')}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      {t('table.actions')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -243,11 +258,22 @@ export default function AdminPage() {
                         <div className="text-sm font-medium text-gray-900">{institution.name}</div>
                         <div className="text-sm text-gray-500">{institution.address}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{institution.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{institution.phone}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{institution.country}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {institution.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {institution.phone}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {institution.country}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <a href={institution.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        <a
+                          href={institution.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
                           {institution.website}
                         </a>
                       </td>
@@ -258,7 +284,9 @@ export default function AdminPage() {
                             disabled={processingId === institution.id}
                             className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 disabled:bg-gray-400"
                           >
-                            {processingId === institution.id ? t('table.processing') : t('table.approve')}
+                            {processingId === institution.id
+                              ? t('table.processing')
+                              : t('table.approve')}
                           </button>
                           <button
                             onClick={() => handleReject(institution.id)}
