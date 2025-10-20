@@ -9,15 +9,15 @@ services:
       # Tidak perlu args lagi! .env sudah di-copy di Dockerfile
     restart: unless-stopped
     ports:
-      - "3070:3000"  # Map port 3070 di host ke 3000 di container
+      - '3070:3000' # Map port 3070 di host ke 3000 di container
     environment:
       - NODE_ENV=production
     env_file:
-      - .env  # Load environment variables dari .env file (untuk runtime jika perlu)
+      - .env # Load environment variables dari .env file (untuk runtime jika perlu)
     networks:
       - ganesha-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3000']
       interval: 30s
       timeout: 10s
       retries: 3

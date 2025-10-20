@@ -1,18 +1,18 @@
-import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Plus_Jakarta_Sans } from 'next/font/google';
+import './globals.css';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta-sans",
-  subsets: ["latin"],
-  weight: ["200", "300", "400", "500", "600", "700", "800"],
-  style: ["normal", "italic"],
-  display: "swap",
+  variable: '--font-plus-jakarta-sans',
+  subsets: ['latin'],
+  weight: ['200', '300', '400', '500', '600', '700', '800'],
+  style: ['normal', 'italic'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "GaneshaDCERT",
-  description: "Digital Certificate Management System",
+  title: 'GaneshaDCERT',
+  description: 'Digital Certificate Management System',
 };
 
 export default function RootLayout({
@@ -22,9 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${plusJakartaSans.variable} antialiased`}>
-        {children}
-      </body>
+      <body className={`${plusJakartaSans.variable} antialiased`}>{children}</body>
     </html>
   );
 }
