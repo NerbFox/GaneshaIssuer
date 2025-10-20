@@ -49,20 +49,14 @@ const ThemedTextComponent = forwardRef<HTMLSpanElement, ThemedTextProps>((props,
     return styles;
   }, [fontWeight, fontStyle, fontSize, hasTailwindTextSize]);
 
-    return (
-      <span
-        ref={ref}
-        className={clsx(className)}
-        style={{ ...fontStyles, ...style }}
-        {...restProps}
-      >
-        {children}
-      </span>
-    );
-  }
-);
+  return (
+    <span ref={ref} className={clsx(className)} style={{ ...fontStyles, ...style }} {...restProps}>
+      {children}
+    </span>
+  );
+});
 
-ThemedTextComponent.displayName = "ThemedText";
+ThemedTextComponent.displayName = 'ThemedText';
 
 export const ThemedText = memo(ThemedTextComponent);
 ThemedText.displayName = 'ThemedText';
