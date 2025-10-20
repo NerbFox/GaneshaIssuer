@@ -9,16 +9,20 @@ interface Step {
 }
 
 interface StepIndicatorProps {
-  steps: Step[];
   currentStep: number;
 }
 
+const steps = [
+  { number: 1, label: "Fill data" },
+  { number: 2, label: "Confirm seed phrase" },
+  { number: 3, label: "Claim DID" },
+];
+
 export const StepIndicator: React.FC<StepIndicatorProps> = ({
-  steps,
   currentStep,
 }) => {
   return (
-    <div className="flex items-center w-full border justify-start">
+    <div className="flex items-center w-full justify-start">
       {steps.map((step, index) => (
         <React.Fragment key={step.number}>
           <div className="flex flex-col items-center flex-1">
@@ -32,7 +36,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({
             >
               <ThemedText
                 fontSize={10}
-                fontWeight={700}
+                fontWeight={500}
                 className={`${
                   step.number <= currentStep
                     ? "text-white"
@@ -48,7 +52,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({
               fontWeight={500}
               className={`text-center ${
                 step.number <= currentStep
-                  ? "text-[#0D2B45]"
+                  ? "text-[#0D2B45] text-[12px]"
                   : "text-gray-400"
               }`}
             >
