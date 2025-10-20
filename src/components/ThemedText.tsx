@@ -21,23 +21,34 @@ export interface ThemedTextProps
   style?: React.CSSProperties;
 }
 
-const ThemedTextComponent = forwardRef<HTMLSpanElement, ThemedTextProps>(
-  (props, ref) => {
-    const {
-      fontWeight = DEFAULT_FONT_WEIGHT,
-      fontStyle = DEFAULT_FONT_STYLE,
-      fontSize = DEFAULT_FONT_SIZE,
-      className,
-      style,
-      children,
-      ...restProps
-    } = props;
+const ThemedTextComponent = forwardRef<HTMLSpanElement, ThemedTextProps>((props, ref) => {
+  const {
+    fontWeight = DEFAULT_FONT_WEIGHT,
+    fontStyle = DEFAULT_FONT_STYLE,
+    fontSize = DEFAULT_FONT_SIZE,
+    className,
+    style,
+    children,
+    ...restProps
+  } = props;
 
-    // Memoize font-related inline styles
-    const fontStyles = useMemo<React.CSSProperties>(
-      () => getFontStyles(fontWeight, fontStyle, fontSize),
-      [fontWeight, fontStyle, fontSize]
-    );
+  // Check if className contains a Tailwind text size class
+  const hasTailwindTextSize = useMemo(() => {
+    if (!className) return false;
+    // Match text-{size} classes like text-sm, text-xl, text-[28px], etc.
+    return /text-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])/.test(className);
+  }, [className]);
+
+  // Memoize font-related inline styles
+  const fontStyles = useMemo<React.CSSProperties>(() => {
+    const styles = getFontStyles(fontWeight, fontStyle, fontSize);
+    // If Tailwind text size class is present, remove fontSize from inline styles
+    if (hasTailwindTextSize) {
+      const { fontSize: _, ...stylesWithoutFontSize } = styles;
+      return stylesWithoutFontSize;
+    }
+    return styles;
+  }, [fontWeight, fontStyle, fontSize, hasTailwindTextSize]);
 
     return (
       <span
