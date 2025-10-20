@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - dev
-    
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -21,7 +21,7 @@ jobs:
           host: ${{ secrets.VPS_HOST_DEV }}
           username: ${{ secrets.VPS_USER_DEV }}
           key: ${{ secrets.VPS_SSH_KEY_DEV }}
-          
+
           # Bagian script disesuaikan untuk proyek Next.js
           script: |
             # Masuk ke direktori frontend yang baru
@@ -31,59 +31,58 @@ jobs:
             echo "🔧 Ensuring correct Git remote URL for SSH alias..."
             # Atur URL remote agar menggunakan alias SSH yang benar
             git remote set-url origin git@github.com-ganeshaissuer:NerbFox/GaneshaIssuer.git
-            
+
             echo "📦 Pulling latest code from dev branch..."
             # Reset package-lock.json jika ada konflik
             git checkout HEAD -- package-lock.json 2>/dev/null || true
-            
+
             # Stash any local changes
             git stash
-            
+
             # Ambil source code terbaru dari branch dev
             git pull origin dev
-            
+
             # Pop stashed changes jika ada (tapi abaikan error)
             git stash pop 2>/dev/null || true
             # --- PERUBAHAN PENTING SELESAI ---
-            
+
             echo "📝 Creating .env file from GitHub secrets..."
             # Buat file .env dari secrets GitHub
             # File ini akan di-copy ke dalam Docker image saat build
             echo "${{ secrets.ENTIRE_ENV_FILE_STAGING }}" > .env
-            
+
             echo "🔨 Building Docker image (this may take a while)..."
             # Build image baru dengan no-cache untuk memastikan update
             # .env file akan otomatis di-copy ke dalam build context
             docker compose build --no-cache
-            
+
             # Cek apakah build berhasil
             if [ $? -ne 0 ]; then
               echo "❌ Docker build failed! Stopping deployment."
               exit 1
             fi
-            
+
             echo "⏹️  Stopping old containers..."
             # Hentikan container lama
             docker compose down
-            
+
             echo "🎬 Starting new containers..."
             # Jalankan container baru di background
             docker compose up -d
-            
+
             # Cek apakah container berjalan
             if [ $? -ne 0 ]; then
               echo "❌ Failed to start containers! Rolling back..."
               docker compose down
               exit 1
             fi
-            
+
             echo "🧹 Cleaning up old Docker images..."
             # Hapus image yang tidak terpakai untuk hemat space
             docker image prune -af
-            
+
             echo "✅ Deployment completed successfully!"
-            
+
             # Optional: Tampilkan status container
             echo "📊 Container status:"
             docker compose ps
-            

@@ -7,13 +7,13 @@ import LanguageSwitcher from '@/components/LanguageSwitcher';
 export default function HomePage() {
   const t = useTranslations('nav');
   const tHome = useTranslations('home');
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="absolute top-4 right-4">
         <LanguageSwitcher />
       </div>
-      
+
       <div className="flex flex-col items-center justify-center min-h-screen px-4">
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold text-gray-900 mb-4">{tHome('title')}</h1>
