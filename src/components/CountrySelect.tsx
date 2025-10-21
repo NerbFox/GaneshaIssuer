@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import Select, { StylesConfig } from 'react-select';
 import countryList from 'country-list';
 import { ThemedText } from './ThemedText';
+import { useTranslations } from 'next-intl';
 
 interface CountrySelectProps {
   id: string;
@@ -116,6 +117,8 @@ export default function CountrySelect({
   disabled = false,
   className = '',
 }: CountrySelectProps) {
+  const t = useTranslations('auth.register');
+
   const countries = useMemo(() => {
     const allCountries = countryList.getData();
     return allCountries.map((country) => ({
@@ -140,7 +143,7 @@ export default function CountrySelect({
         onChange={handleChange}
         isDisabled={disabled}
         styles={customStyles}
-        placeholder="Select a country"
+        placeholder={t('countryPlaceholder')}
         isSearchable
         className="react-select-container"
         classNamePrefix="react-select"

@@ -69,27 +69,27 @@ export default function RegistrationSuccessPage() {
                 clipRule="evenodd"
               />
             </svg>
-            <div>
-              <ThemedText fontSize={14} fontWeight={600} className="text-[#0D2B45] mb-2 block">
-                What happens next?
+            <div className="flex-1">
+              <ThemedText fontSize={14} fontWeight={600} className="text-[#0D2B45] mb-3 block">
+                {t('whatHappensNext')}
               </ThemedText>
-              <ul className="space-y-2">
-                <li className="flex items-start gap-2">
-                  <span className="text-[#0D2B45] mt-1">•</span>
-                  <ThemedText fontSize={14} className="text-gray-700">
-                    Our admin team will review your application
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3">
+                  <span className="text-[#0D2B45] font-bold flex-shrink-0">•</span>
+                  <ThemedText fontSize={14} className="text-gray-700 flex-1">
+                    {t('step1')}
                   </ThemedText>
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-[#0D2B45] mt-1">•</span>
-                  <ThemedText fontSize={14} className="text-gray-700">
-                    You&apos;ll receive a magic link via email once approved
+                <li className="flex items-start gap-3">
+                  <span className="text-[#0D2B45] font-bold flex-shrink-0">•</span>
+                  <ThemedText fontSize={14} className="text-gray-700 flex-1">
+                    {t('step2')}
                   </ThemedText>
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-[#0D2B45] mt-1">•</span>
-                  <ThemedText fontSize={14} className="text-gray-700">
-                    Use the magic link to complete your institution setup
+                <li className="flex items-start gap-3">
+                  <span className="text-[#0D2B45] font-bold flex-shrink-0">•</span>
+                  <ThemedText fontSize={14} className="text-gray-700 flex-1">
+                    {t('step3')}
                   </ThemedText>
                 </li>
               </ul>

@@ -80,6 +80,19 @@ export default function InstitutionRegisterPage() {
     setLoading(true);
 
     try {
+      // Development bypass: Check if DEV_BYPASS environment variable is set or use query param
+      const urlParams = new URLSearchParams(window.location.search);
+      const devBypass =
+        process.env.NEXT_PUBLIC_DEV_BYPASS === 'true' || urlParams.get('dev') === 'true';
+
+      if (devBypass) {
+        // Simulate delay for development
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        console.log('DEV MODE: Bypassing registration API call', formData);
+        router.push('/institution/register/success');
+        return;
+      }
+
       const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.REGISTER), {
         method: 'POST',
         headers: {

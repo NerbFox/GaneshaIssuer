@@ -61,7 +61,11 @@
       "success": {
         "title": "등록 제출 완료!",
         "subtitle": "등록 요청을 주셔서 감사합니다. 귀하의 신청서는 현재 관리자 팀에서 검토 중입니다. 승인되면 등록하신 이메일 주소로 매직 링크를 보내드려 설정 프로세스를 완료할 수 있도록 하겠습니다. 확인 이메일을 받기 위해 정기적으로 받은 편지함을 확인해 주세요.",
-        "backToHome": "홈으로 돌아가기"
+        "backToHome": "홈으로 돌아가기",
+        "whatHappensNext": "다음 단계는 무엇입니까?",
+        "step1": "관리자 팀이 귀하의 신청서를 검토합니다",
+        "step2": "승인되면 이메일로 매직 링크를 받게 됩니다",
+        "step3": "매직 링크를 사용하여 기관 설정을 완료하세요"
       },
       "name": "기관명",
       "email": "이메일",
@@ -72,7 +76,7 @@
       "namePlaceholder": "인도네시아 대학교",
       "emailPlaceholder": "admin@ui.ac.id",
       "phonePlaceholder": "+628123456789",
-      "countryPlaceholder": "인도네시아",
+      "countryPlaceholder": "국가 선택",
       "websitePlaceholder": "https://ui.ac.id",
       "addressPlaceholder": "데폭 UI 캠퍼스, 서부 자바 16424",
       "registerButton": "등록",
@@ -132,5 +136,15 @@
     "forbidden": "접근 금지",
     "notFound": "찾을 수 없음",
     "serverError": "서버 오류"
+  },
+  "terms": {
+    "title": "서비스 약관",
+    "lastUpdated": "최종 업데이트: 2025년 10월 21일",
+    "back": "뒤로"
+  },
+  "privacy": {
+    "title": "개인정보 보호정책",
+    "lastUpdated": "최종 업데이트: 2025년 10월 21일",
+    "back": "뒤로"
   }
 }

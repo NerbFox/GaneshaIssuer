@@ -72,7 +72,11 @@
       "success": {
         "title": "Registration Submitted!",
         "subtitle": "Thank you for your registration request. Your application is now under review by our admin team. Once approved, we will send a magic link to your registered email address to complete the setup process. Please check your inbox regularly for our confirmation email.",
-        "backToHome": "Back to Home"
+        "backToHome": "Back to Home",
+        "whatHappensNext": "What happens next?",
+        "step1": "Our admin team will review your application",
+        "step2": "You'll receive a magic link via email once approved",
+        "step3": "Use the magic link to complete your institution setup"
       },
       "name": "Institution Name",
       "email": "Email",
@@ -83,7 +87,7 @@
       "namePlaceholder": "University of Indonesia",
       "emailPlaceholder": "admin@ui.ac.id",
       "phonePlaceholder": "+628123456789",
-      "countryPlaceholder": "Indonesia",
+      "countryPlaceholder": "Select a country",
       "websitePlaceholder": "https://ui.ac.id",
       "addressPlaceholder": "UI Campus Depok, West Java 16424",
       "registerButton": "Register",
@@ -143,5 +147,15 @@
     "forbidden": "Access forbidden",
     "notFound": "Not found",
     "serverError": "Server error"
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last Updated: October 21, 2025",
+    "back": "Back"
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last Updated: October 21, 2025",
+    "back": "Back"
   }
 }

@@ -72,7 +72,11 @@
       "success": {
         "title": "Pendaftaran Terkirim!",
         "subtitle": "Terima kasih atas permintaan pendaftaran Anda. Aplikasi Anda sekarang sedang ditinjau oleh tim admin kami. Setelah disetujui, kami akan mengirimkan tautan ajaib ke alamat email terdaftar Anda untuk menyelesaikan proses pengaturan. Silakan periksa kotak masuk Anda secara berkala untuk email konfirmasi kami.",
-        "backToHome": "Kembali ke Beranda"
+        "backToHome": "Kembali ke Beranda",
+        "whatHappensNext": "Apa yang terjadi selanjutnya?",
+        "step1": "Tim admin kami akan meninjau aplikasi Anda",
+        "step2": "Anda akan menerima tautan ajaib melalui email setelah disetujui",
+        "step3": "Gunakan tautan ajaib untuk menyelesaikan pengaturan institusi Anda"
       },
       "name": "Nama Institusi",
       "email": "Email",
@@ -83,7 +87,7 @@
       "namePlaceholder": "Universitas Indonesia",
       "emailPlaceholder": "admin@ui.ac.id",
       "phonePlaceholder": "+628123456789",
-      "countryPlaceholder": "Indonesia",
+      "countryPlaceholder": "Pilih negara",
       "websitePlaceholder": "https://ui.ac.id",
       "addressPlaceholder": "Kampus UI Depok, Jawa Barat 16424",
       "registerButton": "Daftar",
@@ -143,5 +147,15 @@
     "forbidden": "Akses ditolak",
     "notFound": "Tidak ditemukan",
     "serverError": "Kesalahan server"
+  },
+  "terms": {
+    "title": "Ketentuan Layanan",
+    "lastUpdated": "Terakhir Diperbarui: 21 Oktober 2025",
+    "back": "Kembali"
+  },
+  "privacy": {
+    "title": "Kebijakan Privasi",
+    "lastUpdated": "Terakhir Diperbarui: 21 Oktober 2025",
+    "back": "Kembali"
   }
 }
