@@ -1,18 +1,15 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
-import PageHeader from '@/components/PageHeader';
+import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
+import PageHeader from '@/components/PageHeader';
 import { Link } from '@/i18n/routing';
-import { ThemedText } from '@/components/ThemedText';
 
-export default function AdminLoginPage() {
-  const router = useRouter();
+export default function InstitutionLoginPage() {
   const t = useTranslations('auth.login');
   const [formData, setFormData] = useState({
     email: '',
@@ -26,33 +23,11 @@ export default function AdminLoginPage() {
     setError('');
     setLoading(true);
 
-    try {
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.ADMIN.LOGIN), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || t('loginFailed'));
-      }
-
-      // Simpan token ke localStorage
-      localStorage.setItem('adminToken', data.data.token);
-      localStorage.setItem('adminData', JSON.stringify(data.data.admin));
-
-      // Redirect ke admin dashboard
-      router.push('/admin');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('loginFailed');
-      setError(errorMessage);
-    } finally {
+    // Placeholder implementation
+    setTimeout(() => {
+      setError('Login functionality coming soon');
       setLoading(false);
-    }
+    }, 1000);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,7 +39,7 @@ export default function AdminLoginPage() {
 
   return (
     <div className="min-h-screen bg-[#0D2B45] flex items-center justify-center relative py-28 px-4">
-      <PageHeader backHref="/" />
+      <PageHeader backHref="/institution/setup" />
 
       <div className="bg-white rounded-4xl w-full max-w-md shadow-xl p-8 md:p-12 relative z-10">
         {/* Logo */}
@@ -80,10 +55,10 @@ export default function AdminLoginPage() {
         {/* Title */}
         <div className="text-center mb-8">
           <ThemedText fontSize={40} fontWeight={700} className="text-black mb-2 block">
-            {t('title')}
+            {t('institutionLogin')}
           </ThemedText>
           <ThemedText fontSize={16} className="text-gray-600 block">
-            {t('subtitle')}
+            {t('institutionLoginSubtitle')}
           </ThemedText>
         </div>
 
@@ -125,7 +100,7 @@ export default function AdminLoginPage() {
             <ThemedText fontSize={12} className="text-gray-600">
               {t('forInstitution')}{' '}
               <Link
-                href="/institution/setup"
+                href="/institution/register"
                 className="text-[#0D2B45] hover:underline font-medium"
               >
                 {t('registerHere')}

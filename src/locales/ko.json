@@ -21,6 +21,7 @@
     "home": "홈",
     "dashboard": "대시보드",
     "admin": "관리자",
+    "institution": "기관",
     "register": "등록",
     "login": "로그인"
   },
@@ -31,9 +32,17 @@
     "registerInstitution": "기관 등록"
   },
   "auth": {
+    "setup": {
+      "title": "지갑 설정",
+      "subtitle": "기존 지갑에 로그인하거나 새 지갑을 만드세요",
+      "createWallet": "새 지갑 만들기",
+      "loginWallet": "기존 지갑에 로그인"
+    },
     "login": {
       "title": "관리자 로그인",
       "subtitle": "GaneshaDCERT 관리",
+      "institutionLogin": "기관 로그인",
+      "institutionLoginSubtitle": "기관 계정에 로그인",
       "email": "이메일",
       "password": "비밀번호",
       "emailPlaceholder": "admin@ganeshadcert.com",
@@ -49,6 +58,11 @@
     "register": {
       "title": "기관 등록",
       "subtitle": "디지털 인증서를 발급하기 위해 기관을 등록하세요",
+      "success": {
+        "title": "등록 제출 완료!",
+        "subtitle": "등록 요청을 주셔서 감사합니다. 귀하의 신청서는 현재 관리자 팀에서 검토 중입니다. 승인되면 등록하신 이메일 주소로 매직 링크를 보내드려 설정 프로세스를 완료할 수 있도록 하겠습니다. 확인 이메일을 받기 위해 정기적으로 받은 편지함을 확인해 주세요.",
+        "backToHome": "홈으로 돌아가기"
+      },
       "name": "기관명",
       "email": "이메일",
       "phone": "전화번호",
@@ -57,7 +71,7 @@
       "address": "주소",
       "namePlaceholder": "인도네시아 대학교",
       "emailPlaceholder": "admin@ui.ac.id",
-      "phonePlaceholder": "+62 812-3456-7890",
+      "phonePlaceholder": "+628123456789",
       "countryPlaceholder": "인도네시아",
       "websitePlaceholder": "https://ui.ac.id",
       "addressPlaceholder": "데폭 UI 캠퍼스, 서부 자바 16424",
@@ -65,6 +79,7 @@
       "processing": "처리 중...",
       "alreadyHaveAccount": "이미 계정이 있으신가요?",
       "loginHere": "여기서 로그인",
+      "privacyPolicy": "등록함으로써 귀하는 당사의 <terms>서비스 약관</terms> 및 <privacy>개인정보 보호정책</privacy>에 동의하는 것입니다",
       "registrationSuccess": "등록 성공. 관리자 승인 대기 중입니다.",
       "registrationFailed": "등록 실패"
     }

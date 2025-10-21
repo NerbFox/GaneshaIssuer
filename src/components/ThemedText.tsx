@@ -43,26 +43,21 @@ const ThemedTextComponent = forwardRef<HTMLSpanElement, ThemedTextProps>((props,
     const styles = getFontStyles(fontWeight, fontStyle, fontSize);
     // If Tailwind text size class is present, remove fontSize from inline styles
     if (hasTailwindTextSize) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { fontSize: _, ...stylesWithoutFontSize } = styles;
       return stylesWithoutFontSize;
     }
     return styles;
   }, [fontWeight, fontStyle, fontSize, hasTailwindTextSize]);
 
-    return (
-      <span
-        ref={ref}
-        className={clsx(className)}
-        style={{ ...fontStyles, ...style }}
-        {...restProps}
-      >
-        {children}
-      </span>
-    );
-  }
-);
+  return (
+    <span ref={ref} className={clsx(className)} style={{ ...fontStyles, ...style }} {...restProps}>
+      {children}
+    </span>
+  );
+});
 
-ThemedTextComponent.displayName = "ThemedText";
+ThemedTextComponent.displayName = 'ThemedText';
 
 export const ThemedText = memo(ThemedTextComponent);
 ThemedText.displayName = 'ThemedText';
