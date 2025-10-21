@@ -21,6 +21,7 @@
     "home": "Home",
     "dashboard": "Dashboard",
     "admin": "Admin",
+    "institution": "Institution",
     "register": "Register",
     "login": "Login"
   },
@@ -42,9 +43,17 @@
     "magicLinkDescription": "Magic links are secure, one-time use links sent to your email after admin approval. They expire after 24 hours."
   },
   "auth": {
+    "setup": {
+      "title": "Wallet Setup",
+      "subtitle": "Login to your existing wallet or create a new one",
+      "createWallet": "Create a new wallet",
+      "loginWallet": "Login to existing wallet"
+    },
     "login": {
       "title": "Admin Login",
       "subtitle": "GaneshaDCERT Management",
+      "institutionLogin": "Institution Login",
+      "institutionLoginSubtitle": "Login to your institution account",
       "email": "Email",
       "password": "Password",
       "emailPlaceholder": "admin@ganeshadcert.com",
@@ -60,6 +69,11 @@
     "register": {
       "title": "Institution Registration",
       "subtitle": "Register your institution to issue digital certificates",
+      "success": {
+        "title": "Registration Submitted!",
+        "subtitle": "Thank you for your registration request. Your application is now under review by our admin team. Once approved, we will send a magic link to your registered email address to complete the setup process. Please check your inbox regularly for our confirmation email.",
+        "backToHome": "Back to Home"
+      },
       "name": "Institution Name",
       "email": "Email",
       "phone": "Phone Number",
@@ -68,7 +82,7 @@
       "address": "Address",
       "namePlaceholder": "University of Indonesia",
       "emailPlaceholder": "admin@ui.ac.id",
-      "phonePlaceholder": "+62 812-3456-7890",
+      "phonePlaceholder": "+628123456789",
       "countryPlaceholder": "Indonesia",
       "websitePlaceholder": "https://ui.ac.id",
       "addressPlaceholder": "UI Campus Depok, West Java 16424",
@@ -76,6 +90,7 @@
       "processing": "Processing...",
       "alreadyHaveAccount": "Already have an account?",
       "loginHere": "Login here",
+      "privacyPolicy": "By registering, you agree to our <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>",
       "registrationSuccess": "Registration successful. Waiting for admin approval.",
       "registrationFailed": "Registration failed"
     }
