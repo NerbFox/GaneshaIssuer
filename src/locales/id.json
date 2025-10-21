@@ -21,6 +21,7 @@
     "home": "Beranda",
     "dashboard": "Dashboard",
     "admin": "Admin",
+    "institution": "Institusi",
     "register": "Daftar",
     "login": "Masuk"
   },
@@ -42,9 +43,17 @@
     "magicLinkDescription": "Magic link adalah tautan aman yang hanya dapat digunakan satu kali, dikirim ke email Anda setelah persetujuan admin. Link ini akan kedaluwarsa setelah 24 jam."
   },
   "auth": {
+    "setup": {
+      "title": "Pengaturan Wallet",
+      "subtitle": "Masuk ke wallet Anda yang sudah ada atau buat yang baru",
+      "createWallet": "Buat wallet baru",
+      "loginWallet": "Masuk ke wallet yang ada"
+    },
     "login": {
       "title": "Login Admin",
       "subtitle": "Manajemen GaneshaDCERT",
+      "institutionLogin": "Login Institusi",
+      "institutionLoginSubtitle": "Masuk ke akun institusi Anda",
       "email": "Email",
       "password": "Kata Sandi",
       "emailPlaceholder": "admin@ganeshadcert.com",
@@ -60,6 +69,11 @@
     "register": {
       "title": "Pendaftaran Institusi",
       "subtitle": "Daftarkan institusi Anda untuk menerbitkan sertifikat digital",
+      "success": {
+        "title": "Pendaftaran Terkirim!",
+        "subtitle": "Terima kasih atas permintaan pendaftaran Anda. Aplikasi Anda sekarang sedang ditinjau oleh tim admin kami. Setelah disetujui, kami akan mengirimkan tautan ajaib ke alamat email terdaftar Anda untuk menyelesaikan proses pengaturan. Silakan periksa kotak masuk Anda secara berkala untuk email konfirmasi kami.",
+        "backToHome": "Kembali ke Beranda"
+      },
       "name": "Nama Institusi",
       "email": "Email",
       "phone": "Nomor Telepon",
@@ -68,7 +82,7 @@
       "address": "Alamat",
       "namePlaceholder": "Universitas Indonesia",
       "emailPlaceholder": "admin@ui.ac.id",
-      "phonePlaceholder": "+62 812-3456-7890",
+      "phonePlaceholder": "+628123456789",
       "countryPlaceholder": "Indonesia",
       "websitePlaceholder": "https://ui.ac.id",
       "addressPlaceholder": "Kampus UI Depok, Jawa Barat 16424",
@@ -76,6 +90,7 @@
       "processing": "Memproses...",
       "alreadyHaveAccount": "Sudah punya akun?",
       "loginHere": "Masuk di sini",
+      "privacyPolicy": "Dengan mendaftar, Anda menyetujui <terms>Ketentuan Layanan</terms> dan <privacy>Kebijakan Privasi</privacy> kami",
       "registrationSuccess": "Pendaftaran berhasil. Menunggu persetujuan admin.",
       "registrationFailed": "Pendaftaran gagal"
     }
