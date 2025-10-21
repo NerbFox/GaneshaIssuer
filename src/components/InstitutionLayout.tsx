@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { sidebarNavigation, NavigationSection, NavigationItem } from '@/constants/navigation';
+import { ThemedText } from './ThemedText';
 
 interface InstitutionLayoutProps {
   children: ReactNode;
@@ -25,10 +26,16 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
   return (
     <div className="min-h-screen bg-[#0C2D48] relative">
       {/* Sidebar closed button - sticks to top-left corner */}
-      {isCollapsed && (
+      <div
+        className={`absolute top-0 left-0 w-16 h-16 bg-[#F5F5F5] rounded-br-3xl flex items-center justify-center hover:bg-gray-200 shadow-lg z-50 transition-all duration-500 ease-in-out ${
+          isCollapsed
+            ? 'opacity-100 translate-x-0'
+            : 'opacity-0 -translate-x-20 pointer-events-none'
+        }`}
+      >
         <button
           onClick={() => setIsCollapsed(false)}
-          className="absolute top-0 left-0 w-16 h-16 bg-[#F5F5F5] rounded-br-3xl flex items-center justify-center hover:bg-gray-200 transition-colors shadow-lg z-50"
+          className="w-full h-full flex items-center justify-center group"
           aria-label="Open sidebar"
         >
           <Image
@@ -36,9 +43,10 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
             alt="Sidebar"
             width={24}
             height={24}
+            className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-180"
           />
         </button>
-      )}
+      </div>
 
       <div className="p-5 flex gap-5 h-screen">
         {/* Sidebar */}
@@ -50,10 +58,16 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
                 {/* Toggle button */}
                 <button
                   onClick={() => setIsCollapsed(true)}
-                  className="w-6 h-6 border border-gray-300 rounded flex items-center justify-center hover:bg-gray-200"
+                  className="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-200 transition-all duration-300 group"
                   aria-label="Close sidebar"
                 >
-                  <span className="text-xs">✕</span>
+                <Image
+                  src="/SidebarIcon.svg"
+                  alt="Sidebar"
+                  width={24}
+                  height={24}
+                  className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-180"
+                />
                 </button>
               </div>
             </div>
@@ -64,9 +78,9 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
                 <div key={sectionIndex} className="mb-5">
                   {section.title && (
                     <div className="px-2 mb-2">
-                      <h3 className="text-xs font-normal text-gray-400">
+                      <ThemedText fontSize={14} className="text-xs font-normal text-gray-500">
                         {section.title}
-                      </h3>
+                      </ThemedText>
                     </div>
                   )}
                   <ul className="space-y-0.5">
@@ -92,7 +106,7 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
                               />
                             )}
                           </div>
-                          <span className="text-sm">{item.label}</span>
+                          <ThemedText className="text-sm text-black">{item.label}</ThemedText>
                         </Link>
                       </li>
                     ))}
@@ -112,7 +126,7 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
                     height={24}
                   />
                 </div>
-                <span className="font-semibold text-sm text-gray-900">GaneshaWallet</span>
+                <ThemedText className="font-semibold text-sm text-black">GaneshaWallet</ThemedText>
               </div>
             </div>
           </aside>
