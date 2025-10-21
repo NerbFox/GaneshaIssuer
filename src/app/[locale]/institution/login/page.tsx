@@ -1,0 +1,119 @@
+'use client';
+
+import { useState, FormEvent } from 'react';
+import { useTranslations } from 'next-intl';
+import Image from 'next/image';
+import { ThemedText } from '@/components/ThemedText';
+import Button from '@/components/Button';
+import Input from '@/components/Input';
+import PageHeader from '@/components/PageHeader';
+import { Link } from '@/i18n/routing';
+
+export default function InstitutionLoginPage() {
+  const t = useTranslations('auth.login');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    // Placeholder implementation
+    setTimeout(() => {
+      setError('Login functionality coming soon');
+      setLoading(false);
+    }, 1000);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0D2B45] flex items-center justify-center relative py-28 px-4">
+      <PageHeader backHref="/institution/setup" />
+
+      <div className="bg-white rounded-4xl w-full max-w-md shadow-xl p-8 md:p-12 relative z-10">
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <div className="flex items-center">
+            <Image src="/GWallet.svg" width={50} height={50} alt="GaneshaWallet Logo" />
+            <ThemedText fontSize={20} fontWeight={700} className="pl-2 text-[#0C2D48]">
+              GaneshaWallet
+            </ThemedText>
+          </div>
+        </div>
+
+        {/* Title */}
+        <div className="text-center mb-8">
+          <ThemedText fontSize={40} fontWeight={700} className="text-black mb-2 block">
+            {t('institutionLogin')}
+          </ThemedText>
+          <ThemedText fontSize={16} className="text-gray-600 block">
+            {t('institutionLoginSubtitle')}
+          </ThemedText>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <ThemedText fontSize={14}>{error}</ThemedText>
+          </div>
+        )}
+
+        {/* Login Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            label={t('email')}
+            placeholder={t('emailPlaceholder')}
+            value={formData.email}
+            onChange={handleChange}
+            required
+            disabled={loading}
+          />
+
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            label={t('password')}
+            placeholder={t('passwordPlaceholder')}
+            value={formData.password}
+            onChange={handleChange}
+            required
+            disabled={loading}
+          />
+
+          {/* Register Link */}
+          <div className="text-center">
+            <ThemedText fontSize={12} className="text-gray-600">
+              {t('forInstitution')}{' '}
+              <Link
+                href="/institution/register"
+                className="text-[#0D2B45] hover:underline font-medium"
+              >
+                {t('registerHere')}
+              </Link>
+            </ThemedText>
+          </div>
+
+          {/* Submit Button */}
+          <Button type="submit" variant="primary" fullWidth disabled={loading}>
+            {loading ? t('processing') : t('loginButton')}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
