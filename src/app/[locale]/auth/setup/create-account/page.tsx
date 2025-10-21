@@ -1,15 +1,14 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { ThemedText } from "@/components/ThemedText";
-import { StepIndicator } from "@/components/StepIndicator";
+import { useState } from 'react';
+import Image from 'next/image';
+import { ThemedText } from '@/components/ThemedText';
+import { StepIndicator } from '@/components/StepIndicator';
+import Link from 'next/dist/client/link';
 
 export default function CreateAccountPage() {
-  const router = useRouter();
-  const [name, setName] = useState("John Doe");
-  const [country, setCountry] = useState("Indonesia");
+  const [name, setName] = useState('');
+  const [country, setCountry] = useState('Indonesia');
 
   const handleContinue = () => {
     // Handle form submission and navigation to next step
@@ -23,12 +22,7 @@ export default function CreateAccountPage() {
         {/* Logo top-right */}
         <div className="top-6 right-6 flex flex-col items-end">
           <div className="flex">
-            <Image
-              src="/GWallet.svg"
-              width={50}
-              height={50}
-              alt="GaneshaWallet Logo"
-            />
+            <Image src="/GWallet.svg" width={50} height={50} alt="GaneshaWallet Logo" />
             <ThemedText
               fontSize={20}
               fontWeight={700}
@@ -46,18 +40,21 @@ export default function CreateAccountPage() {
 
         <div className="flex flex-col md:flex-row justify-between max-w-full py-4 px-2 sm:py-6 sm:px-6 md:py-8 md:px-6 lg:py-6 lg:px-15">
           {/* Left Section */}
-          <div className="max-w-sm text-center md:text-left mb-6 md:mb-0 justify-items-center md:justify-center pr-5 flex-col flex ">
-            <ThemedText fontSize={40} fontWeight={700} className="text-black text-xl md:text-4xl sm:text-2xl">
+          <div className="max-w-sm text-center md:text-left mb-6 md:mb-12 justify-items-center md:justify-center pr-5 flex-col flex ">
+            <ThemedText
+              fontSize={40}
+              fontWeight={700}
+              className="text-black text-xl md:text-4xl sm:text-2xl"
+            >
               Create an Account
             </ThemedText>
-            <ThemedText fontSize={16} className="text-black leading-relaxed">
+            <ThemedText fontSize={16} className="text-black leading-relaxed mt-2">
               Get an account to get started
             </ThemedText>
           </div>
 
           {/* Right Section - Form */}
           <div className="flex flex-col w-full max-w-sm">
-
             {/* Form Fields */}
             <div className="space-y-4">
               {/* Name Field */}
@@ -66,7 +63,8 @@ export default function CreateAccountPage() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 pt-6 pb-2 bg-[#E9F2F5] border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D2B45] text-black"
+                  className="w-full px-4 pt-8 pb-2 bg-[#E9F2F5] border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D2B45] text-black"
+                  style={{ fontSize: '14px' }}
                   placeholder="John Doe"
                 />
                 <label className="absolute left-4 top-2">
@@ -81,7 +79,7 @@ export default function CreateAccountPage() {
                 <select
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
-                  className="w-full px-4 pt-6 pb-2 bg-[#E9F2F5] border-none rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#0D2B45] cursor-pointer text-black"
+                  className="w-full px-4 pt-8 pb-2 bg-[#E9F2F5] border-none rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#0D2B45] cursor-pointer text-black"
                   style={{ fontSize: '14px', fontWeight: 400 }}
                 >
                   <option value="Indonesia">Indonesia</option>
@@ -120,13 +118,10 @@ export default function CreateAccountPage() {
               {/* Privacy Policy Notice */}
               <div className="text-center pt-2">
                 <ThemedText fontSize={12} className="text-gray-600">
-                  By continuing, you agree to the{" "}
-                  <a
-                    href="/privacy-policy"
-                    className="text-[#0D9AB8] hover:underline"
-                  >
+                  By continuing, you agree to the{' '}
+                  <Link href="/privacy-policy" className="text-[#0D9AB8] hover:underline">
                     Privacy Policy
-                  </a>
+                  </Link>
                 </ThemedText>
               </div>
 

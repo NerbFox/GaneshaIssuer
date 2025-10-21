@@ -43,6 +43,7 @@ const ThemedTextComponent = forwardRef<HTMLSpanElement, ThemedTextProps>((props,
     const styles = getFontStyles(fontWeight, fontStyle, fontSize);
     // If Tailwind text size class is present, remove fontSize from inline styles
     if (hasTailwindTextSize) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { fontSize: _, ...stylesWithoutFontSize } = styles;
       return stylesWithoutFontSize;
     }

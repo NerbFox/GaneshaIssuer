@@ -43,8 +43,8 @@ export default function WalletSetupPage() {
           {/* Right Section */}
           <div className="flex flex-col space-y-3 w-full max-w-xs">
             <button
-                onClick={() => router.push("/auth/setup/create-account")}
-                className="bg-[#0D2B45] rounded-xl text-white rounded-md py-3 font-medium hover:opacity-90 transition"
+              onClick={() => router.push('/auth/setup/create-account')}
+              className="bg-[#0D2B45] rounded-xl text-white rounded-md py-3 font-medium hover:opacity-90 transition"
             >
               Create a new wallet
             </button>
