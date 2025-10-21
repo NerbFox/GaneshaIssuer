@@ -40,7 +40,7 @@ export const sidebarNavigation: NavigationSection[] = [
       {
         id: 'schema',
         label: 'Schema',
-        href: '/institution/issuer/schema',
+        href: '/institution/schema',
         icon: 'SchemaIcon.svg'
       },
       {

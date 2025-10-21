@@ -126,7 +126,7 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
                     height={24}
                   />
                 </div>
-                <ThemedText className="font-semibold text-sm text-black">GaneshaWallet</ThemedText>
+                <ThemedText fontSize={20} fontWeight={700} className="text-[#0C2D48]">GaneshaWallet</ThemedText>
               </div>
             </div>
           </aside>
