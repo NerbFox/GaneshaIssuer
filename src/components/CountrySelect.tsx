@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import Select, { StylesConfig } from 'react-select';
-import countryList from 'country-list';
+import countriesData from '@/data/countries.json';
 import { ThemedText } from './ThemedText';
 import { useTranslations } from 'next-intl';
 
@@ -20,6 +20,12 @@ interface CountrySelectProps {
 interface CountryOption {
   value: string;
   label: string;
+}
+
+interface Country {
+  code: string;
+  name: string;
+  flag: string;
 }
 
 const customStyles: StylesConfig<CountryOption, false> = {
@@ -120,14 +126,14 @@ export default function CountrySelect({
   const t = useTranslations('auth.register');
 
   const countries = useMemo(() => {
-    const allCountries = countryList.getData();
-    return allCountries.map((country) => ({
+    return (countriesData as Country[]).map((country: Country) => ({
       value: country.name,
-      label: country.name,
+      label: `${country.flag} ${country.name}`,
     }));
   }, []);
 
-  const selectedOption = countries.find((country) => country.value === value) || null;
+  const selectedOption =
+    countries.find((country: CountryOption) => country.value === value) || null;
 
   const handleChange = (option: CountryOption | null) => {
     onChange(option ? option.value : '');
