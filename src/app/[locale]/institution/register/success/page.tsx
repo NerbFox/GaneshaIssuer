@@ -1,7 +1,6 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import Image from 'next/image';
 import Button from '@/components/Button';
 import AuthContainer from '@/components/AuthContainer';
 import { useRouter } from 'next/navigation';

@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import Image from 'next/image';
 import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import AuthContainer from '@/components/AuthContainer';

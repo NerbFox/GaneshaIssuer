@@ -25,9 +25,7 @@ export default function AuthContainer({ children, backHref = '/' }: AuthContaine
         </div>
 
         {/* Centered children */}
-        <div className="w-full">
-          {children}
-        </div>
+        <div className="w-full">{children}</div>
       </div>
     </div>
   );
