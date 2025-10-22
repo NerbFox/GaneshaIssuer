@@ -27,6 +27,29 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
+      // Development bypass: Check if DEV_BYPASS environment variable is set or use query param
+      const urlParams = new URLSearchParams(window.location.search);
+      const devBypass =
+        process.env.NEXT_PUBLIC_DEV_BYPASS === 'true' || urlParams.get('dev') === 'true';
+
+      if (devBypass) {
+        // Use dummy data in development mode
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        console.log('DEV MODE: Bypassing admin login', formData);
+
+        const dummyAdmin = {
+          id: 'dev-admin-1',
+          email: 'dev@ganeshadcert.com',
+          name: 'Dev Admin',
+        };
+
+        localStorage.setItem('adminToken', 'dev-token');
+        localStorage.setItem('adminData', JSON.stringify(dummyAdmin));
+
+        router.push('/admin');
+        return;
+      }
+
       const response = await fetch(buildApiUrl(API_ENDPOINTS.ADMIN.LOGIN), {
         method: 'POST',
         headers: {
@@ -124,10 +147,7 @@ export default function AdminLoginPage() {
           <div className="text-center">
             <ThemedText fontSize={12} className="text-gray-600">
               {t('forInstitution')}{' '}
-              <Link
-                href="/institution/setup"
-                className="text-[#0D2B45] hover:underline font-medium"
-              >
+              <Link href="/institution" className="text-[#0D2B45] hover:underline font-medium">
                 {t('registerHere')}
               </Link>
             </ThemedText>

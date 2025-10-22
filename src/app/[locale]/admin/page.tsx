@@ -27,6 +27,43 @@ interface AdminData {
   name: string;
 }
 
+// Dummy data for development - moved outside component to avoid dependency warnings
+const dummyInstitutions: Institution[] = [
+  {
+    id: '1',
+    name: 'University of Indonesia',
+    email: 'admin@ui.ac.id',
+    phone: '+628123456789',
+    country: 'Indonesia',
+    website: 'https://ui.ac.id',
+    address: 'UI Campus Depok, West Java 16424',
+    status: 'pending',
+    createdAt: '2025-10-20T10:00:00Z',
+  },
+  {
+    id: '2',
+    name: 'Bandung Institute of Technology',
+    email: 'admin@itb.ac.id',
+    phone: '+628234567890',
+    country: 'Indonesia',
+    website: 'https://itb.ac.id',
+    address: 'Jl. Ganesha No. 10, Bandung, West Java 40132',
+    status: 'pending',
+    createdAt: '2025-10-20T11:30:00Z',
+  },
+  {
+    id: '3',
+    name: 'Gadjah Mada University',
+    email: 'admin@ugm.ac.id',
+    phone: '+628345678901',
+    country: 'Indonesia',
+    website: 'https://ugm.ac.id',
+    address: 'Bulaksumur, Yogyakarta 55281',
+    status: 'pending',
+    createdAt: '2025-10-20T14:15:00Z',
+  },
+];
+
 export default function AdminPage() {
   const router = useRouter();
   const t = useTranslations('admin.dashboard');
@@ -38,8 +75,22 @@ export default function AdminPage() {
   const [adminData, setAdminData] = useState<AdminData | null>(null);
 
   const fetchPendingInstitutions = useCallback(
-    async (token: string) => {
+    async (token: string, devData?: Institution[]) => {
       try {
+        // Development bypass: Check if DEV_BYPASS environment variable is set or use query param
+        const urlParams = new URLSearchParams(window.location.search);
+        const devBypass =
+          process.env.NEXT_PUBLIC_DEV_BYPASS === 'true' || urlParams.get('dev') === 'true';
+
+        if (devBypass && devData) {
+          // Use dummy data in development mode
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          console.log('DEV MODE: Using dummy institution data');
+          setInstitutions(devData);
+          setLoading(false);
+          return;
+        }
+
         const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.PENDING_INSTITUTIONS), {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -70,6 +121,23 @@ export default function AdminPage() {
   );
 
   useEffect(() => {
+    // Development bypass: Check if DEV_BYPASS environment variable is set or use query param
+    const urlParams = new URLSearchParams(window.location.search);
+    const devBypass =
+      process.env.NEXT_PUBLIC_DEV_BYPASS === 'true' || urlParams.get('dev') === 'true';
+
+    if (devBypass) {
+      // Set dummy admin data for development
+      const dummyAdmin = {
+        id: 'dev-admin-1',
+        email: 'dev@ganeshadcert.com',
+        name: 'Dev Admin',
+      };
+      setAdminData(dummyAdmin);
+      fetchPendingInstitutions('dev-token', dummyInstitutions);
+      return;
+    }
+
     // Cek apakah admin sudah login
     const token = localStorage.getItem('adminToken');
     const admin = localStorage.getItem('adminData');
@@ -88,14 +156,30 @@ export default function AdminPage() {
       return;
     }
 
+    // Development bypass check
+    const urlParams = new URLSearchParams(window.location.search);
+    const devBypass =
+      process.env.NEXT_PUBLIC_DEV_BYPASS === 'true' || urlParams.get('dev') === 'true';
+
     const token = localStorage.getItem('adminToken');
-    if (!token) {
+    if (!token && !devBypass) {
       router.push('/admin/login');
       return;
     }
 
     setProcessingId(institutionId);
     try {
+      if (devBypass) {
+        // Simulate API call in development mode
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        console.log('DEV MODE: Approving institution', institutionId);
+        alert(t('approveSuccess'));
+        // Remove institution from list
+        setInstitutions((prev) => prev.filter((inst) => inst.id !== institutionId));
+        setProcessingId(null);
+        return;
+      }
+
       const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.APPROVE(institutionId)), {
         method: 'POST',
         headers: {
@@ -121,7 +205,7 @@ export default function AdminPage() {
       }
 
       alert(t('approveSuccess'));
-      fetchPendingInstitutions(token);
+      fetchPendingInstitutions(token!);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       alert(errorMessage);
@@ -135,14 +219,30 @@ export default function AdminPage() {
       return;
     }
 
+    // Development bypass check
+    const urlParams = new URLSearchParams(window.location.search);
+    const devBypass =
+      process.env.NEXT_PUBLIC_DEV_BYPASS === 'true' || urlParams.get('dev') === 'true';
+
     const token = localStorage.getItem('adminToken');
-    if (!token) {
+    if (!token && !devBypass) {
       router.push('/admin/login');
       return;
     }
 
     setProcessingId(institutionId);
     try {
+      if (devBypass) {
+        // Simulate API call in development mode
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        console.log('DEV MODE: Rejecting institution', institutionId);
+        alert(t('rejectSuccess'));
+        // Remove institution from list
+        setInstitutions((prev) => prev.filter((inst) => inst.id !== institutionId));
+        setProcessingId(null);
+        return;
+      }
+
       const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.REJECT(institutionId)), {
         method: 'POST',
         headers: {
@@ -164,7 +264,7 @@ export default function AdminPage() {
       }
 
       alert(t('rejectSuccess'));
-      fetchPendingInstitutions(token);
+      fetchPendingInstitutions(token!);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       alert(errorMessage);
@@ -195,15 +295,20 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0D2B45] py-8 px-4">
+    <div className="min-h-screen bg-[#0D2B45] py-8 px-6 md:px-12">
       <div className="max-w-7xl mx-auto">
         {/* Header with Logo, Title, Language Switcher and Logout */}
-        <div className="mb-8">
+        <div className="mb-10">
           {/* Top Bar: Logo, Language Switcher, Logout */}
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center">
-              <Image src="/GWallet.svg" width={50} height={50} alt="GaneshaWallet Logo" />
-              <ThemedText fontSize={24} fontWeight={700} className="pl-3 text-white">
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 bg-white rounded-full"></div>
+                <div className="relative">
+                  <Image src="/GWallet.svg" width={50} height={50} alt="GaneshaWallet Logo" />
+                </div>
+              </div>
+              <ThemedText fontSize={24} fontWeight={700} className="text-white">
                 GaneshaWallet
               </ThemedText>
             </div>
@@ -216,18 +321,21 @@ export default function AdminPage() {
           </div>
 
           {/* Title and Admin Info */}
-          <div className="text-center">
-            <ThemedText fontSize={40} fontWeight={700} className="text-white mb-2">
+          <div className="space-y-2">
+            <ThemedText fontSize={40} fontWeight={700} className="text-white block">
               {t('title')}
             </ThemedText>
-            <ThemedText fontSize={16} className="text-gray-300 mb-2">
+            <ThemedText fontSize={18} className="text-gray-300 block">
               {t('subtitle')}
             </ThemedText>
             {adminData && (
-              <ThemedText fontSize={14} className="text-gray-400">
-                {t('loggedInAs')}: <span className="font-medium text-white">{adminData.name}</span>{' '}
-                ({adminData.email})
-              </ThemedText>
+              <div className="pt-1">
+                <ThemedText fontSize={14} className="text-gray-400 block">
+                  {t('loggedInAs')}:{' '}
+                  <span className="font-medium text-white">{adminData.name}</span> (
+                  {adminData.email})
+                </ThemedText>
+              </div>
             )}
           </div>
         </div>
@@ -287,12 +395,18 @@ export default function AdminPage() {
                   {institutions.map((institution) => (
                     <tr key={institution.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
-                        <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 mb-1">
-                          {institution.name}
-                        </ThemedText>
-                        <ThemedText fontSize={12} className="text-gray-500">
-                          {institution.address}
-                        </ThemedText>
+                        <div className="space-y-1">
+                          <ThemedText
+                            fontSize={14}
+                            fontWeight={600}
+                            className="text-gray-900 block"
+                          >
+                            {institution.name}
+                          </ThemedText>
+                          <ThemedText fontSize={12} className="text-gray-500 block">
+                            {institution.address}
+                          </ThemedText>
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <ThemedText fontSize={14} className="text-gray-900">

@@ -67,12 +67,41 @@
       "invalidCredentials": "Email atau kata sandi salah"
     },
     "register": {
-      "title": "Pendaftaran Institusi",
-      "subtitle": "Daftarkan institusi Anda untuk menerbitkan sertifikat digital",
+      "title": "Buat Akun",
+      "subtitle": "Buat wallet institusi Anda untuk memulai",
+      "seedPhrase": {
+        "title": "Catat Frasa Pemulihan Anda",
+        "subtitle": "Simpan frasa pemulihan Anda dengan aman untuk memulihkan wallet",
+        "warningTitle": "Penting!",
+        "warningMessage": "Tulis frasa pemulihan Anda dan simpan di tempat yang aman. Anda akan membutuhkannya untuk memulihkan wallet Anda. Jangan bagikan kepada siapapun!",
+        "copyButton": "Salin ke Clipboard",
+        "continueButton": "Lanjutkan",
+        "processing": "Memproses..."
+      },
+      "confirmSeed": {
+        "title": "Konfirmasi Frasa Pemulihan Anda",
+        "subtitle": "Pilih kata-kata dalam urutan yang benar untuk memverifikasi frasa pemulihan",
+        "selectedWords": "Frasa pemulihan Anda:",
+        "selectInOrder": "Pilih kata sesuai urutan:",
+        "backButton": "Kembali",
+        "verifyButton": "Verifikasi",
+        "processing": "Memproses...",
+        "errorIncomplete": "Silakan pilih semua 12 kata",
+        "errorIncorrect": "Urutan frasa pemulihan tidak benar. Silakan coba lagi."
+      },
       "success": {
-        "title": "Pendaftaran Terkirim!",
-        "subtitle": "Terima kasih atas permintaan pendaftaran Anda. Aplikasi Anda sekarang sedang ditinjau oleh tim admin kami. Setelah disetujui, kami akan mengirimkan tautan ajaib ke alamat email terdaftar Anda untuk menyelesaikan proses pengaturan. Silakan periksa kotak masuk Anda secara berkala untuk email konfirmasi kami.",
-        "backToHome": "Kembali ke Beranda"
+        "title": "Selamat!",
+        "subtitle": "Wallet Anda telah berhasil dibuat",
+        "yourDID": "DID Anda (Identitas Terdesentralisasi):",
+        "copyButton": "Salin DID",
+        "copied": "Tersalin!",
+        "didMessage": "DID Anda adalah identitas unik Anda di blockchain. Simpan dengan aman.",
+        "continueButton": "Lanjutkan",
+        "backToHome": "Kembali ke Beranda",
+        "whatHappensNext": "Apa yang terjadi selanjutnya?",
+        "step1": "Tim admin kami akan meninjau aplikasi Anda",
+        "step2": "Anda akan menerima tautan ajaib melalui email setelah disetujui",
+        "step3": "Gunakan tautan ajaib untuk menyelesaikan pengaturan institusi Anda"
       },
       "name": "Nama Institusi",
       "email": "Email",
@@ -83,10 +112,11 @@
       "namePlaceholder": "Universitas Indonesia",
       "emailPlaceholder": "admin@ui.ac.id",
       "phonePlaceholder": "+628123456789",
-      "countryPlaceholder": "Indonesia",
+      "countryPlaceholder": "Pilih negara",
       "websitePlaceholder": "https://ui.ac.id",
       "addressPlaceholder": "Kampus UI Depok, Jawa Barat 16424",
       "registerButton": "Daftar",
+      "continueButton": "Lanjutkan",
       "processing": "Memproses...",
       "alreadyHaveAccount": "Sudah punya akun?",
       "loginHere": "Masuk di sini",
@@ -143,5 +173,15 @@
     "forbidden": "Akses ditolak",
     "notFound": "Tidak ditemukan",
     "serverError": "Kesalahan server"
+  },
+  "terms": {
+    "title": "Ketentuan Layanan",
+    "lastUpdated": "Terakhir Diperbarui: 21 Oktober 2025",
+    "back": "Kembali"
+  },
+  "privacy": {
+    "title": "Kebijakan Privasi",
+    "lastUpdated": "Terakhir Diperbarui: 21 Oktober 2025",
+    "back": "Kembali"
   }
 }

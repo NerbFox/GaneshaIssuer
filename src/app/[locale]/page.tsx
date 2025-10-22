@@ -50,7 +50,7 @@ export default function HomePage() {
           </Link>
 
           <Link
-            href="/institution/setup"
+            href="/institution"
             className="bg-white p-8 rounded-4xl shadow-xl hover:shadow-2xl transition-all text-center group cursor-pointer"
           >
             <div className="text-5xl mb-4">🏛️</div>
