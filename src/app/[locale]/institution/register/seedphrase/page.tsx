@@ -117,7 +117,7 @@ export default function SeedPhrasePage() {
     // Save the seed phrase securely and navigate to success
     try {
       setIsSaving(true);
-      const seedPhraseString = mnemonic.join(' ');
+      // const seedPhraseString = mnemonic.join(' ');
       // You can implement your own saveSeedPhrase function or store it locally
       // await saveSeedPhrase(seedPhraseString);
 

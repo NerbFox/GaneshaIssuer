@@ -2,18 +2,14 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
-import Image from 'next/image';
 import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
-import Input from '@/components/Input';
 import AuthContainer from '@/components/AuthContainer';
 import { Link } from '@/i18n/routing';
 import { validateMnemonic, mnemonicToSeed, deriveDIDIdentifierKey } from '@/utils/seedphrase';
 
 export default function InstitutionLoginPage() {
   const router = useRouter();
-  const t = useTranslations('auth.login');
   const [formData, setFormData] = useState({
     seedphrase: '',
   });

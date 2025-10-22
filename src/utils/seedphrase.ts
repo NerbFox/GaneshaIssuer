@@ -4,7 +4,7 @@ import { hmac } from '@noble/hashes/hmac.js';
 import { hkdf } from '@noble/hashes/hkdf.js';
 import { pbkdf2Async } from '@noble/hashes/pbkdf2.js';
 import { sha256, sha512 } from '@noble/hashes/sha2.js';
-// @ts-ignore - no type definitions available
+// @ts-expect-error - no type definitions available
 import aesjs from 'aes-js';
 
 // =============================================================================
