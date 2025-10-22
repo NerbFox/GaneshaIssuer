@@ -19,7 +19,7 @@ export default function InstitutionRegisterPage() {
     email: '',
     phone: '',
     country: '',
-    description: '',
+    address: '',
     website: '',
   });
   const [loading, setLoading] = useState(false);
@@ -50,9 +50,9 @@ export default function InstitutionRegisterPage() {
         if (!value) return 'Please select a country';
         return '';
 
-      case 'description':
-        if (!value.trim()) return 'Description is required';
-        if (value.trim().length < 10) return 'Description must be at least 10 characters';
+      case 'address':
+        if (!value.trim()) return 'Address is required';
+        if (value.trim().length < 10) return 'Address must be at least 10 characters';
         return '';
 
       case 'website':
@@ -274,13 +274,13 @@ export default function InstitutionRegisterPage() {
           </div>
         </div>
 
-        {/* Row 3: Description (Full Width) */}
+        {/* Row 3: Address (Full Width) */}
         <div className="relative">
           <textarea
-            id="description"
-            name="description"
-            placeholder="John Doe"
-            value={formData.description}
+            id="address"
+            name="address"
+            placeholder="Kampus UI Depok, Jawa Barat 16424"
+            value={formData.address}
             onChange={handleChange}
             onBlur={handleBlur}
             required
@@ -288,14 +288,14 @@ export default function InstitutionRegisterPage() {
             rows={4}
             className="text-black w-full px-4 pt-7 pb-3 bg-[#E9F2F5] rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-[#0D2B45] disabled:opacity-50 disabled:cursor-not-allowed resize-none text-sm"
           />
-          <label htmlFor="description" className="absolute top-2 left-4">
+          <label htmlFor="address" className="absolute top-2 left-4">
             <ThemedText fontSize={12} fontWeight={500} className="text-gray-700">
-              Description<span className="text-red-500">*</span>
+              Address<span className="text-red-500">*</span>
             </ThemedText>
           </label>
-          {validationErrors.description && (
+          {validationErrors.address && (
             <ThemedText fontSize={12} className="text-red-500 mt-1 block">
-              {validationErrors.description}
+              {validationErrors.address}
             </ThemedText>
           )}
         </div>
