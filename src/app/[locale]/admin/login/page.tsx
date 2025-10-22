@@ -147,10 +147,7 @@ export default function AdminLoginPage() {
           <div className="text-center">
             <ThemedText fontSize={12} className="text-gray-600">
               {t('forInstitution')}{' '}
-              <Link
-                href="/institution/setup"
-                className="text-[#0D2B45] hover:underline font-medium"
-              >
+              <Link href="/institution" className="text-[#0D2B45] hover:underline font-medium">
                 {t('registerHere')}
               </Link>
             </ThemedText>

@@ -22,8 +22,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     // Cek apakah institution sudah login
-    const token = localStorage.getItem('institutionToken');
-    const institution = localStorage.getItem('institutionData');
+    const token = localStorage.getItem('institutionToken') || "abc";
+    const institution = localStorage.getItem('institutionData') || "{}";
 
     if (!token || !institution) {
       // Jika belum login, redirect ke home
