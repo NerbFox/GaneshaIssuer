@@ -14,6 +14,7 @@
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@noble/hashes": "^2.0.1",
+    "@noble/secp256k1": "^3.0.0",
     "aes-js": "^3.1.2",
     "clsx": "^2.1.1",
     "country-list": "^2.4.1",
