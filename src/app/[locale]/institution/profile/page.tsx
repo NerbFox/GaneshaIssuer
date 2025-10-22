@@ -6,8 +6,10 @@ export default function InstitutionProfilePage() {
     <InstitutionLayout activeTab="profile">
       {/* Profile Content */}
       <div className="p-12 max-w-4xl">
-        <ThemedText fontSize={40} fontWeight={700}  className="text-black mb-12">Profile</ThemedText>
-        
+        <ThemedText fontSize={40} fontWeight={700} className="text-black mb-12">
+          Profile
+        </ThemedText>
+
         {/* Institution Name Field */}
         <div className="mt-5 mb-5">
           <ThemedText className="block text-sm font-medium text-gray-900 mb-3">
@@ -23,9 +25,7 @@ export default function InstitutionProfilePage() {
 
         {/* Email Field */}
         <div className="mb-5">
-          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">
-            Email
-          </ThemedText>
+          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">Email</ThemedText>
           <input
             type="email"
             value="info@disdukcapil.go.id"
@@ -49,9 +49,7 @@ export default function InstitutionProfilePage() {
 
         {/* Country Field */}
         <div className="mb-5">
-          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">
-            Country
-          </ThemedText>
+          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">Country</ThemedText>
           <input
             type="text"
             value="Indonesia"
@@ -62,9 +60,7 @@ export default function InstitutionProfilePage() {
 
         {/* Address Field */}
         <div className="mb-5">
-          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">
-            Address
-          </ThemedText>
+          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">Address</ThemedText>
           <input
             type="text"
             value="Jl. Raya Jakarta"
@@ -75,9 +71,7 @@ export default function InstitutionProfilePage() {
 
         {/* Website Field */}
         <div className="mb-5">
-          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">
-            Website
-          </ThemedText>
+          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">Website</ThemedText>
           <input
             type="text"
             value="disdukcapil.go.id"
@@ -88,9 +82,7 @@ export default function InstitutionProfilePage() {
 
         {/* DID Field */}
         <div className="mb-5">
-          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">
-            DID
-          </ThemedText>
+          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">DID</ThemedText>
           <input
             type="text"
             value="did:git:iabcdefghijklmnopqrstuvwxyz1234567890"

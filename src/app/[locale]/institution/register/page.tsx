@@ -9,6 +9,7 @@ import Input from '@/components/Input';
 import CountrySelect from '@/components/CountrySelect';
 import AuthContainer from '@/components/AuthContainer';
 import { Link } from '@/i18n/routing';
+import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 
 export default function InstitutionRegisterPage() {
   const router = useRouter();
@@ -100,10 +101,27 @@ export default function InstitutionRegisterPage() {
     setLoading(true);
 
     try {
-      // Store form data in sessionStorage to pass to next step
+      // Send registration data to backend
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.REGISTER), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || t('registrationFailed'));
+      }
+
+      const data = await response.json();
+      console.log('Registration successful:', data);
+
+      // Store form data in sessionStorage for reference if needed
       sessionStorage.setItem('registrationData', JSON.stringify(formData));
 
-      // Redirect to seed phrase generation page
+      // Redirect to success page
       router.push('/institution/register/success');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('registrationFailed');
