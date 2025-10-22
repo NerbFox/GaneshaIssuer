@@ -14,13 +14,14 @@ export default function SeedPhrasePage() {
 
   const [step, setStep] = useState<Step>('create');
   const [mnemonic, setMnemonic] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [clickedGroups, setClickedGroups] = useState<Set<number>>(new Set());
   const [groupClickOrder, setGroupClickOrder] = useState<number[]>([]);
   const [scrambledGroups, setScrambledGroups] = useState<string[][]>([]);
   const [error, setError] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const createWordGroups = (words: string[]) => {
     // Divide 24 words into 4 groups of 6 words each
@@ -75,10 +76,27 @@ export default function SeedPhrasePage() {
     }
   }, [scrambleGroups]);
 
-  // Generate mnemonic on component mount
+  // Check authentication on component mount
   useEffect(() => {
-    generateSeedPhrase();
-  }, [generateSeedPhrase]);
+    // Check if institution has a token (is in registration process)
+    const token = localStorage.getItem('institutionToken');
+    const institution = localStorage.getItem('institutionData');
+
+    if (!token || !institution) {
+      // If no token, redirect to registration page
+      router.push('/institution/register');
+      return;
+    }
+
+    setIsAuthenticated(true);
+  }, [router]);
+
+  // Generate mnemonic only after authentication is verified
+  useEffect(() => {
+    if (isAuthenticated) {
+      generateSeedPhrase();
+    }
+  }, [isAuthenticated, generateSeedPhrase]);
 
   const handleContinue = () => {
     setStep('confirm');
@@ -117,9 +135,18 @@ export default function SeedPhrasePage() {
     // Save the seed phrase securely and navigate to success
     try {
       setIsSaving(true);
-      // const seedPhraseString = mnemonic.join(' ');
-      // You can implement your own saveSeedPhrase function or store it locally
-      // await saveSeedPhrase(seedPhraseString);
+      
+      // Verify token still exists
+      const token = localStorage.getItem('institutionToken');
+      if (!token) {
+        setError('Session expired. Please start registration again.');
+        router.push('/institution/register');
+        return;
+      }
+
+      // Save seed phrase to localStorage (in production, this should be encrypted or handled more securely)
+      const seedPhraseString = mnemonic.join(' ');
+      localStorage.setItem('institutionSeedPhrase', seedPhraseString);
 
       // Navigate to confirmation page
       router.push('/institution/register/confirm');
@@ -382,6 +409,18 @@ export default function SeedPhrasePage() {
       </div>
     );
   };
+
+  // Show loading screen while checking authentication
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#0D2B45] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+          <p className="mt-4 text-white">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (step === 'create') {
     return (
