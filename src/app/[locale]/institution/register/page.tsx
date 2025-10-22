@@ -106,7 +106,7 @@ export default function InstitutionRegisterPage() {
       sessionStorage.setItem('registrationData', JSON.stringify(formData));
 
       // Redirect to seed phrase generation page
-      router.push('/institution/register/seed-phrase');
+      router.push('/institution/register/success');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('registrationFailed');
       setError(errorMessage);
