@@ -35,7 +35,7 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
       >
         <button
           onClick={() => setIsCollapsed(false)}
-          className="w-full h-full flex items-center justify-center group"
+          className="w-full h-full flex items-center justify-center group cursor-pointer"
           aria-label="Open sidebar"
         >
           <Image
@@ -43,7 +43,7 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
             alt="Sidebar"
             width={24}
             height={24}
-            className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-180"
+            className="transition-transform duration-300 group-hover:scale-125 group-hover:translate-x-1"
           />
         </button>
       </div>
@@ -58,7 +58,7 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
                 {/* Toggle button */}
                 <button
                   onClick={() => setIsCollapsed(true)}
-                  className="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-200 transition-all duration-300 group"
+                  className="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-200 transition-all duration-300 group cursor-pointer"
                   aria-label="Close sidebar"
                 >
                   <Image
@@ -66,7 +66,7 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
                     alt="Sidebar"
                     width={24}
                     height={24}
-                    className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-180"
+                    className="transition-transform duration-300 group-hover:scale-125 group-hover:-translate-x-1"
                   />
                 </button>
               </div>
