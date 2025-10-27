@@ -22,8 +22,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     // Cek apakah institution sudah login
-    const token = localStorage.getItem('institutionToken') || 'abc';
-    const institution = localStorage.getItem('institutionData') || '{}';
+    const token = localStorage.getItem('institutionToken');
+    const institution = localStorage.getItem('institutionData');
 
     if (!token || !institution) {
       // Jika belum login, redirect ke home
@@ -31,7 +31,19 @@ export default function DashboardPage() {
       return;
     }
 
-    setInstitutionData(JSON.parse(institution));
+    try {
+      const parsed = JSON.parse(institution);
+      setInstitutionData(parsed);
+    } catch (error) {
+      console.error('Failed to parse institution data:', error);
+      console.error('Corrupted data value:', institution);
+      // If parsing fails, clear corrupted data and redirect
+      localStorage.removeItem('institutionToken');
+      localStorage.removeItem('institutionData');
+      router.push('/');
+      return;
+    }
+
     setLoading(false);
   }, [router]);
 
