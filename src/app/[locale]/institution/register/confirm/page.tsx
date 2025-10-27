@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import AuthContainer from '@/components/AuthContainer';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
+import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 
 export default function RegistrationConfirmPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function RegistrationConfirmPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Check authentication on component mount
   useEffect(() => {
@@ -114,9 +116,60 @@ Keep this information safe and secure!
     window.URL.revokeObjectURL(url);
   };
 
-  const handleContinue = () => {
-    // Navigate to dashboard or next step
-    router.push('/dashboard');
+  const handleContinue = async () => {
+    try {
+      setIsSubmitting(true);
+      setError('');
+
+      // Retrieve required data from localStorage
+      const didString = localStorage.getItem('institutionDID');
+      const publicKey = localStorage.getItem('institutionSigningPublicKey');
+      const institutionDataStr = localStorage.getItem('institutionData');
+      const token = localStorage.getItem('institutionToken');
+
+      if (!didString || !publicKey || !institutionDataStr || !token) {
+        throw new Error('Missing required data. Please complete registration again.');
+      }
+
+      // Parse institution data to get email
+      const institutionData = JSON.parse(institutionDataStr);
+      const email = institutionData.email;
+
+      if (!email) {
+        throw new Error('Email not found. Please complete registration again.');
+      }
+
+      // Prepare form data
+      const formData = {
+        did_string: didString,
+        public_key: publicKey,
+        role: 'institution',
+        email: email,
+      };
+
+      // Send POST request to register DID
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.DID.LIST), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to register DID');
+      }
+
+      // Navigate to dashboard on success
+      router.push('/institution/dashboard');
+    } catch (err) {
+      console.error('Error registering DID:', err);
+      setError(err instanceof Error ? err.message : 'Failed to register DID. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Show loading screen while checking authentication
@@ -273,10 +326,10 @@ Keep this information safe and secure!
         onClick={handleContinue}
         variant="primary"
         fullWidth
-        disabled={isLoading || !!error || !didId}
+        disabled={isLoading || !!error || !didId || isSubmitting}
         className="bg-[#0D2B45] text-white py-3"
       >
-        {isLoading ? 'Generating DID...' : 'Continue'}
+        {isLoading ? 'Generating DID...' : isSubmitting ? 'Registering DID...' : 'Continue'}
       </Button>
     </AuthContainer>
   );
