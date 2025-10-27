@@ -1,6 +1,6 @@
 /**
  * Quick Demo: BIP44 Change Level Key Separation
- * 
+ *
  * Run this to see the key separation in action
  */
 
@@ -25,13 +25,13 @@ async function demo() {
   console.log('🔑 KEY DERIVATION PATHS');
   console.log('─'.repeat(80));
 
-  console.log('\n🔐 SIGNING KEY (m/44\'/1001\'/0\'/0\'/0\'):');
+  console.log("\n🔐 SIGNING KEY (m/44'/1001'/0'/0'/0'):");
   console.log('   └─ Change Level: 0 (External chain)');
   console.log('   └─ Purpose:      Signing operations');
   console.log('   └─ Can Rotate:   YES (change address index)');
   console.log('   └─ Public Key:   ', wallet.signingKey.publicKeyHex);
 
-  console.log('\n🆔 DID KEY (m/44\'/1001\'/0\'/1\'/0\'):');
+  console.log("\n🆔 DID KEY (m/44'/1001'/0'/1'/0'):");
   console.log('   └─ Change Level: 1 (Internal chain)');
   console.log('   └─ Purpose:      DID identifier ONLY');
   console.log('   └─ Can Rotate:   NO (always index 0)');
@@ -66,7 +66,7 @@ async function demo() {
 
   // Verify
   const sameDID = wallet0.did === wallet1.did && wallet0.did === wallet2.did;
-  const diffSigning = 
+  const diffSigning =
     wallet0.signingKey.publicKeyHex !== wallet1.signingKey.publicKeyHex &&
     wallet0.signingKey.publicKeyHex !== wallet2.signingKey.publicKeyHex;
 
@@ -77,7 +77,7 @@ async function demo() {
   console.log('\n' + '─'.repeat(80));
   console.log('💡 USE CASE');
   console.log('─'.repeat(80));
-  console.log('\n   Scenario: Institution\'s signing key is compromised');
+  console.log("\n   Scenario: Institution's signing key is compromised");
   console.log('   Solution: Rotate to new index (0 → 1)');
   console.log('   Result:   New signing key, SAME DID identifier');
   console.log('   Benefit:  No need to update DID registrations!');

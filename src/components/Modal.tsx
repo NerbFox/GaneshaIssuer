@@ -10,7 +10,13 @@ interface ModalProps {
   maxWidth?: string;
 }
 
-export default function Modal({ isOpen, onClose, title, children, maxWidth = '900px' }: ModalProps) {
+export default function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  maxWidth = '900px',
+}: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Prevent body scroll when modal is open
@@ -31,11 +37,8 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = '90
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Tinted black overlay - clicks don't close modal */}
-      <div 
-        className="absolute inset-0 bg-black/50"
-        aria-hidden="true"
-      />
-      
+      <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
+
       {/* Modal content */}
       <div
         ref={modalRef}
