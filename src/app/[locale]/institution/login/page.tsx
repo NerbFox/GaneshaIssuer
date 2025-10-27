@@ -53,7 +53,7 @@ export default function InstitutionLoginPage() {
       sessionStorage.setItem('didPublicKey', didPublicKeyHex);
 
       // Navigate to dashboard
-      router.push('/dashboard');
+      router.push('/institution/dashboard');
     } catch (err) {
       console.error('Login error:', err);
       setError('Failed to process seed phrase. Please try again.');
