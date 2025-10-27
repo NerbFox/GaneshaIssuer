@@ -158,7 +158,7 @@ export function DataTable<T>({
           {onFilter && (
             <button
               onClick={(e) => onFilter(e)}
-              className="p-2 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-colors"
+              className="p-2 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-colors cursor-pointer"
               title="Filter"
             >
               <svg
@@ -206,7 +206,7 @@ export function DataTable<T>({
         {topRightButton && (
           <button
             onClick={topRightButton.onClick}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
           >
             {topRightButton.icon}
             {topRightButton.label}

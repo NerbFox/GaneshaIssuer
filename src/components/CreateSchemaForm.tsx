@@ -139,7 +139,7 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
       render: (row) => (
         <button
           onClick={() => handleDeleteAttribute(row.id)}
-          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-xs font-medium"
+          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-xs font-medium cursor-pointer"
         >
           DELETE
         </button>
@@ -225,7 +225,7 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
           </ThemedText>
           <button
             onClick={handleAddAttribute}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center gap-2"
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center gap-2 cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -257,14 +257,14 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
         <button
           onClick={onCancel}
           disabled={isSubmitting}
-          className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           CANCEL
         </button>
         <button
           onClick={handleSubmit}
           disabled={isSubmitting}
-          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
         >
           {isSubmitting && (
             <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

@@ -173,6 +173,18 @@ export default function SchemaPage() {
       const schema = schemas.find((s) => s.id === schemaId);
       if (!schema) return;
 
+      const isCurrentlyActive = schema.status === 'Active';
+      const action = isCurrentlyActive ? 'deactivate' : 'reactivate';
+
+      // Show confirmation prompt
+      const confirmed = window.confirm(
+        `Are you sure you want to ${action} this schema?\n\nSchema: ${schema.schemaName}\nCurrent Status: ${schema.status}`
+      );
+
+      if (!confirmed) {
+        return; // User cancelled the action
+      }
+
       const newStatus = schema.status === 'Active';
 
       // Update local state optimistically
@@ -335,21 +347,21 @@ export default function SchemaPage() {
         <div className="flex gap-2">
           <button
             onClick={() => handleUpdateSchema(row.id)}
-            className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors text-sm font-medium"
+            className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors text-sm font-medium cursor-pointer"
           >
             UPDATE
           </button>
           {row.status === 'Active' ? (
             <button
               onClick={() => handleToggleStatus(row.id)}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer"
             >
               DEACTIVATE
             </button>
           ) : (
             <button
               onClick={() => handleToggleStatus(row.id)}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
             >
               REACTIVATE
             </button>
@@ -437,7 +449,7 @@ export default function SchemaPage() {
             </ThemedText>
             <button
               onClick={() => setShowFilterModal(false)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -456,7 +468,7 @@ export default function SchemaPage() {
             <select
               value={filterStatus}
               onChange={(e) => handleStatusChange(e.target.value as 'all' | 'Active' | 'Inactive')}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
             >
               <option value="all">All</option>
               <option value="Active">Active</option>
@@ -474,7 +486,7 @@ export default function SchemaPage() {
               value={filterSchemaId}
               onChange={(e) => handleSchemaIdChange(e.target.value)}
               placeholder="Enter Schema ID"
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm placeholder:text-gray-500"
             />
           </div>
         </div>
