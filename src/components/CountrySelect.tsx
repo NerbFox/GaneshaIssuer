@@ -34,20 +34,20 @@ const customStyles: StylesConfig<CountryOption, false> = {
     backgroundColor: '#E9F2F5',
     border: 'none',
     borderRadius: '0.5rem',
-    paddingTop: '1.5rem',
-    paddingBottom: '0.25rem',
-    paddingLeft: '0.5rem',
-    paddingRight: '0.5rem',
-    fontSize: '14px',
+    boxShadow: 'none',
     minHeight: '60px',
-    boxShadow: state.isFocused ? '0 0 0 2px #0D2B45' : 'none',
+    height: '60px',
+    paddingLeft: '1rem',
+    cursor: 'pointer',
     '&:hover': {
-      borderColor: 'transparent',
+      backgroundColor: '#E9F2F5',
     },
   }),
   valueContainer: (provided) => ({
     ...provided,
-    padding: '0 0.5rem',
+    height: '60px',
+    padding: '0',
+    paddingTop: '1.25rem',
   }),
   input: (provided) => ({
     ...provided,
@@ -64,6 +64,7 @@ const customStyles: StylesConfig<CountryOption, false> = {
     ...provided,
     color: '#000',
     fontSize: '14px',
+    margin: 0,
   }),
   menu: (provided) => ({
     ...provided,
@@ -106,10 +107,16 @@ const customStyles: StylesConfig<CountryOption, false> = {
   }),
   dropdownIndicator: (provided) => ({
     ...provided,
+    padding: '8px',
     color: '#6b7280',
     '&:hover': {
       color: '#374151',
     },
+  }),
+  indicatorsContainer: (provided) => ({
+    ...provided,
+    height: '60px',
+    paddingTop: '1.25rem',
   }),
 };
 
@@ -142,6 +149,7 @@ export default function CountrySelect({
   return (
     <div className={`relative ${className}`}>
       <Select
+        instanceId={id}
         id={id}
         name={name}
         options={countries}

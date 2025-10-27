@@ -7,6 +7,8 @@ import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
 import CountrySelect from '@/components/CountrySelect';
+import PhoneInput from '@/components/PhoneInput';
+import WebsiteInput from '@/components/WebsiteInput';
 import AuthContainer from '@/components/AuthContainer';
 import { Link } from '@/i18n/routing';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
@@ -18,6 +20,7 @@ export default function InstitutionRegisterPage() {
     name: '',
     email: '',
     phone: '',
+    phonePrefix: '+62',
     country: '',
     address: '',
     website: '',
@@ -41,9 +44,10 @@ export default function InstitutionRegisterPage() {
 
       case 'phone':
         if (!value.trim()) return 'Phone number is required';
-        const phoneRegex = /^\+\d{10,15}$/;
-        if (!phoneRegex.test(value))
-          return 'Phone must start with + and contain 10-15 digits (e.g., +628123456789)';
+        // Only validate the numeric part (without prefix)
+        const phoneRegex = /^\d{8,15}$/;
+        const cleanPhone = value.replace(/\s/g, '');
+        if (!phoneRegex.test(cleanPhone)) return 'Phone must contain 8-15 digits (spaces allowed)';
         return '';
 
       case 'country':
@@ -58,10 +62,16 @@ export default function InstitutionRegisterPage() {
       case 'website':
         if (!value.trim()) return 'Website is required';
         try {
-          new URL(value);
+          // Add https:// prefix for validation
+          new URL(`https://${value}`);
+          // Check if it's a valid domain format
+          const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-_.]*\.[a-zA-Z]{2,}$/;
+          if (!domainRegex.test(value.trim())) {
+            return 'Please enter a valid domain (e.g., example.com)';
+          }
           return '';
         } catch {
-          return 'Please enter a valid URL (e.g., https://example.com)';
+          return 'Please enter a valid domain (e.g., example.com)';
         }
 
       default:
@@ -107,19 +117,19 @@ export default function InstitutionRegisterPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          // Combine prefix and phone number for backend
+          phone: `${formData.phonePrefix}${formData.phone.replace(/\s/g, '')}`,
+          // Add https:// prefix to website
+          website: `https://${formData.website}`,
+        }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || t('registrationFailed'));
       }
-
-      const data = await response.json();
-      console.log('Registration successful:', data);
-
-      // Store form data in sessionStorage for reference if needed
-      sessionStorage.setItem('registrationData', JSON.stringify(formData));
 
       // Redirect to success page
       router.push('/institution/register/success');
@@ -170,6 +180,13 @@ export default function InstitutionRegisterPage() {
     setValidationErrors({
       ...validationErrors,
       country: error,
+    });
+  };
+
+  const handlePhonePrefixChange = (prefix: string) => {
+    setFormData({
+      ...formData,
+      phonePrefix: prefix,
     });
   };
 
@@ -238,14 +255,20 @@ export default function InstitutionRegisterPage() {
         {/* Row 2: Phone Number + Country */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Input
+            <PhoneInput
               id="phone"
               name="phone"
-              type="tel"
               label="Phone Number"
-              placeholder="+62 123 4567 8900"
+              placeholder="123 4567 8900"
               value={formData.phone}
-              onChange={handleChange}
+              prefix={formData.phonePrefix}
+              onValueChange={(value) => {
+                setFormData({ ...formData, phone: value });
+                const error = validateField('phone', value);
+                setValidationErrors({ ...validationErrors, phone: error });
+              }}
+              onPrefixChange={handlePhonePrefixChange}
+              onBlur={handleBlur}
               required
               disabled={loading}
             />
@@ -286,7 +309,8 @@ export default function InstitutionRegisterPage() {
             required
             disabled={loading}
             rows={4}
-            className="text-black w-full px-4 pt-7 pb-3 bg-[#E9F2F5] rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-[#0D2B45] disabled:opacity-50 disabled:cursor-not-allowed resize-none text-sm"
+            className="text-black w-full px-4 pt-8 pb-2 bg-[#E9F2F5] rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-[#0D2B45] disabled:opacity-50 disabled:cursor-not-allowed resize-none"
+            style={{ fontSize: '14px' }}
           />
           <label htmlFor="address" className="absolute top-2 left-4">
             <ThemedText fontSize={12} fontWeight={500} className="text-gray-700">
@@ -302,14 +326,21 @@ export default function InstitutionRegisterPage() {
 
         {/* Row 4: Website (Full Width) */}
         <div>
-          <Input
+          <WebsiteInput
             id="website"
             name="website"
-            type="url"
             label="Website"
-            placeholder="https://johndoe.com"
+            placeholder="example.com"
             value={formData.website}
-            onChange={handleChange}
+            onChange={(value) => {
+              setFormData({ ...formData, website: value });
+              const error = validateField('website', value);
+              setValidationErrors({ ...validationErrors, website: error });
+            }}
+            onBlur={(e) => {
+              const error = validateField('website', e.target.value);
+              setValidationErrors({ ...validationErrors, website: error });
+            }}
             required
             disabled={loading}
           />
