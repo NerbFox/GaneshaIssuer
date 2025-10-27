@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import CreateSchemaForm, { SchemaFormData } from '@/components/CreateSchemaForm';
+import UpdateSchemaForm from '@/components/UpdateSchemaForm';
 import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 
 // TODO: Replace with actual issuer DID from auth context
@@ -17,6 +18,10 @@ interface Schema {
   attributes: number;
   status: 'Active' | 'Inactive';
   lastUpdated: string;
+  schemaDetails?: {
+    properties: Record<string, { type: string }>;
+    required: string[];
+  };
 }
 
 interface ApiSchemaResponse {
@@ -48,6 +53,8 @@ export default function SchemaPage() {
   const [filterSchemaId, setFilterSchemaId] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [showCreateSchemaModal, setShowCreateSchemaModal] = useState(false);
+  const [showUpdateSchemaModal, setShowUpdateSchemaModal] = useState(false);
+  const [selectedSchema, setSelectedSchema] = useState<Schema | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const filterModalRef = useRef<HTMLDivElement>(null);
@@ -137,8 +144,13 @@ export default function SchemaPage() {
     setShowFilterModal(true);
   };
 
-  const applyFilters = (status: 'all' | 'Active' | 'Inactive', schemaId: string) => {
-    let filtered = schemas;
+  const applyFilters = (
+    status: 'all' | 'Active' | 'Inactive',
+    schemaId: string,
+    sourceSchemas?: Schema[]
+  ) => {
+    const schemasToFilter = sourceSchemas || schemas;
+    let filtered = schemasToFilter;
 
     if (status !== 'all') {
       filtered = filtered.filter((schema) => schema.status === status);
@@ -163,9 +175,98 @@ export default function SchemaPage() {
     applyFilters(filterStatus, schemaId);
   };
 
-  const handleUpdateSchema = (schemaId: string) => {
-    console.log('Update schema:', schemaId);
-    // Implement update logic
+  const handleUpdateSchema = async (schemaId: string) => {
+    try {
+      // Fetch the full schema details from API
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId)));
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch schema details');
+      }
+
+      const result = await response.json();
+      const schemaData = result.data;
+
+      // Find the schema in our list for basic info
+      const schema = schemas.find((s) => s.id === schemaId);
+      if (schema && schemaData) {
+        // Add schema details to the schema object
+        const schemaWithDetails: Schema = {
+          ...schema,
+          schemaDetails: {
+            properties: schemaData.schema.properties,
+            required: schemaData.schema.required,
+          },
+        };
+        setSelectedSchema(schemaWithDetails);
+        setShowUpdateSchemaModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching schema details:', error);
+      alert('Failed to load schema details. Please try again.');
+    }
+  };
+
+  const handleUpdateSchemaSubmit = async (data: SchemaFormData) => {
+    try {
+      // Transform the form data to match the API format
+      const properties: Record<string, { type: string }> = {};
+      const required: string[] = [];
+
+      data.attributes.forEach((attr) => {
+        properties[attr.name] = {
+          type: attr.type,
+        };
+        if (attr.required) {
+          required.push(attr.name);
+        }
+      });
+
+      // API expects only the schema object (type, properties, required)
+      const payload = {
+        schema: {
+          type: 'object',
+          properties,
+          required,
+        },
+      };
+
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.UPDATE(data.schemaId)), {
+        method: 'PUT',
+        headers: {
+          accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to update schema: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      // Show success message with transaction hash if available
+      if (result.transaction_hash) {
+        alert(
+          `Schema updated successfully!\nNew version: ${result.data.version}\nTransaction: ${result.transaction_hash.substring(0, 10)}...`
+        );
+      }
+
+      // Refresh the schema list
+      await refreshSchemas();
+
+      // Close modal on success
+      setShowUpdateSchemaModal(false);
+      setSelectedSchema(null);
+    } catch (error) {
+      console.error('Error updating schema:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update schema. Please try again.';
+      alert(errorMessage);
+      throw error; // Re-throw to prevent the form from clearing
+    }
   };
 
   const handleToggleStatus = async (schemaId: string) => {
@@ -501,6 +602,25 @@ export default function SchemaPage() {
         <CreateSchemaForm
           onSubmit={handleCreateSchema}
           onCancel={() => setShowCreateSchemaModal(false)}
+        />
+      </Modal>
+
+      {/* Update Schema Modal */}
+      <Modal
+        isOpen={showUpdateSchemaModal}
+        onClose={() => {
+          setShowUpdateSchemaModal(false);
+          setSelectedSchema(null);
+        }}
+        title="Update Schema"
+      >
+        <UpdateSchemaForm
+          onSubmit={handleUpdateSchemaSubmit}
+          onCancel={() => {
+            setShowUpdateSchemaModal(false);
+            setSelectedSchema(null);
+          }}
+          initialData={selectedSchema || undefined}
         />
       </Modal>
     </InstitutionLayout>
