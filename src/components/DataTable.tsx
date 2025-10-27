@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, ReactNode } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { ThemedText } from './ThemedText';
 
 export interface Column<T> {
@@ -50,6 +50,17 @@ export function DataTable<T>({
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // Reset to page 1 when data length changes or becomes 0
+  useEffect(() => {
+    const total = totalCount || data.length;
+    const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
+
+    // If current page exceeds total pages, reset to page 1
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [data.length, totalCount, rowsPerPage, currentPage]);
+
   // Sort data
   const sortedData = [...data].sort((a, b) => {
     if (!sortColumn) return 0;
@@ -88,8 +99,8 @@ export function DataTable<T>({
   });
 
   const total = totalCount || sortedData.length;
-  const totalPages = Math.ceil(total / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage + 1;
+  const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
+  const startIndex = total > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0;
   const endIndex = Math.min(currentPage * rowsPerPage, total);
 
   // Paginate the data
@@ -371,7 +382,7 @@ export function DataTable<T>({
           <div className="flex items-center gap-2">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
+              disabled={currentPage === 1 || total === 0}
               className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <svg
@@ -395,7 +406,7 @@ export function DataTable<T>({
 
             <button
               onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              disabled={currentPage >= totalPages || total === 0}
               className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <svg
