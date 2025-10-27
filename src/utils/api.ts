@@ -51,6 +51,9 @@ export const API_ENDPOINTS = {
   CREDENTIAL: {
     LIST: '/api/v1/credentials',
     DETAIL: (id: string) => `/api/v1/credentials/${id}`,
+    GET_REQUESTS: '/api/v1/credentials/get-requests',
+    REQUEST_DETAIL: (id: string) => `/api/v1/credentials/request/${id}`,
+    ISSUE_VC: '/api/v1/credentials/issue-vc',
   },
 };
 
