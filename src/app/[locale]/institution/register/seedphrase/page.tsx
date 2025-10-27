@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import AuthContainer from '@/components/AuthContainer';
-import { generateMnemonic, validateMnemonic, ENTROPY_BITS_HIGH_SECURITY } from '@/utils/seedphrase';
+import { generateMnemonic, validateMnemonic, ENTROPY_BITS_24_WORDS } from '@/utils/seedphrase';
+import { redirectIfNotAuthenticated } from '@/utils/auth';
 
 type Step = 'create' | 'confirm';
 
@@ -57,7 +58,7 @@ export default function SeedPhrasePage() {
       setIsLoading(true);
       setError('');
       // Generate 24-word mnemonic (256-bit entropy) for high security
-      const newMnemonic = await generateMnemonic(ENTROPY_BITS_HIGH_SECURITY);
+      const newMnemonic = await generateMnemonic(ENTROPY_BITS_24_WORDS);
 
       // Validate the generated mnemonic immediately
       const isValid = await validateMnemonic(newMnemonic);
@@ -79,16 +80,10 @@ export default function SeedPhrasePage() {
   // Check authentication on component mount
   useEffect(() => {
     // Check if institution has a token (is in registration process)
-    const token = localStorage.getItem('institutionToken');
-    const institution = localStorage.getItem('institutionData');
-
-    if (!token || !institution) {
-      // If no token, redirect to registration page
-      router.push('/institution/register');
-      return;
+    const shouldRedirect = redirectIfNotAuthenticated(router);
+    if (!shouldRedirect) {
+      setIsAuthenticated(true);
     }
-
-    setIsAuthenticated(true);
   }, [router]);
 
   // Generate mnemonic only after authentication is verified
@@ -132,10 +127,10 @@ export default function SeedPhrasePage() {
       return;
     }
 
-    // Save the seed phrase securely and navigate to success
+    // Derive keys and DID from mnemonic, then save only derived keys (not the seed phrase)
     try {
       setIsSaving(true);
-      
+
       // Verify token still exists
       const token = localStorage.getItem('institutionToken');
       if (!token) {
@@ -144,15 +139,22 @@ export default function SeedPhrasePage() {
         return;
       }
 
-      // Save seed phrase to localStorage (in production, this should be encrypted or handled more securely)
-      const seedPhraseString = mnemonic.join(' ');
-      localStorage.setItem('institutionSeedPhrase', seedPhraseString);
+      // Generate wallet from mnemonic to get derived keys and DID
+      const { generateWalletFromMnemonic, bytesToHex } = await import('@/utils/seedphrase');
+      const wallet = await generateWalletFromMnemonic(mnemonic, 'i', '', 0);
+
+      // Store only the derived private signing key and DID (NOT the seed phrase)
+      // In production, encrypt the private key before storing
+      const signingPrivateKeyHex = bytesToHex(wallet.signingKey.privateKey);
+      localStorage.setItem('institutionDID', wallet.did);
+      localStorage.setItem('institutionSigningPrivateKey', signingPrivateKeyHex); // This should be encrypted
+      localStorage.setItem('institutionSigningPublicKey', wallet.signingKey.publicKeyHex);
 
       // Navigate to confirmation page
       router.push('/institution/register/confirm');
     } catch (err) {
-      console.error('Error saving seed phrase:', err);
-      setError('Failed to save seed phrase. Please try again.');
+      console.error('Error deriving keys:', err);
+      setError('Failed to derive keys. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -292,8 +294,6 @@ export default function SeedPhrasePage() {
         isClickable = true;
         isClicked = clickedGroups.has(groupIndex);
         clickPosition = groupClickOrder.indexOf(groupIndex) + 1;
-        console.log('clickPosition', clickPosition);
-        console.log('groupClickOrder', groupClickOrder);
         groupLabel = isClicked ? `Group ${clickPosition}` : 'Group ?';
       }
     }

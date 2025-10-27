@@ -1,7 +1,20 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 
 export default function InstitutionProfilePage() {
+  const [did, setDid] = useState<string>('');
+
+  useEffect(() => {
+    // Retrieve DID from localStorage
+    const storedDid = localStorage.getItem('institutionDID');
+    if (storedDid) {
+      setDid(storedDid);
+    }
+  }, []);
+
   return (
     <InstitutionLayout activeTab="profile">
       {/* Profile Content */}
@@ -85,7 +98,7 @@ export default function InstitutionProfilePage() {
           <ThemedText className="block text-sm font-medium text-gray-900 mb-3">DID</ThemedText>
           <input
             type="text"
-            value="did:git:iabcdefghijklmnopqrstuvwxyz1234567890"
+            value={did}
             readOnly
             className="w-full px-4 py-3 bg-[#F4F7FC] border border-gray-200 rounded-lg text-gray-500 text-sm"
           />

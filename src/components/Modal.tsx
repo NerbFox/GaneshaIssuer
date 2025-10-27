@@ -10,7 +10,13 @@ interface ModalProps {
   maxWidth?: string;
 }
 
-export default function Modal({ isOpen, onClose, title, children, maxWidth = '900px' }: ModalProps) {
+export default function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  maxWidth = '900px',
+}: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Prevent body scroll when modal is open
@@ -31,11 +37,8 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = '90
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Tinted black overlay - clicks don't close modal */}
-      <div 
-        className="absolute inset-0 bg-black/50"
-        aria-hidden="true"
-      />
-      
+      <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
+
       {/* Modal content */}
       <div
         ref={modalRef}
@@ -47,7 +50,7 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = '90
           <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
             aria-label="Close modal"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

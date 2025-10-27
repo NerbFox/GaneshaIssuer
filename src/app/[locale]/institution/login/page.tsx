@@ -6,7 +6,7 @@ import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import AuthContainer from '@/components/AuthContainer';
 import { Link } from '@/i18n/routing';
-import { validateMnemonic, mnemonicToSeed, deriveDIDIdentifierKey } from '@/utils/seedphrase';
+import { validateMnemonic, generateWalletFromMnemonic } from '@/utils/seedphrase';
 
 export default function InstitutionLoginPage() {
   const router = useRouter();
@@ -38,29 +38,22 @@ export default function InstitutionLoginPage() {
         return;
       }
 
-      // Generate seed from mnemonic
-      const seed = await mnemonicToSeed(words);
+      // Generate wallet from mnemonic (institution entity type)
+      const wallet = await generateWalletFromMnemonic(words, 'i', '', 0);
 
-      // Derive DID identifier key (private key)
-      const { privateKey } = deriveDIDIdentifierKey(seed);
+      // Extract keys and DID
+      const did = wallet.did;
+      const signingPublicKeyHex = wallet.signingKey.publicKeyHex;
+      const didPublicKeyHex = wallet.didKey.publicKeyHex;
 
-      // For demonstration purposes, we'll create a simple public key representation
-      // In a real implementation, you'd use proper Ed25519 or secp256k1 key generation
-      const publicKeyHex = Array.from(privateKey.slice(0, 32))
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
-
-      // Log the public key (as requested)
-      console.log('Generated Public Key:', publicKeyHex);
-      console.log('Private Key Length:', privateKey.length);
-      console.log('Seed Length:', seed.length);
-
-      // Store authentication state (you can expand this)
+      // Store authentication state
       sessionStorage.setItem('isAuthenticated', 'true');
-      sessionStorage.setItem('publicKey', publicKeyHex);
+      sessionStorage.setItem('did', did);
+      sessionStorage.setItem('signingPublicKey', signingPublicKeyHex);
+      sessionStorage.setItem('didPublicKey', didPublicKeyHex);
 
       // Navigate to dashboard
-      router.push('/dashboard');
+      router.push('/institution/dashboard');
     } catch (err) {
       console.error('Login error:', err);
       setError('Failed to process seed phrase. Please try again.');

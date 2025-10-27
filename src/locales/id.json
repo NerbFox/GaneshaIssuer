@@ -36,6 +36,7 @@
     "pleaseWait": "Mohon tunggu sementara kami memverifikasi link Anda...",
     "tokenNotFound": "Token tidak ditemukan di URL",
     "verificationFailed": "Verifikasi gagal",
+    "verificationSuccess": "Verifikasi berhasil! Mengarahkan...",
     "loginSuccessRedirect": "Login berhasil! Mengarahkan ke dashboard...",
     "registerNewInstitution": "Daftarkan Institusi Baru",
     "goToHomepage": "Kembali ke Beranda",

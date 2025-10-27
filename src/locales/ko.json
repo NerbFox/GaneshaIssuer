@@ -31,6 +31,18 @@
     "adminAccess": "관리자 패널에 액세스",
     "registerInstitution": "기관 등록"
   },
+  "verify": {
+    "verifying": "매직 링크 확인 중",
+    "pleaseWait": "링크를 확인하는 동안 잠시 기다려주세요...",
+    "tokenNotFound": "URL에서 토큰을 찾을 수 없습니다",
+    "verificationFailed": "확인 실패",
+    "verificationSuccess": "확인 성공! 리디렉션 중...",
+    "loginSuccessRedirect": "로그인 성공! 대시보드로 이동 중...",
+    "registerNewInstitution": "새 기관 등록",
+    "goToHomepage": "홈페이지로 이동",
+    "aboutMagicLinks": "매직 링크 정보",
+    "magicLinkDescription": "매직 링크는 관리자 승인 후 이메일로 전송되는 안전한 일회용 링크입니다. 24시간 후 만료됩니다."
+  },
   "auth": {
     "setup": {
       "title": "지갑 설정",

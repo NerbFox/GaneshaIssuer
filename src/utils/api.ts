@@ -44,6 +44,8 @@ export const API_ENDPOINTS = {
     CREATE: '/api/v1/schemas',
     UPDATE: (id: string) => `/api/v1/schemas/${id}`,
     DELETE: (id: string) => `/api/v1/schemas/${id}`,
+    DEACTIVATE: (id: string) => `/api/v1/schemas/${id}/deactivate`,
+    REACTIVATE: (id: string) => `/api/v1/schemas/${id}/reactivate`,
   },
   // Credential endpoints
   CREDENTIAL: {

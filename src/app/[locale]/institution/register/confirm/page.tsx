@@ -6,18 +6,55 @@ import Image from 'next/image';
 import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import AuthContainer from '@/components/AuthContainer';
+import { redirectIfNotAuthenticated } from '@/utils/auth';
+import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 
 export default function RegistrationConfirmPage() {
   const router = useRouter();
   const [didId, setDidId] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Generate a mock DID on component mount
+  // Check authentication on component mount
   useEffect(() => {
-    // In a real implementation, this would come from your DID generation process
-    const mockDid = 'did:git:abcdefghijklmnopqrstuvwxyzABC123';
-    setDidId(mockDid);
-  }, []);
+    const shouldRedirect = redirectIfNotAuthenticated(router);
+    if (!shouldRedirect) {
+      setIsAuthenticated(true);
+    }
+  }, [router]);
+
+  // Retrieve already-generated DID from previous step
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const loadDID = () => {
+      try {
+        setIsLoading(true);
+
+        // Retrieve the stored DID (already generated in seedphrase page)
+        const storedDID = localStorage.getItem('institutionDID');
+
+        if (!storedDID) {
+          setError('DID not found. Please complete registration again.');
+          setTimeout(() => router.push('/institution/register'), 3000);
+          return;
+        }
+
+        // Set the DID
+        setDidId(storedDID);
+      } catch (err) {
+        console.error('Error retrieving DID:', err);
+        setError('Failed to retrieve DID. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDID();
+  }, [router, isAuthenticated]);
 
   const copyToClipboard = async () => {
     if (!didId) return;
@@ -33,23 +70,119 @@ export default function RegistrationConfirmPage() {
   };
 
   const handleDownload = () => {
-    // Create a simple text file with DID information
-    const content = `Your DID: ${didId}\n\nGenerated on: ${new Date().toLocaleDateString()}\n\nKeep this information safe and secure.`;
+    if (!didId) return;
+
+    // Create a comprehensive text file with DID information
+    const content = `Institution DID Information
+========================================
+
+DID Identifier:
+${didId}
+
+DID Method: dcert
+Entity Type: Institution (i)
+Format: did:dcert:i{base64url_publickey}
+
+Generated on: ${new Date().toLocaleString()}
+
+IMPORTANT SECURITY NOTES:
+========================================
+1. This DID is permanently associated with your seed phrase
+2. Keep your 24-word seed phrase secure and NEVER share it
+3. The DID can be shared publicly for verification purposes
+4. You can rotate signing keys without changing this DID
+5. If you lose your seed phrase, you cannot recover this wallet
+
+Key Derivation Paths (BIP44):
+========================================
+- DID Key Path: m/44'/1001'/0'/1'/0' (internal chain)
+- Signing Key Path: m/44'/1001'/0'/0'/0' (external chain)
+
+For more information about DIDs and key management,
+visit the GaneshaWallet documentation.
+
+========================================
+Keep this information safe and secure!
+========================================
+`;
     const blob = new Blob([content], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'did-information.txt';
+    a.download = `institution-did-${new Date().toISOString().split('T')[0]}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
   };
 
-  const handleContinue = () => {
-    // Navigate to dashboard or next step
-    router.push('/dashboard');
+  const handleContinue = async () => {
+    try {
+      setIsSubmitting(true);
+      setError('');
+
+      // Retrieve required data from localStorage
+      const didString = localStorage.getItem('institutionDID');
+      const publicKey = localStorage.getItem('institutionSigningPublicKey');
+      const institutionDataStr = localStorage.getItem('institutionData');
+      const token = localStorage.getItem('institutionToken');
+
+      if (!didString || !publicKey || !institutionDataStr || !token) {
+        throw new Error('Missing required data. Please complete registration again.');
+      }
+
+      // Parse institution data to get email
+      const institutionData = JSON.parse(institutionDataStr);
+      const email = institutionData.email;
+
+      if (!email) {
+        throw new Error('Email not found. Please complete registration again.');
+      }
+
+      // Prepare form data
+      const formData = {
+        did_string: didString,
+        public_key: publicKey,
+        role: 'institution',
+        email: email,
+      };
+
+      // Send POST request to register DID
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.DID.LIST), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to register DID');
+      }
+
+      // Navigate to dashboard on success
+      router.push('/institution/dashboard');
+    } catch (err) {
+      console.error('Error registering DID:', err);
+      setError(err instanceof Error ? err.message : 'Failed to register DID. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  // Show loading screen while checking authentication
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#0D2B45] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+          <p className="mt-4 text-white">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AuthContainer>
@@ -80,19 +213,38 @@ export default function RegistrationConfirmPage() {
         </ThemedText>
       </div>
 
-      <ThemedText fontSize={16} className="text-gray-600">
-        This is your DID:
-      </ThemedText>
-
-      {/* DID Information Section */}
-      <div className="mt-2 mb-2">
-        <div className="relative">
-          <div className="text-black w-full px-4 py-3 bg-[#E9F2F5] rounded-lg border-0 text-sm font-mono break-all">
-            {didId}
-          </div>
-          <label className="absolute top-2 left-4"></label>
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <ThemedText fontSize={14}>{error}</ThemedText>
         </div>
-      </div>
+      )}
+
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="mb-6 flex flex-col items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0D2B45] mb-4"></div>
+          <ThemedText fontSize={16} className="text-gray-600">
+            Generating your DID identifier...
+          </ThemedText>
+        </div>
+      ) : (
+        <>
+          <ThemedText fontSize={16} className="text-gray-600">
+            This is your DID:
+          </ThemedText>
+
+          {/* DID Information Section */}
+          <div className="mt-2 mb-2">
+            <div className="relative">
+              <div className="text-black w-full px-4 py-3 bg-[#E9F2F5] rounded-lg border-0 text-sm font-mono break-all">
+                {didId || 'Generating...'}
+              </div>
+              <label className="absolute top-2 left-4"></label>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Action Buttons */}
       <div className="mb-6 flex gap-3 justify-center">
@@ -174,9 +326,10 @@ export default function RegistrationConfirmPage() {
         onClick={handleContinue}
         variant="primary"
         fullWidth
+        disabled={isLoading || !!error || !didId || isSubmitting}
         className="bg-[#0D2B45] text-white py-3"
       >
-        Continue
+        {isLoading ? 'Generating DID...' : isSubmitting ? 'Registering DID...' : 'Continue'}
       </Button>
     </AuthContainer>
   );

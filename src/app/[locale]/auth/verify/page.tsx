@@ -25,14 +25,21 @@ export default function VerifyMagicLinkPage() {
           body: JSON.stringify({ token }),
         });
 
-        const data = await response.json();
+        let data = await response.json();
 
         if (!response.ok) {
           throw new Error(data.message || tVerify('verificationFailed'));
         }
 
-        // Simpan session token dan institution data
-        localStorage.setItem('institutionToken', data.token);
+        data = data.data;
+
+        // Validate response data
+        if (!data.sessionToken || !data.institution) {
+          throw new Error('Invalid response: missing token or institution data');
+        }
+
+        // Save session token and institution data
+        localStorage.setItem('institutionToken', data.sessionToken);
         localStorage.setItem('institutionData', JSON.stringify(data.institution));
 
         setStatus('success');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ThemedText } from './ThemedText';
 import { DataTable, Column } from './DataTable';
 
@@ -12,9 +12,20 @@ interface Attribute {
   required: boolean;
 }
 
-interface CreateSchemaFormProps {
+interface UpdateSchemaFormProps {
   onSubmit: (data: SchemaFormData) => Promise<void>;
   onCancel: () => void;
+  initialData?: {
+    id: string;
+    schemaName: string;
+    attributes: number;
+    status: string;
+    lastUpdated: string;
+    schemaDetails?: {
+      properties: Record<string, { type: string }>;
+      required: string[];
+    };
+  };
 }
 
 export interface SchemaFormData {
@@ -25,7 +36,11 @@ export interface SchemaFormData {
   attributes: Attribute[];
 }
 
-export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFormProps) {
+export default function UpdateSchemaForm({
+  onSubmit,
+  onCancel,
+  initialData,
+}: UpdateSchemaFormProps) {
   const [schemaId, setSchemaId] = useState('');
   const [schemaName, setSchemaName] = useState('');
   const [version, setVersion] = useState('1');
@@ -33,6 +48,38 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Pre-fill form with initial data
+  useEffect(() => {
+    if (initialData) {
+      setSchemaId(initialData.id);
+      // Extract name and version from schemaName (format: "Name vX")
+      const nameMatch = initialData.schemaName.match(/^(.+?)\s+v(\d+)$/);
+      if (nameMatch) {
+        setSchemaName(nameMatch[1]);
+        setVersion(nameMatch[2]);
+      } else {
+        setSchemaName(initialData.schemaName);
+      }
+      setStatus(initialData.status);
+
+      // Load existing attributes from schema details
+      if (initialData.schemaDetails) {
+        const loadedAttributes: Attribute[] = Object.entries(
+          initialData.schemaDetails.properties
+        ).map(([name, config], index) => ({
+          id: index + 1,
+          name,
+          type: (config as { type: string }).type,
+          description: '',
+          required: initialData.schemaDetails!.required.includes(name),
+        }));
+        setAttributes(loadedAttributes);
+      } else {
+        setAttributes([]);
+      }
+    }
+  }, [initialData]);
 
   const handleAddAttribute = () => {
     const newId = attributes.length > 0 ? Math.max(...attributes.map((a) => a.id)) + 1 : 1;
@@ -98,11 +145,14 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
         <select
           value={row.type}
           onChange={(e) => handleAttributeChange(row.id, 'type', e.target.value)}
-          className="w-full px-2 py-1 border-0 text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded text-sm cursor-pointer"
+          className="w-full px-2 py-1 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded text-sm"
         >
-          <option value="string">string</option>
-          <option value="number">number</option>
-          <option value="boolean">boolean</option>
+          <option value="string">String</option>
+          <option value="number">Number</option>
+          <option value="boolean">Boolean</option>
+          <option value="date">Date</option>
+          <option value="array">Array</option>
+          <option value="object">Object</option>
         </select>
       ),
     },
@@ -129,7 +179,7 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
           type="checkbox"
           checked={row.required}
           onChange={(e) => handleAttributeChange(row.id, 'required', e.target.checked)}
-          className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 rounded cursor-pointer"
+          className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
         />
       ),
     },
@@ -165,7 +215,8 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
           value={schemaId}
           onChange={(e) => setSchemaId(e.target.value)}
           placeholder="Enter schema ID"
-          className="w-full text-black px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+          disabled
+          className="w-full text-black px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm cursor-not-allowed"
         />
       </div>
 
@@ -269,7 +320,7 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
           {isSubmitting && (
             <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
           )}
-          {isSubmitting ? 'CREATING...' : 'CREATE SCHEMA'}
+          {isSubmitting ? 'UPDATING...' : 'UPDATE SCHEMA'}
         </button>
       </div>
     </div>

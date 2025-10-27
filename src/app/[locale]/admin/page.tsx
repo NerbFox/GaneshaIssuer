@@ -73,6 +73,7 @@ export default function AdminPage() {
   const [error, setError] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [adminData, setAdminData] = useState<AdminData | null>(null);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const fetchPendingInstitutions = useCallback(
     async (token: string, devData?: Institution[]) => {
@@ -115,6 +116,7 @@ export default function AdminPage() {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
         setLoading(false);
+        setLastRefresh(new Date());
       }
     },
     [router]
@@ -150,6 +152,30 @@ export default function AdminPage() {
     setAdminData(JSON.parse(admin));
     fetchPendingInstitutions(token);
   }, [router, fetchPendingInstitutions]);
+
+  // Auto-refresh every 10 seconds
+  useEffect(() => {
+    // Don't set up auto-refresh if not authenticated or still loading
+    if (!adminData) return;
+
+    const intervalId = setInterval(() => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const devBypass =
+        process.env.NEXT_PUBLIC_DEV_BYPASS === 'true' || urlParams.get('dev') === 'true';
+
+      if (devBypass) {
+        fetchPendingInstitutions('dev-token', dummyInstitutions);
+      } else {
+        const token = localStorage.getItem('adminToken');
+        if (token) {
+          fetchPendingInstitutions(token);
+        }
+      }
+    }, 10000); // 10 seconds
+
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId);
+  }, [adminData, fetchPendingInstitutions]);
 
   const handleApprove = async (institutionId: string) => {
     if (!confirm(t('confirmApprove'))) {
@@ -337,6 +363,18 @@ export default function AdminPage() {
                 </ThemedText>
               </div>
             )}
+            {/* Auto-refresh indicator */}
+            <div className="pt-2 flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse"></div>
+                <ThemedText fontSize={12} className="text-gray-400">
+                  Auto-refreshing every 10s
+                </ThemedText>
+              </div>
+              <ThemedText fontSize={12} className="text-gray-500">
+                • Last updated: {lastRefresh.toLocaleTimeString()}
+              </ThemedText>
+            </div>
           </div>
         </div>
 
