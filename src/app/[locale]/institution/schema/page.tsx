@@ -114,9 +114,10 @@ export default function SchemaPage() {
   }, [showFilterModal]);
 
   const handleSearch = (value: string) => {
-    const filtered = schemas.filter((schema) =>
-      schema.schemaName.toLowerCase().includes(value.toLowerCase()) ||
-      schema.id.toLowerCase().includes(value.toLowerCase())
+    const filtered = schemas.filter(
+      (schema) =>
+        schema.schemaName.toLowerCase().includes(value.toLowerCase()) ||
+        schema.id.toLowerCase().includes(value.toLowerCase())
     );
     setFilteredSchemas(filtered);
   };
@@ -289,18 +290,14 @@ export default function SchemaPage() {
       label: 'Schema Name',
       sortKey: 'schemaName',
       render: (row) => (
-        <ThemedText className="text-sm font-medium text-gray-900">
-          {row.schemaName}
-        </ThemedText>
+        <ThemedText className="text-sm font-medium text-gray-900">{row.schemaName}</ThemedText>
       ),
     },
     {
       id: 'attributes',
       label: '# Attributes',
       sortKey: 'attributes',
-      render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{row.attributes}</ThemedText>
-      ),
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.attributes}</ThemedText>,
     },
     {
       id: 'status',
@@ -309,9 +306,7 @@ export default function SchemaPage() {
       render: (row) => (
         <span
           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-            row.status === 'Active'
-              ? 'bg-blue-100 text-blue-700'
-              : 'bg-gray-100 text-gray-700'
+            row.status === 'Active' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
           }`}
         >
           {row.status}
@@ -322,9 +317,7 @@ export default function SchemaPage() {
       id: 'lastUpdated',
       label: 'Last Updated',
       sortKey: 'lastUpdated',
-      render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{row.lastUpdated}</ThemedText>
-      ),
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.lastUpdated}</ThemedText>,
     },
     {
       id: 'action',
@@ -376,17 +369,13 @@ export default function SchemaPage() {
             {/* Stats Cards */}
             <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <ThemedText className="text-sm text-gray-600 mb-2">
-              All Schemas
-            </ThemedText>
+            <ThemedText className="text-sm text-gray-600 mb-2">All Schemas</ThemedText>
             <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
               {schemas.length}
             </ThemedText>
           </div>
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <ThemedText className="text-sm text-gray-600 mb-2">
-              Active Schemas
-            </ThemedText>
+            <ThemedText className="text-sm text-gray-600 mb-2">Active Schemas</ThemedText>
             <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
               {activeCount.toLocaleString()}
             </ThemedText>
@@ -404,12 +393,7 @@ export default function SchemaPage() {
             label: 'New Schema',
             onClick: handleNewSchema,
             icon: (
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -446,12 +430,7 @@ export default function SchemaPage() {
               onClick={() => setShowFilterModal(false)}
               className="text-gray-400 hover:text-gray-600"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -464,12 +443,10 @@ export default function SchemaPage() {
 
           {/* Status Filter */}
           <div className="mb-4">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              Status
-            </ThemedText>
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">Status</ThemedText>
             <select
               value={filterStatus}
-              onChange={(e) => handleStatusChange(e.target.value as any)}
+              onChange={(e) => handleStatusChange(e.target.value as 'all' | 'Active' | 'Inactive')}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             >
               <option value="all">All</option>

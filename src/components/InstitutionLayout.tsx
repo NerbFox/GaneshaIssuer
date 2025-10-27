@@ -61,13 +61,13 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
                   className="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-200 transition-all duration-300 group"
                   aria-label="Close sidebar"
                 >
-                <Image
-                  src="/SidebarIcon.svg"
-                  alt="Sidebar"
-                  width={24}
-                  height={24}
-                  className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-180"
-                />
+                  <Image
+                    src="/SidebarIcon.svg"
+                    alt="Sidebar"
+                    width={24}
+                    height={24}
+                    className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-180"
+                  />
                 </button>
               </div>
             </div>
@@ -119,21 +119,20 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
             <div className="p-4">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 flex items-center justify-center">
-                  <Image
-                    src="/GWallet.svg"
-                    alt="GaneshaWallet"
-                    width={24}
-                    height={24}
-                  />
+                  <Image src="/GWallet.svg" alt="GaneshaWallet" width={24} height={24} />
                 </div>
-                <ThemedText fontSize={20} fontWeight={700} className="text-[#0C2D48]">GaneshaWallet</ThemedText>
+                <ThemedText fontSize={20} fontWeight={700} className="text-[#0C2D48]">
+                  GaneshaWallet
+                </ThemedText>
               </div>
             </div>
           </aside>
         )}
 
         {/* Main Content Canvas */}
-        <main className={`bg-white rounded-3xl overflow-auto ${isCollapsed ? 'w-full h-full' : 'flex-1'}`}>
+        <main
+          className={`bg-white rounded-3xl overflow-auto ${isCollapsed ? 'w-full h-full' : 'flex-1'}`}
+        >
           {children}
         </main>
       </div>

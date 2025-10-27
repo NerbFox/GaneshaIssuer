@@ -8,7 +8,7 @@ export interface Column<T> {
   label: string;
   render: (row: T, index: number) => ReactNode;
   sortable?: boolean;
-  sortKey?: keyof T | ((row: T) => any);
+  sortKey?: keyof T | ((row: T) => string | number);
 }
 
 export interface DataTableProps<T> {
@@ -57,16 +57,16 @@ export function DataTable<T>({
     const column = columns.find((col) => col.id === sortColumn);
     if (!column) return 0;
 
-    let aValue: any;
-    let bValue: any;
+    let aValue: string | number;
+    let bValue: string | number;
 
     if (column.sortKey) {
       if (typeof column.sortKey === 'function') {
         aValue = column.sortKey(a);
         bValue = column.sortKey(b);
       } else {
-        aValue = a[column.sortKey];
-        bValue = b[column.sortKey];
+        aValue = a[column.sortKey] as string | number;
+        bValue = b[column.sortKey] as string | number;
       }
     } else {
       return 0;
@@ -74,9 +74,7 @@ export function DataTable<T>({
 
     // Handle different types
     if (typeof aValue === 'string' && typeof bValue === 'string') {
-      return sortDirection === 'asc'
-        ? aValue.localeCompare(bValue)
-        : bValue.localeCompare(aValue);
+      return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
     }
 
     if (typeof aValue === 'number' && typeof bValue === 'number') {
@@ -95,7 +93,10 @@ export function DataTable<T>({
   const endIndex = Math.min(currentPage * rowsPerPage, total);
 
   // Paginate the data
-  const paginatedData = sortedData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const paginatedData = sortedData.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
 
   const handleSelectAll = () => {
     if (selectAll) {
@@ -247,7 +248,10 @@ export function DataTable<T>({
                     }`}
                     disabled={!column.sortKey}
                   >
-                    <ThemedText fontWeight={700} className="text-xs text-gray-600 uppercase tracking-wider">
+                    <ThemedText
+                      fontWeight={700}
+                      className="text-xs text-gray-600 uppercase tracking-wider"
+                    >
                       {column.label}
                     </ThemedText>
                     {column.sortKey && (
@@ -349,9 +353,7 @@ export function DataTable<T>({
         <div className="flex items-center gap-4">
           {/* Rows Per Page */}
           <div className="flex items-center gap-2">
-            <ThemedText className="text-sm text-gray-600">
-              Rows per page:
-            </ThemedText>
+            <ThemedText className="text-sm text-gray-600">Rows per page:</ThemedText>
             <select
               value={rowsPerPage}
               onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}

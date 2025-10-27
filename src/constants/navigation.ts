@@ -1,4 +1,3 @@
-
 export interface NavigationItem {
   id: string;
   label: string;
@@ -18,7 +17,7 @@ export const sidebarNavigation: NavigationSection[] = [
         id: 'profile',
         label: 'Profile',
         href: '/institution/profile',
-        icon: 'ProfileIcon.svg'
+        icon: 'ProfileIcon.svg',
       },
       {
         id: 'dashboard',
@@ -41,7 +40,7 @@ export const sidebarNavigation: NavigationSection[] = [
         id: 'schema',
         label: 'Schema',
         href: '/institution/schema',
-        icon: 'SchemaIcon.svg'
+        icon: 'SchemaIcon.svg',
       },
       {
         id: 'issued-by-me',
