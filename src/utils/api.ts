@@ -41,6 +41,9 @@ export const API_ENDPOINTS = {
   SCHEMA: {
     LIST: '/api/v1/schemas',
     DETAIL: (id: string) => `/api/v1/schemas/${id}`,
+    CREATE: '/api/v1/schemas',
+    UPDATE: (id: string) => `/api/v1/schemas/${id}`,
+    DELETE: (id: string) => `/api/v1/schemas/${id}`,
   },
   // Credential endpoints
   CREDENTIAL: {
@@ -54,4 +57,24 @@ export const API_ENDPOINTS = {
  */
 export const buildApiUrl = (endpoint: string): string => {
   return `${getApiUrl()}${endpoint}`;
+};
+
+/**
+ * Build API URL with query parameters
+ */
+export const buildApiUrlWithParams = (
+  endpoint: string,
+  params?: Record<string, string | number | boolean>
+): string => {
+  const url = buildApiUrl(endpoint);
+  if (!params || Object.keys(params).length === 0) {
+    return url;
+  }
+
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    searchParams.append(key, String(value));
+  });
+
+  return `${url}?${searchParams.toString()}`;
 };

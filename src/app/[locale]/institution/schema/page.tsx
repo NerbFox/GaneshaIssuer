@@ -6,6 +6,10 @@ import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import CreateSchemaForm, { SchemaFormData } from '@/components/CreateSchemaForm';
+import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
+
+// TODO: Replace with actual issuer DID from auth context
+const DEFAULT_ISSUER_DID = 'did:example:university123';
 
 interface Schema {
   id: string;
@@ -55,21 +59,23 @@ export default function SchemaPage() {
     const fetchSchemas = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(
-          'https://dev-api-dcert.ganeshait.com/api/v1/schemas?issuerDid=did%3Aexample%3Auniversity123&activeOnly=false',
-          {
-            headers: {
-              'accept': 'application/json',
-            },
-          }
-        );
-        
+        const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.LIST, {
+          issuerDid: DEFAULT_ISSUER_DID,
+          activeOnly: false,
+        });
+
+        const response = await fetch(url, {
+          headers: {
+            accept: 'application/json',
+          },
+        });
+
         if (!response.ok) {
           throw new Error('Failed to fetch schemas');
         }
 
         const result: ApiSchemaResponse = await response.json();
-        
+
         // Transform API data to match Schema interface
         const transformedSchemas: Schema[] = result.data.data.map((schema) => ({
           id: schema.id,
@@ -230,13 +236,13 @@ export default function SchemaPage() {
           properties,
           required,
         },
-        issuer_did: 'did:example:university123',
+        issuer_did: DEFAULT_ISSUER_DID,
       };
 
-      const response = await fetch('https://dev-api-dcert.ganeshait.com/api/v1/schemas', {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), {
         method: 'POST',
         headers: {
-          'accept': 'application/json',
+          accept: 'application/json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
@@ -251,14 +257,16 @@ export default function SchemaPage() {
       console.log('Schema created successfully:', result);
 
       // Refresh the schemas list
-      const schemasResponse = await fetch(
-        'https://dev-api-dcert.ganeshait.com/api/v1/schemas?issuerDid=did%3Aexample%3Auniversity123&activeOnly=false',
-        {
-          headers: {
-            'accept': 'application/json',
-          },
-        }
-      );
+      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.LIST, {
+        issuerDid: DEFAULT_ISSUER_DID,
+        activeOnly: false,
+      });
+
+      const schemasResponse = await fetch(url, {
+        headers: {
+          accept: 'application/json',
+        },
+      });
 
       if (schemasResponse.ok) {
         const schemasResult: ApiSchemaResponse = await schemasResponse.json();
@@ -277,7 +285,8 @@ export default function SchemaPage() {
       setShowCreateSchemaModal(false);
     } catch (error) {
       console.error('Error creating schema:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create schema. Please try again.';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to create schema. Please try again.';
       alert(errorMessage);
       // Don't close modal on error, let user fix the issue
       throw error; // Re-throw to prevent the form from clearing
@@ -368,46 +377,46 @@ export default function SchemaPage() {
           <>
             {/* Stats Cards */}
             <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
-          <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <ThemedText className="text-sm text-gray-600 mb-2">All Schemas</ThemedText>
-            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-              {schemas.length}
-            </ThemedText>
-          </div>
-          <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <ThemedText className="text-sm text-gray-600 mb-2">Active Schemas</ThemedText>
-            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-              {activeCount.toLocaleString()}
-            </ThemedText>
-          </div>
-        </div>
+              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+                <ThemedText className="text-sm text-gray-600 mb-2">All Schemas</ThemedText>
+                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                  {schemas.length}
+                </ThemedText>
+              </div>
+              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+                <ThemedText className="text-sm text-gray-600 mb-2">Active Schemas</ThemedText>
+                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                  {activeCount.toLocaleString()}
+                </ThemedText>
+              </div>
+            </div>
 
-        {/* Data Table */}
-        <DataTable
-          data={filteredSchemas}
-          columns={columns}
-          onFilter={handleFilter}
-          searchPlaceholder="Search..."
-          onSearch={handleSearch}
-          topRightButton={{
-            label: 'New Schema',
-            onClick: handleNewSchema,
-            icon: (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-            ),
-          }}
-          enableSelection={true}
-          totalCount={filteredSchemas.length}
-          rowsPerPageOptions={[5, 10, 25, 50, 100]}
-          idKey="id"
-        />
+            {/* Data Table */}
+            <DataTable
+              data={filteredSchemas}
+              columns={columns}
+              onFilter={handleFilter}
+              searchPlaceholder="Search..."
+              onSearch={handleSearch}
+              topRightButton={{
+                label: 'New Schema',
+                onClick: handleNewSchema,
+                icon: (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                ),
+              }}
+              enableSelection={true}
+              totalCount={filteredSchemas.length}
+              rowsPerPageOptions={[5, 10, 25, 50, 100]}
+              idKey="id"
+            />
           </>
         )}
       </div>
