@@ -22,7 +22,7 @@ export const sidebarNavigation: NavigationSection[] = [
       {
         id: 'dashboard',
         label: 'Dashboard',
-        href: '/institution',
+        href: '/institution/dashboard',
         icon: 'DashboardIcon.svg',
       },
     ],
@@ -33,7 +33,7 @@ export const sidebarNavigation: NavigationSection[] = [
       {
         id: 'issue-request',
         label: 'Issue Request',
-        href: '/institution/issuer/issue-request',
+        href: '/institution/issue-request',
         icon: 'IssueIcon.svg',
       },
       {
@@ -45,13 +45,13 @@ export const sidebarNavigation: NavigationSection[] = [
       {
         id: 'issued-by-me',
         label: 'Issued By Me',
-        href: '/institution/issuer/issued-by-me',
+        href: '/institution/issued-by-me',
         icon: 'IDCardIcon.svg',
       },
       {
         id: 'history',
         label: 'History',
-        href: '/institution/issuer/history',
+        href: '/institution/history',
         icon: 'FolderIcon.svg',
       },
     ],
@@ -62,13 +62,13 @@ export const sidebarNavigation: NavigationSection[] = [
       {
         id: 'my-credential',
         label: 'My Credential',
-        href: '/institution/holder/my-credential',
+        href: '/institution/my-credential',
         icon: 'IDCardIcon.svg',
       },
       {
         id: 'my-request',
         label: 'My Request',
-        href: '/institution/holder/my-request',
+        href: '/institution/my-request',
         icon: 'FolderIcon.svg',
       },
     ],
@@ -79,13 +79,13 @@ export const sidebarNavigation: NavigationSection[] = [
       {
         id: 'shared-with-me',
         label: 'Shared With Me',
-        href: '/institution/verifier/shared-with-me',
+        href: '/institution/shared-with-me',
         icon: 'IDCardIcon.svg',
       },
       {
         id: 'verify-request',
         label: 'Verify Request',
-        href: '/institution/verifier/verify-request',
+        href: '/institution/verify-request',
         icon: 'FolderIcon.svg',
       },
     ],

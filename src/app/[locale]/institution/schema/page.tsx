@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
+import Modal from '@/components/Modal';
+import CreateSchemaForm, { SchemaFormData } from '@/components/CreateSchemaForm';
 
 interface Schema {
   id: string;
@@ -13,160 +15,82 @@ interface Schema {
   lastUpdated: string;
 }
 
-const DUMMY_SCHEMAS: Schema[] = [
-  {
-    id: 'SCH001',
-    schemaName: 'KTP v1',
-    attributes: 3,
-    status: 'Active',
-    lastUpdated: '2025/08/07',
-  },
-  {
-    id: 'SCH002',
-    schemaName: 'KTP v2',
-    attributes: 4,
-    status: 'Inactive',
-    lastUpdated: '2025/08/07',
-  },
-  {
-    id: 'SCH003',
-    schemaName: 'KTP v3',
-    attributes: 5,
-    status: 'Active',
-    lastUpdated: '2025/08/07',
-  },
-  {
-    id: 'SCH004',
-    schemaName: 'KTP v1',
-    attributes: 6,
-    status: 'Inactive',
-    lastUpdated: '2025/08/07',
-  },
-  {
-    id: 'SCH005',
-    schemaName: 'KTP v1',
-    attributes: 5,
-    status: 'Active',
-    lastUpdated: '2025/08/07',
-  },
-  {
-    id: 'SCH006',
-    schemaName: 'KTP v1',
-    attributes: 5,
-    status: 'Inactive',
-    lastUpdated: '2025/08/07',
-  },
-  {
-    id: 'SCH007',
-    schemaName: 'KTP v1',
-    attributes: 3,
-    status: 'Active',
-    lastUpdated: '2025/08/07',
-  },
-  {
-    id: 'SCH008',
-    schemaName: 'KTP v1',
-    attributes: 5,
-    status: 'Inactive',
-    lastUpdated: '2025/08/07',
-  },
-  {
-    id: 'SCH009',
-    schemaName: 'Passport v1',
-    attributes: 8,
-    status: 'Active',
-    lastUpdated: '2025/08/10',
-  },
-  {
-    id: 'SCH010',
-    schemaName: 'Passport v2',
-    attributes: 8,
-    status: 'Active',
-    lastUpdated: '2025/08/12',
-  },
-  {
-    id: 'SCH011',
-    schemaName: 'Driver License v1',
-    attributes: 6,
-    status: 'Active',
-    lastUpdated: '2025/08/15',
-  },
-  {
-    id: 'SCH012',
-    schemaName: 'Driver License v2',
-    attributes: 7,
-    status: 'Inactive',
-    lastUpdated: '2025/08/16',
-  },
-  {
-    id: 'SCH013',
-    schemaName: 'Birth Certificate v1',
-    attributes: 10,
-    status: 'Active',
-    lastUpdated: '2025/08/20',
-  },
-  {
-    id: 'SCH014',
-    schemaName: 'Marriage Certificate v1',
-    attributes: 12,
-    status: 'Active',
-    lastUpdated: '2025/08/22',
-  },
-  {
-    id: 'SCH015',
-    schemaName: 'Tax ID v1',
-    attributes: 4,
-    status: 'Inactive',
-    lastUpdated: '2025/08/25',
-  },
-  {
-    id: 'SCH016',
-    schemaName: 'Health Insurance v1',
-    attributes: 9,
-    status: 'Active',
-    lastUpdated: '2025/09/01',
-  },
-  {
-    id: 'SCH017',
-    schemaName: 'Student ID v1',
-    attributes: 7,
-    status: 'Active',
-    lastUpdated: '2025/09/05',
-  },
-  {
-    id: 'SCH018',
-    schemaName: 'Employee ID v1',
-    attributes: 11,
-    status: 'Inactive',
-    lastUpdated: '2025/09/10',
-  },
-  {
-    id: 'SCH019',
-    schemaName: 'Voter ID v1',
-    attributes: 5,
-    status: 'Active',
-    lastUpdated: '2025/09/15',
-  },
-  {
-    id: 'SCH020',
-    schemaName: 'Social Security v1',
-    attributes: 6,
-    status: 'Active',
-    lastUpdated: '2025/09/20',
-  },
-];
+interface ApiSchemaResponse {
+  success: boolean;
+  data: {
+    count: number;
+    data: {
+      id: string;
+      name: string;
+      schema: {
+        type: string;
+        required: string[];
+        properties: Record<string, unknown>;
+      };
+      issuer_did: string;
+      version: number;
+      isActive: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }[];
+  };
+}
 
 export default function SchemaPage() {
-  const [schemas, setSchemas] = useState<Schema[]>(DUMMY_SCHEMAS);
-  const [filteredSchemas, setFilteredSchemas] = useState<Schema[]>(DUMMY_SCHEMAS);
+  const [schemas, setSchemas] = useState<Schema[]>([]);
+  const [filteredSchemas, setFilteredSchemas] = useState<Schema[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'Active' | 'Inactive'>('all');
   const [filterSchemaId, setFilterSchemaId] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
+  const [showCreateSchemaModal, setShowCreateSchemaModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
   const activeCount = schemas.filter((s) => s.status === 'Active').length;
+
+  // Fetch schemas from API
+  useEffect(() => {
+    const fetchSchemas = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(
+          'https://dev-api-dcert.ganeshait.com/api/v1/schemas?issuerDid=did%3Aexample%3Auniversity123&activeOnly=false',
+          {
+            headers: {
+              'accept': 'application/json',
+            },
+          }
+        );
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch schemas');
+        }
+
+        const result: ApiSchemaResponse = await response.json();
+        
+        // Transform API data to match Schema interface
+        const transformedSchemas: Schema[] = result.data.data.map((schema) => ({
+          id: schema.id,
+          schemaName: `${schema.name} v${schema.version}`,
+          attributes: Object.keys(schema.schema.properties).length,
+          status: schema.isActive ? 'Active' : 'Inactive',
+          lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'), // Format as YYYY/MM/DD
+        }));
+
+        setSchemas(transformedSchemas);
+        setFilteredSchemas(transformedSchemas);
+      } catch (error) {
+        console.error('Error fetching schemas:', error);
+        // Keep empty array on error
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSchemas();
+  }, []);
 
   // Close filter modal when clicking outside
   useEffect(() => {
@@ -238,32 +162,126 @@ export default function SchemaPage() {
     // Implement update logic
   };
 
-  const handleToggleStatus = (schemaId: string) => {
-    setSchemas((prev) =>
-      prev.map((schema) =>
-        schema.id === schemaId
-          ? {
-              ...schema,
-              status: schema.status === 'Active' ? 'Inactive' : 'Active',
-            }
-          : schema
-      )
-    );
-    setFilteredSchemas((prev) =>
-      prev.map((schema) =>
-        schema.id === schemaId
-          ? {
-              ...schema,
-              status: schema.status === 'Active' ? 'Inactive' : 'Active',
-            }
-          : schema
-      )
-    );
+  const handleToggleStatus = async (schemaId: string) => {
+    try {
+      const schema = schemas.find((s) => s.id === schemaId);
+      if (!schema) return;
+
+      const newStatus = schema.status === 'Active';
+
+      // Update local state optimistically
+      setSchemas((prev) =>
+        prev.map((s) =>
+          s.id === schemaId
+            ? {
+                ...s,
+                status: s.status === 'Active' ? 'Inactive' : 'Active',
+              }
+            : s
+        )
+      );
+      setFilteredSchemas((prev) =>
+        prev.map((s) =>
+          s.id === schemaId
+            ? {
+                ...s,
+                status: s.status === 'Active' ? 'Inactive' : 'Active',
+              }
+            : s
+        )
+      );
+
+      // Note: Add actual API call here when endpoint is available
+      // For now, we're just updating the local state
+      console.log(`Toggle status for schema ${schemaId} to ${!newStatus ? 'Active' : 'Inactive'}`);
+    } catch (error) {
+      console.error('Error toggling schema status:', error);
+      // Revert the optimistic update on error
+      // You could refresh from API here
+    }
   };
 
   const handleNewSchema = () => {
-    console.log('Create new schema');
-    // Implement create new schema logic
+    setShowCreateSchemaModal(true);
+  };
+
+  const handleCreateSchema = async (data: SchemaFormData) => {
+    try {
+      // Transform the form data to match the API format
+      const properties: Record<string, { type: string; description: string }> = {};
+      const required: string[] = [];
+
+      data.attributes.forEach((attr) => {
+        properties[attr.name] = {
+          type: attr.type,
+          description: attr.description,
+        };
+        if (attr.required) {
+          required.push(attr.name);
+        }
+      });
+
+      // Note: schemaId, version, and status from the form are not sent to the API
+      // Only name, schema structure, and issuer_did are sent
+      const payload = {
+        name: data.schemaName,
+        schema: {
+          type: 'object',
+          properties,
+          required,
+        },
+        issuer_did: 'did:example:university123',
+      };
+
+      const response = await fetch('https://dev-api-dcert.ganeshait.com/api/v1/schemas', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to create schema');
+      }
+
+      const result = await response.json();
+      console.log('Schema created successfully:', result);
+
+      // Refresh the schemas list
+      const schemasResponse = await fetch(
+        'https://dev-api-dcert.ganeshait.com/api/v1/schemas?issuerDid=did%3Aexample%3Auniversity123&activeOnly=false',
+        {
+          headers: {
+            'accept': 'application/json',
+          },
+        }
+      );
+
+      if (schemasResponse.ok) {
+        const schemasResult: ApiSchemaResponse = await schemasResponse.json();
+        const transformedSchemas: Schema[] = schemasResult.data.data.map((schema) => ({
+          id: schema.id,
+          schemaName: `${schema.name} v${schema.version}`,
+          attributes: Object.keys(schema.schema.properties).length,
+          status: schema.isActive ? 'Active' : 'Inactive',
+          lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
+        }));
+        setSchemas(transformedSchemas);
+        setFilteredSchemas(transformedSchemas);
+      }
+
+      // Only close modal on success
+      setShowCreateSchemaModal(false);
+    } catch (error) {
+      console.error('Error creating schema:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create schema. Please try again.';
+      alert(errorMessage);
+      // Don't close modal on error, let user fix the issue
+      throw error; // Re-throw to prevent the form from clearing
+    }
   };
 
   const columns: Column<Schema>[] = [
@@ -339,8 +357,17 @@ export default function SchemaPage() {
           Schema
         </ThemedText>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+              <ThemedText className="text-gray-600">Loading schemas...</ThemedText>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
             <ThemedText className="text-sm text-gray-600 mb-2">All Schemas</ThemedText>
             <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
@@ -379,7 +406,10 @@ export default function SchemaPage() {
           enableSelection={true}
           totalCount={filteredSchemas.length}
           rowsPerPageOptions={[5, 10, 25, 50, 100]}
+          idKey="id"
         />
+          </>
+        )}
       </div>
 
       {/* Filter Popup */}
@@ -440,6 +470,18 @@ export default function SchemaPage() {
           </div>
         </div>
       )}
+
+      {/* Create Schema Modal */}
+      <Modal
+        isOpen={showCreateSchemaModal}
+        onClose={() => setShowCreateSchemaModal(false)}
+        title="Create New Schema"
+      >
+        <CreateSchemaForm
+          onSubmit={handleCreateSchema}
+          onCancel={() => setShowCreateSchemaModal(false)}
+        />
+      </Modal>
     </InstitutionLayout>
   );
 }
