@@ -61,6 +61,62 @@ export default function SchemaPage() {
 
   const activeCount = schemas.filter((s) => s.status === 'Active').length;
 
+  // Helper function to refresh schemas from API
+  const refreshSchemas = async () => {
+    try {
+      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.LIST, {
+        issuerDid: DEFAULT_ISSUER_DID,
+        activeOnly: false,
+      });
+
+      const response = await fetch(url, {
+        headers: {
+          accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch schemas');
+      }
+
+      const result: ApiSchemaResponse = await response.json();
+
+      // Transform API data to match Schema interface
+      const transformedSchemas: Schema[] = result.data.data.map((schema) => ({
+        id: schema.id,
+        schemaName: `${schema.name} v${schema.version}`,
+        attributes: Object.keys(schema.schema.properties).length,
+        status: schema.isActive ? 'Active' : 'Inactive',
+        lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
+      }));
+
+      // Update schemas state
+      setSchemas(transformedSchemas);
+
+      // Apply filters to the new data
+      const schemasToFilter = transformedSchemas;
+      let filtered = schemasToFilter;
+
+      if (filterStatus !== 'all') {
+        filtered = filtered.filter((schema) => schema.status === filterStatus);
+      }
+
+      if (filterSchemaId) {
+        filtered = filtered.filter((schema) =>
+          schema.id.toLowerCase().includes(filterSchemaId.toLowerCase())
+        );
+      }
+
+      // Update filtered schemas state
+      setFilteredSchemas(filtered);
+
+      return transformedSchemas;
+    } catch (error) {
+      console.error('Error refreshing schemas:', error);
+      throw error;
+    }
+  };
+
   // Fetch schemas from API
   useEffect(() => {
     const fetchSchemas = async () => {
@@ -286,37 +342,49 @@ export default function SchemaPage() {
         return; // User cancelled the action
       }
 
-      const newStatus = schema.status === 'Active';
+      // Call the appropriate API endpoint
+      const endpoint = isCurrentlyActive
+        ? API_ENDPOINTS.SCHEMA.DEACTIVATE(schemaId)
+        : API_ENDPOINTS.SCHEMA.REACTIVATE(schemaId);
 
-      // Update local state optimistically
-      setSchemas((prev) =>
-        prev.map((s) =>
-          s.id === schemaId
-            ? {
-                ...s,
-                status: s.status === 'Active' ? 'Inactive' : 'Active',
-              }
-            : s
-        )
-      );
-      setFilteredSchemas((prev) =>
-        prev.map((s) =>
-          s.id === schemaId
-            ? {
-                ...s,
-                status: s.status === 'Active' ? 'Inactive' : 'Active',
-              }
-            : s
-        )
-      );
+      const response = await fetch(buildApiUrl(endpoint), {
+        method: 'PATCH',
+        headers: {
+          accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
 
-      // Note: Add actual API call here when endpoint is available
-      // For now, we're just updating the local state
-      console.log(`Toggle status for schema ${schemaId} to ${!newStatus ? 'Active' : 'Inactive'}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to ${action} schema`);
+      }
+
+      const result = await response.json();
+
+      // Refresh the schema list from API to get the latest state
+      await refreshSchemas();
+
+      // Show success message with transaction hash if available
+      if (result.transaction_hash) {
+        alert(
+          `Schema ${action}d successfully!\nTransaction: ${result.transaction_hash.substring(0, 10)}...`
+        );
+      }
     } catch (error) {
       console.error('Error toggling schema status:', error);
-      // Revert the optimistic update on error
-      // You could refresh from API here
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to update schema status. Please try again.';
+      alert(errorMessage);
+
+      // Try to refresh the schema list to ensure correct state
+      try {
+        await refreshSchemas();
+      } catch (refreshError) {
+        console.error('Error refreshing schemas:', refreshError);
+      }
     }
   };
 
@@ -370,29 +438,7 @@ export default function SchemaPage() {
       console.log('Schema created successfully:', result);
 
       // Refresh the schemas list
-      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.LIST, {
-        issuerDid: DEFAULT_ISSUER_DID,
-        activeOnly: false,
-      });
-
-      const schemasResponse = await fetch(url, {
-        headers: {
-          accept: 'application/json',
-        },
-      });
-
-      if (schemasResponse.ok) {
-        const schemasResult: ApiSchemaResponse = await schemasResponse.json();
-        const transformedSchemas: Schema[] = schemasResult.data.data.map((schema) => ({
-          id: schema.id,
-          schemaName: `${schema.name} v${schema.version}`,
-          attributes: Object.keys(schema.schema.properties).length,
-          status: schema.isActive ? 'Active' : 'Inactive',
-          lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
-        }));
-        setSchemas(transformedSchemas);
-        setFilteredSchemas(transformedSchemas);
-      }
+      await refreshSchemas();
 
       // Only close modal on success
       setShowCreateSchemaModal(false);
