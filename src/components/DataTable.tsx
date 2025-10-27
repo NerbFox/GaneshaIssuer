@@ -26,6 +26,7 @@ export interface DataTableProps<T> {
   onSelectionChange?: (selectedIds: number[]) => void;
   totalCount?: number;
   rowsPerPageOptions?: number[];
+  idKey?: keyof T; // Key to use for the ID column (e.g., 'id')
 }
 
 export function DataTable<T>({
@@ -39,6 +40,7 @@ export function DataTable<T>({
   onSelectionChange,
   totalCount,
   rowsPerPageOptions = [5, 10, 25, 50, 100],
+  idKey,
 }: DataTableProps<T>) {
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
@@ -317,7 +319,7 @@ export function DataTable<T>({
                   {/* # Cell */}
                   <td className="px-6 py-4">
                     <ThemedText className="text-sm text-gray-900">
-                      {startIndex + index}
+                      {idKey ? String(row[idKey]) : startIndex + index}
                     </ThemedText>
                   </td>
 

@@ -23,10 +23,10 @@ export const sidebarNavigation: NavigationSection[] = [
       {
         id: 'dashboard',
         label: 'Dashboard',
-        href: '/institution',
-        icon: 'DashboardIcon.svg'
-      }
-    ]
+        href: '/institution/dashboard',
+        icon: 'DashboardIcon.svg',
+      },
+    ],
   },
   {
     title: 'I am a issuer',
@@ -34,8 +34,8 @@ export const sidebarNavigation: NavigationSection[] = [
       {
         id: 'issue-request',
         label: 'Issue Request',
-        href: '/institution/issuer/issue-request',
-        icon: 'IssueIcon.svg'
+        href: '/institution/issue-request',
+        icon: 'IssueIcon.svg',
       },
       {
         id: 'schema',
@@ -46,16 +46,16 @@ export const sidebarNavigation: NavigationSection[] = [
       {
         id: 'issued-by-me',
         label: 'Issued By Me',
-        href: '/institution/issuer/issued-by-me',
-        icon: 'IDCardIcon.svg'
+        href: '/institution/issued-by-me',
+        icon: 'IDCardIcon.svg',
       },
       {
         id: 'history',
         label: 'History',
-        href: '/institution/issuer/history',
-        icon: 'FolderIcon.svg'
-      }
-    ]
+        href: '/institution/history',
+        icon: 'FolderIcon.svg',
+      },
+    ],
   },
   {
     title: 'I am a holder',
@@ -63,16 +63,16 @@ export const sidebarNavigation: NavigationSection[] = [
       {
         id: 'my-credential',
         label: 'My Credential',
-        href: '/institution/holder/my-credential',
-        icon: 'IDCardIcon.svg'
+        href: '/institution/my-credential',
+        icon: 'IDCardIcon.svg',
       },
       {
         id: 'my-request',
         label: 'My Request',
-        href: '/institution/holder/my-request',
-        icon: 'FolderIcon.svg'
-      }
-    ]
+        href: '/institution/my-request',
+        icon: 'FolderIcon.svg',
+      },
+    ],
   },
   {
     title: 'I am a verifier',
@@ -80,15 +80,15 @@ export const sidebarNavigation: NavigationSection[] = [
       {
         id: 'shared-with-me',
         label: 'Shared With Me',
-        href: '/institution/verifier/shared-with-me',
-        icon: 'IDCardIcon.svg'
+        href: '/institution/shared-with-me',
+        icon: 'IDCardIcon.svg',
       },
       {
         id: 'verify-request',
         label: 'Verify Request',
-        href: '/institution/verifier/verify-request',
-        icon: 'FolderIcon.svg'
-      }
-    ]
-  }
+        href: '/institution/verify-request',
+        icon: 'FolderIcon.svg',
+      },
+    ],
+  },
 ];
