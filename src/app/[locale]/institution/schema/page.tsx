@@ -9,9 +9,6 @@ import CreateSchemaForm, { SchemaFormData } from '@/components/CreateSchemaForm'
 import UpdateSchemaForm from '@/components/UpdateSchemaForm';
 import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 
-// TODO: Replace with actual issuer DID from auth context
-const DEFAULT_ISSUER_DID = 'did:example:university123';
-
 interface Schema {
   id: string;
   schemaName: string;
@@ -64,8 +61,13 @@ export default function SchemaPage() {
   // Helper function to refresh schemas from API
   const refreshSchemas = async () => {
     try {
+      const issuerDid = localStorage.getItem('institutionDID');
+      if (!issuerDid) {
+        throw new Error('Institution DID not found. Please log in again.');
+      }
+
       const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.LIST, {
-        issuerDid: DEFAULT_ISSUER_DID,
+        issuerDid,
         activeOnly: false,
       });
 
@@ -122,8 +124,13 @@ export default function SchemaPage() {
     const fetchSchemas = async () => {
       try {
         setIsLoading(true);
+        const issuerDid = localStorage.getItem('institutionDID');
+        if (!issuerDid) {
+          throw new Error('Institution DID not found. Please log in again.');
+        }
+
         const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.LIST, {
-          issuerDid: DEFAULT_ISSUER_DID,
+          issuerDid,
           activeOnly: false,
         });
 
@@ -394,6 +401,11 @@ export default function SchemaPage() {
 
   const handleCreateSchema = async (data: SchemaFormData) => {
     try {
+      const issuerDid = localStorage.getItem('institutionDID');
+      if (!issuerDid) {
+        throw new Error('Institution DID not found. Please log in again.');
+      }
+
       // Transform the form data to match the API format
       const properties: Record<string, { type: string; description: string }> = {};
       const required: string[] = [];
@@ -417,7 +429,7 @@ export default function SchemaPage() {
           properties,
           required,
         },
-        issuer_did: DEFAULT_ISSUER_DID,
+        issuer_did: issuerDid,
       };
 
       const response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), {
