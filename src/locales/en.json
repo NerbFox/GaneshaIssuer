@@ -36,6 +36,7 @@
     "pleaseWait": "Please wait while we verify your link...",
     "tokenNotFound": "Token not found in URL",
     "verificationFailed": "Verification failed",
+    "verificationSuccess": "Verification successful! Redirecting...",
     "loginSuccessRedirect": "Login successful! Redirecting to dashboard...",
     "registerNewInstitution": "Register New Institution",
     "goToHomepage": "Go to Homepage",
