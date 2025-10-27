@@ -91,8 +91,11 @@ export default function IssueRequestPage() {
       setIsLoading(true);
       setError(null);
       try {
-        // Replace with actual issuer DID from auth context or localStorage
-        const issuerDid = 'did:example:university123'; 
+        const issuerDid = localStorage.getItem('institutionDID');
+        if (!issuerDid) {
+          throw new Error('Institution DID not found. Please log in again.');
+        }
+
         const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIAL.GET_REQUESTS, {
           type: 'ISSUANCE',
           issuer_did: issuerDid,

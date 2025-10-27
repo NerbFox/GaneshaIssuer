@@ -8,9 +8,6 @@ import Modal from '@/components/Modal';
 import CreateSchemaForm, { SchemaFormData } from '@/components/CreateSchemaForm';
 import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 
-// TODO: Replace with actual issuer DID from auth context
-const DEFAULT_ISSUER_DID = 'did:example:university123';
-
 interface Schema {
   id: string;
   schemaName: string;
@@ -54,13 +51,79 @@ export default function SchemaPage() {
 
   const activeCount = schemas.filter((s) => s.status === 'Active').length;
 
+  // Helper function to refresh schemas from API
+  const refreshSchemas = async () => {
+    try {
+      const issuerDid = localStorage.getItem('institutionDID');
+      if (!issuerDid) {
+        throw new Error('Institution DID not found. Please log in again.');
+      }
+
+      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.LIST, {
+        issuerDid,
+        activeOnly: false,
+      });
+
+      const response = await fetch(url, {
+        headers: {
+          accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch schemas');
+      }
+
+      const result: ApiSchemaResponse = await response.json();
+
+      // Transform API data to match Schema interface
+      const transformedSchemas: Schema[] = result.data.data.map((schema) => ({
+        id: schema.id,
+        schemaName: `${schema.name} v${schema.version}`,
+        attributes: Object.keys(schema.schema.properties).length,
+        status: schema.isActive ? 'Active' : 'Inactive',
+        lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
+      }));
+
+      // Update schemas state
+      setSchemas(transformedSchemas);
+
+      // Apply filters to the new data
+      const schemasToFilter = transformedSchemas;
+      let filtered = schemasToFilter;
+
+      if (filterStatus !== 'all') {
+        filtered = filtered.filter((schema) => schema.status === filterStatus);
+      }
+
+      if (filterSchemaId) {
+        filtered = filtered.filter((schema) =>
+          schema.id.toLowerCase().includes(filterSchemaId.toLowerCase())
+        );
+      }
+
+      // Update filtered schemas state
+      setFilteredSchemas(filtered);
+
+      return transformedSchemas;
+    } catch (error) {
+      console.error('Error refreshing schemas:', error);
+      throw error;
+    }
+  };
+
   // Fetch schemas from API
   useEffect(() => {
     const fetchSchemas = async () => {
       try {
         setIsLoading(true);
+        const issuerDid = localStorage.getItem('institutionDID');
+        if (!issuerDid) {
+          throw new Error('Institution DID not found. Please log in again.');
+        }
+
         const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.LIST, {
-          issuerDid: DEFAULT_ISSUER_DID,
+          issuerDid,
           activeOnly: false,
         });
 
@@ -213,6 +276,11 @@ export default function SchemaPage() {
 
   const handleCreateSchema = async (data: SchemaFormData) => {
     try {
+      const issuerDid = localStorage.getItem('institutionDID');
+      if (!issuerDid) {
+        throw new Error('Institution DID not found. Please log in again.');
+      }
+
       // Transform the form data to match the API format
       const properties: Record<string, { type: string; description: string }> = {};
       const required: string[] = [];
@@ -236,7 +304,7 @@ export default function SchemaPage() {
           properties,
           required,
         },
-        issuer_did: DEFAULT_ISSUER_DID,
+        issuer_did: issuerDid,
       };
 
       const response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), {
@@ -257,29 +325,7 @@ export default function SchemaPage() {
       console.log('Schema created successfully:', result);
 
       // Refresh the schemas list
-      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.LIST, {
-        issuerDid: DEFAULT_ISSUER_DID,
-        activeOnly: false,
-      });
-
-      const schemasResponse = await fetch(url, {
-        headers: {
-          accept: 'application/json',
-        },
-      });
-
-      if (schemasResponse.ok) {
-        const schemasResult: ApiSchemaResponse = await schemasResponse.json();
-        const transformedSchemas: Schema[] = schemasResult.data.data.map((schema) => ({
-          id: schema.id,
-          schemaName: `${schema.name} v${schema.version}`,
-          attributes: Object.keys(schema.schema.properties).length,
-          status: schema.isActive ? 'Active' : 'Inactive',
-          lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
-        }));
-        setSchemas(transformedSchemas);
-        setFilteredSchemas(transformedSchemas);
-      }
+      await refreshSchemas();
 
       // Only close modal on success
       setShowCreateSchemaModal(false);
