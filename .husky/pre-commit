@@ -1,4 +1,1 @@
-# Use absolute path to node and npx
-export PATH="/Users/ghaziakmalf/.nvm/versions/node/v22.14.0/bin:$PATH"
-
 npx lint-staged
