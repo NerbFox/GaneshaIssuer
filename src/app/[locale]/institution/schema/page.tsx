@@ -6,7 +6,9 @@ import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import CreateSchemaForm, { SchemaFormData } from '@/components/CreateSchemaForm';
-import UpdateSchemaForm from '@/components/UpdateSchemaForm';
+import UpdateSchemaForm, {
+  SchemaFormData as UpdateSchemaFormData,
+} from '@/components/UpdateSchemaForm';
 import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 
 interface Schema {
@@ -270,7 +272,7 @@ export default function SchemaPage() {
     }
   };
 
-  const handleUpdateSchemaSubmit = async (data: SchemaFormData) => {
+  const handleUpdateSchemaSubmit = async (data: UpdateSchemaFormData) => {
     try {
       // Transform the form data to match the API format
       const properties: Record<string, { type: string }> = {};
