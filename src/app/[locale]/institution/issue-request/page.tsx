@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
@@ -8,6 +9,7 @@ import Modal from '@/components/Modal';
 import FillIssueRequestForm, { IssueRequestFormData } from '@/components/FillIssueRequestForm';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { createVC, hashVC } from '@/utils/vcUtils';
+import { redirectIfNotAuthenticated } from '@/utils/auth';
 
 interface IssueRequest {
   id: string;
@@ -67,6 +69,7 @@ interface Schema {
 }
 
 export default function IssueRequestPage() {
+  const router = useRouter();
   const [requests, setRequests] = useState<IssueRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<IssueRequest[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -78,6 +81,7 @@ export default function IssueRequestPage() {
   const [selectedRequest, setSelectedRequest] = useState<IssueRequest | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [schemaData, setSchemaData] = useState<Schema | null>(null);
   const [isLoadingSchema, setIsLoadingSchema] = useState(false);
   const [requestAttributes, setRequestAttributes] = useState<
@@ -86,8 +90,18 @@ export default function IssueRequestPage() {
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
+  // Check authentication on component mount
+  useEffect(() => {
+    const shouldRedirect = redirectIfNotAuthenticated(router);
+    if (!shouldRedirect) {
+      setIsAuthenticated(true);
+    }
+  }, [router]);
+
   // Fetch issue requests from API
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     const fetchRequests = async () => {
       setIsLoading(true);
       setError(null);
@@ -125,7 +139,7 @@ export default function IssueRequestPage() {
     };
 
     fetchRequests();
-  }, []);
+  }, [isAuthenticated]);
 
   const activeCount = requests.filter((r) => r.status === 'PENDING').length;
   const expiringCount = 0; // Implement expiring logic based on your requirements
@@ -536,6 +550,18 @@ export default function IssueRequestPage() {
       ),
     },
   ];
+
+  // Show loading screen while checking authentication
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0D2B45] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <InstitutionLayout activeTab="issue-request">

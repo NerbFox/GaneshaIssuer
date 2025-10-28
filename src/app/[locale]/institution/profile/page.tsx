@@ -6,10 +6,27 @@ import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
 
+interface InstitutionData {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  country: string;
+  website: string;
+  address: string;
+  status: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function InstitutionProfilePage() {
   const router = useRouter();
   const [did, setDid] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [institutionData, setInstitutionData] = useState<InstitutionData | null>(null);
+  const [error, setError] = useState<string>('');
 
   // Check authentication on component mount
   useEffect(() => {
@@ -21,11 +38,25 @@ export default function InstitutionProfilePage() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    
-    // Retrieve DID from localStorage
-    const storedDid = localStorage.getItem('institutionDID');
-    if (storedDid) {
-      setDid(storedDid);
+
+    try {
+      // Retrieve DID from localStorage
+      const storedDid = localStorage.getItem('institutionDID');
+      if (storedDid) {
+        setDid(storedDid);
+      }
+
+      // Retrieve institution data from localStorage
+      const storedInstitutionData = localStorage.getItem('institutionData');
+      if (storedInstitutionData) {
+        const parsedData = JSON.parse(storedInstitutionData);
+        setInstitutionData(parsedData);
+      } else {
+        setError('Institution data not found');
+      }
+    } catch (err) {
+      console.error('Error loading profile data:', err);
+      setError('Failed to load profile data');
     }
   }, [isAuthenticated]);
 
@@ -49,6 +80,13 @@ export default function InstitutionProfilePage() {
           Profile
         </ThemedText>
 
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <ThemedText fontSize={14}>{error}</ThemedText>
+          </div>
+        )}
+
         {/* Institution Name Field */}
         <div className="mt-5 mb-5">
           <ThemedText className="block text-sm font-medium text-gray-900 mb-3">
@@ -56,7 +94,7 @@ export default function InstitutionProfilePage() {
           </ThemedText>
           <input
             type="text"
-            value="Dinas Kependudukan dan Pencatatan Sipil"
+            value={institutionData?.name || ''}
             readOnly
             className="w-full px-4 py-3 bg-[#F4F7FC] border border-gray-200 rounded-lg text-gray-500 text-sm"
           />
@@ -67,7 +105,7 @@ export default function InstitutionProfilePage() {
           <ThemedText className="block text-sm font-medium text-gray-900 mb-3">Email</ThemedText>
           <input
             type="email"
-            value="info@disdukcapil.go.id"
+            value={institutionData?.email || ''}
             readOnly
             className="w-full px-4 py-3 bg-[#F4F7FC] border border-gray-200 rounded-lg text-gray-500 text-sm"
           />
@@ -80,7 +118,7 @@ export default function InstitutionProfilePage() {
           </ThemedText>
           <input
             type="tel"
-            value="+6221-234567"
+            value={institutionData?.phone || ''}
             readOnly
             className="w-full px-4 py-3 bg-[#F4F7FC] border border-gray-200 rounded-lg text-gray-500 text-sm"
           />
@@ -91,7 +129,7 @@ export default function InstitutionProfilePage() {
           <ThemedText className="block text-sm font-medium text-gray-900 mb-3">Country</ThemedText>
           <input
             type="text"
-            value="Indonesia"
+            value={institutionData?.country || ''}
             readOnly
             className="w-full px-4 py-3 bg-[#F4F7FC] border border-gray-200 rounded-lg text-gray-500 text-sm"
           />
@@ -102,7 +140,7 @@ export default function InstitutionProfilePage() {
           <ThemedText className="block text-sm font-medium text-gray-900 mb-3">Address</ThemedText>
           <input
             type="text"
-            value="Jl. Raya Jakarta"
+            value={institutionData?.address || ''}
             readOnly
             className="w-full px-4 py-3 bg-[#F4F7FC] border border-gray-200 rounded-lg text-gray-500 text-sm"
           />
@@ -113,7 +151,7 @@ export default function InstitutionProfilePage() {
           <ThemedText className="block text-sm font-medium text-gray-900 mb-3">Website</ThemedText>
           <input
             type="text"
-            value="disdukcapil.go.id"
+            value={institutionData?.website || ''}
             readOnly
             className="w-full px-4 py-3 bg-[#F4F7FC] border border-gray-200 rounded-lg text-gray-500 text-sm"
           />
