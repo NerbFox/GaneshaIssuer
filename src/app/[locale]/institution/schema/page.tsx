@@ -23,6 +23,7 @@ interface Schema {
     properties: Record<string, { type: string }>;
     required: string[];
   };
+  version: number;
 }
 
 interface ApiSchemaResponse {
@@ -95,6 +96,7 @@ export default function SchemaPage() {
         schemaName: `${schema.name} v${schema.version}`,
         attributes: Object.keys(schema.schema.properties).length,
         status: schema.isActive ? 'Active' : 'Inactive',
+        version: schema.version,
         lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
       }));
 
@@ -168,6 +170,7 @@ export default function SchemaPage() {
           schemaName: `${schema.name} v${schema.version}`,
           attributes: Object.keys(schema.schema.properties).length,
           status: schema.isActive ? 'Active' : 'Inactive',
+          version: schema.version,
           lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'), // Format as YYYY/MM/DD
         }));
 
@@ -254,10 +257,10 @@ export default function SchemaPage() {
     applyFilters(filterStatus, schemaId);
   };
 
-  const handleUpdateSchema = async (schemaId: string) => {
+  const handleUpdateSchema = async (schemaId: string, version: number) => {
     try {
       // Fetch the full schema details from API
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId)));
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, version)));
 
       if (!response.ok) {
         throw new Error('Failed to fetch schema details');
@@ -521,7 +524,7 @@ export default function SchemaPage() {
       render: (row) => (
         <div className="flex gap-2">
           <button
-            onClick={() => handleUpdateSchema(row.id)}
+            onClick={() => handleUpdateSchema(row.id, row.version)}
             className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors text-sm font-medium cursor-pointer"
           >
             UPDATE

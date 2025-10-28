@@ -16,6 +16,7 @@ interface IssueRequest {
   encrypted_body: string;
   issuer_did: string;
   holder_did: string;
+  version: number;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -221,7 +222,7 @@ export default function IssueRequestPage() {
       setIsLoadingSchema(true);
       try {
         // Fetch schema details using encrypted_body as schema ID
-        const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(request.encrypted_body));
+        const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(request.encrypted_body, request.version));
         const schemaResponse = await fetch(schemaUrl, {
           method: 'GET',
           headers: {

@@ -40,7 +40,7 @@ export const API_ENDPOINTS = {
   // Schema endpoints
   SCHEMA: {
     LIST: '/api/v1/schemas',
-    DETAIL: (id: string) => `/api/v1/schemas/${id}`,
+    DETAIL: (id: string, version: number) => `/api/v1/schemas/${id}/version/${version}`,
     CREATE: '/api/v1/schemas',
     UPDATE: (id: string) => `/api/v1/schemas/${id}`,
     DELETE: (id: string) => `/api/v1/schemas/${id}`,
