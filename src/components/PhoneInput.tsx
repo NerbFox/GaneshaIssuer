@@ -34,7 +34,7 @@ interface Country {
 }
 
 const customStyles: StylesConfig<PrefixOption, false> = {
-  control: (provided, state) => ({
+  control: (provided) => ({
     ...provided,
     backgroundColor: '#E9F2F5',
     border: 'none',

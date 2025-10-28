@@ -66,7 +66,6 @@ interface Schema {
   attributes: SchemaAttribute[];
 }
 
-
 export default function IssueRequestPage() {
   const [requests, setRequests] = useState<IssueRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<IssueRequest[]>([]);
@@ -81,7 +80,9 @@ export default function IssueRequestPage() {
   const [error, setError] = useState<string | null>(null);
   const [schemaData, setSchemaData] = useState<Schema | null>(null);
   const [isLoadingSchema, setIsLoadingSchema] = useState(false);
-  const [requestAttributes, setRequestAttributes] = useState<Record<string, any>>({});
+  const [requestAttributes, setRequestAttributes] = useState<
+    Record<string, string | number | boolean>
+  >({});
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -104,7 +105,7 @@ export default function IssueRequestPage() {
         const response = await fetch(url, {
           method: 'GET',
           headers: {
-            'accept': 'application/json',
+            accept: 'application/json',
           },
         });
 
@@ -126,7 +127,7 @@ export default function IssueRequestPage() {
     fetchRequests();
   }, []);
 
-  const activeCount = requests.filter(r => r.status === 'PENDING').length;
+  const activeCount = requests.filter((r) => r.status === 'PENDING').length;
   const expiringCount = 0; // Implement expiring logic based on your requirements
 
   // Close filter modal when clicking outside
@@ -197,11 +198,11 @@ export default function IssueRequestPage() {
 
   const handleReview = async (requestId: string) => {
     console.log('Review request:', requestId);
-    const request = requests.find(r => r.id === requestId);
+    const request = requests.find((r) => r.id === requestId);
     if (request) {
       setSelectedRequest(request);
       setShowReviewModal(true);
-      
+
       // Fetch schema data
       setIsLoadingSchema(true);
       try {
@@ -210,23 +211,25 @@ export default function IssueRequestPage() {
         const schemaResponse = await fetch(schemaUrl, {
           method: 'GET',
           headers: {
-            'accept': 'application/json',
+            accept: 'application/json',
           },
         });
 
         if (schemaResponse.ok) {
           const schemaApiData: SchemaApiResponse = await schemaResponse.json();
-          
+
           if (schemaApiData.success && schemaApiData.data) {
             const { id, name, schema, version, isActive } = schemaApiData.data;
-            
+
             // Transform schema properties into attributes array
-            const attributes: SchemaAttribute[] = Object.entries(schema.properties).map(([key, prop]) => ({
-              name: key,
-              type: prop.type,
-              required: schema.required.includes(key),
-              description: prop.description,
-            }));
+            const attributes: SchemaAttribute[] = Object.entries(schema.properties).map(
+              ([key, prop]) => ({
+                name: key,
+                type: prop.type,
+                required: schema.required.includes(key),
+                description: prop.description,
+              })
+            );
 
             setSchemaData({
               id: id,
@@ -235,7 +238,7 @@ export default function IssueRequestPage() {
               status: isActive ? 'Active' : 'Inactive',
               attributes: attributes,
             });
-            
+
             // Set empty attributes for now - you can fetch actual values from another endpoint
             setRequestAttributes({});
           } else {
@@ -253,14 +256,19 @@ export default function IssueRequestPage() {
           version: '1',
           status: 'Active',
           attributes: [
-            { name: 'nik', type: 'string', required: true, description: 'Nomor Induk Kependudukan' },
+            {
+              name: 'nik',
+              type: 'string',
+              required: true,
+              description: 'Nomor Induk Kependudukan',
+            },
             { name: 'fullName', type: 'string', required: true, description: 'Full name' },
             { name: 'placeOfBirth', type: 'string', required: true, description: 'Place of birth' },
             { name: 'dateOfBirth', type: 'string', required: true, description: 'Date of birth' },
             { name: 'gender', type: 'string', required: true, description: 'Gender' },
             { name: 'address', type: 'string', required: true, description: 'Address' },
             { name: 'citizenship', type: 'string', required: true, description: 'Citizenship' },
-          ]
+          ],
         });
         setRequestAttributes({});
       } finally {
@@ -277,10 +285,10 @@ export default function IssueRequestPage() {
 
     try {
       setIsLoadingSchema(true);
-      
+
       // Convert form attributes to credential data
-      const credentialData: Record<string, any> = {};
-      data.attributes.forEach(attr => {
+      const credentialData: Record<string, string | number | boolean> = {};
+      data.attributes.forEach((attr) => {
         credentialData[attr.name] = attr.value;
       });
 
@@ -326,7 +334,7 @@ export default function IssueRequestPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'accept': 'application/json',
+          accept: 'application/json',
         },
         body: JSON.stringify(requestBody),
       });
@@ -340,12 +348,14 @@ export default function IssueRequestPage() {
       console.log('Issue VC result:', result);
 
       if (result.success) {
-        alert(`Credential issued successfully!\nTransaction Hash: ${result.data.transaction_hash}\nBlock Number: ${result.data.block_number}`);
-        
+        alert(
+          `Credential issued successfully!\nTransaction Hash: ${result.data.transaction_hash}\nBlock Number: ${result.data.block_number}`
+        );
+
         // Remove the request from the list
         setRequests((prev) => prev.filter((request) => request.id !== selectedRequest.id));
         setFilteredRequests((prev) => prev.filter((request) => request.id !== selectedRequest.id));
-        
+
         // Close modal
         setShowReviewModal(false);
         setSchemaData(null);
@@ -395,11 +405,13 @@ export default function IssueRequestPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).replace(/\//g, '/');
+    return date
+      .toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+      .replace(/\//g, '/');
   };
 
   const calculateActiveUntil = (requestedOn: string): string => {
@@ -423,20 +435,20 @@ export default function IssueRequestPage() {
       render: (row) => (
         <div className="flex items-center gap-2">
           <ThemedText className="text-sm text-gray-900">{truncateDid(row.holder_did)}</ThemedText>
-          <button 
+          <button
             onClick={() => handleCopyDid(row.holder_did, row.id)}
             className={`relative transition-all duration-200 ${
-              copiedId === row.id 
-                ? 'text-green-500 scale-110' 
+              copiedId === row.id
+                ? 'text-green-500 scale-110'
                 : 'text-blue-500 hover:text-blue-600 hover:scale-110'
             }`}
             title={copiedId === row.id ? 'Copied!' : 'Copy to clipboard'}
           >
             {copiedId === row.id ? (
-              <svg 
-                className="w-4 h-4 animate-[scale-in_0.3s_cubic-bezier(0.68,-0.55,0.265,1.55)]" 
-                fill="none" 
-                stroke="currentColor" 
+              <svg
+                className="w-4 h-4 animate-[scale-in_0.3s_cubic-bezier(0.68,-0.55,0.265,1.55)]"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path
@@ -447,7 +459,12 @@ export default function IssueRequestPage() {
                 />
               </svg>
             ) : (
-              <svg className="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-4 h-4 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -464,7 +481,9 @@ export default function IssueRequestPage() {
       id: 'encrypted_body',
       label: 'SCHEMA',
       sortKey: 'encrypted_body',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{row.encrypted_body}</ThemedText>,
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">{row.encrypted_body}</ThemedText>
+      ),
     },
     {
       id: 'status',
@@ -480,13 +499,19 @@ export default function IssueRequestPage() {
       id: 'createdAt',
       label: 'REQUESTED ON',
       sortKey: 'createdAt',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{formatDate(row.createdAt)}</ThemedText>,
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">{formatDate(row.createdAt)}</ThemedText>
+      ),
     },
     {
       id: 'activeUntil',
       label: 'ACTIVE UNTIL',
       sortKey: 'createdAt',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{calculateActiveUntil(row.createdAt)}</ThemedText>,
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">
+          {calculateActiveUntil(row.createdAt)}
+        </ThemedText>
+      ),
     },
     {
       id: 'action',
@@ -545,9 +570,7 @@ export default function IssueRequestPage() {
         {/* Error State */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <ThemedText className="text-red-800">
-              Error: {error}
-            </ThemedText>
+            <ThemedText className="text-red-800">Error: {error}</ThemedText>
           </div>
         )}
 

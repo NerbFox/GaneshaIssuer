@@ -8,7 +8,7 @@ interface AttributeData {
   id: number;
   name: string;
   type: string;
-  value: string;
+  value: string | number | boolean;
 }
 
 interface FillIssueRequestFormProps {
@@ -48,9 +48,7 @@ export default function FillIssueRequestForm({
   const [uploadedFiles, setUploadedFiles] = useState<Record<number, File>>({});
 
   const handleAttributeValueChange = (id: number, value: string) => {
-    setAttributes(
-      attributes.map((attr) => (attr.id === id ? { ...attr, value } : attr))
-    );
+    setAttributes(attributes.map((attr) => (attr.id === id ? { ...attr, value } : attr)));
   };
 
   const handleFileUpload = (id: number, event: React.ChangeEvent<HTMLInputElement>) => {
@@ -146,7 +144,7 @@ export default function FillIssueRequestForm({
           ) : (
             <input
               type={row.type === 'number' ? 'number' : 'text'}
-              value={row.value}
+              value={String(row.value)}
               onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
               placeholder={`Enter ${row.name}`}
               className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"

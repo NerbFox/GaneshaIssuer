@@ -32,7 +32,7 @@ export default function WebsiteInput({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Remove any protocol prefix if user tries to add it
-    let cleanValue = e.target.value.replace(/^https?:\/\//i, '').replace(/^\/+/, '');
+    const cleanValue = e.target.value.replace(/^https?:\/\//i, '').replace(/^\/+/, '');
 
     onChange(cleanValue);
   };

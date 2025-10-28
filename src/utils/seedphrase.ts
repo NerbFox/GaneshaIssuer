@@ -2,7 +2,7 @@ import BIP39_WORDLIST from '@/data/wordlist.json';
 
 import { hmac } from '@noble/hashes/hmac.js';
 import { pbkdf2Async } from '@noble/hashes/pbkdf2.js';
-import { sha256, sha512 } from '@noble/hashes/sha2.js';
+import { sha512 } from '@noble/hashes/sha2.js';
 import * as secp256k1 from '@noble/secp256k1';
 
 // =============================================================================

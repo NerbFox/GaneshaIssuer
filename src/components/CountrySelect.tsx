@@ -29,7 +29,7 @@ interface Country {
 }
 
 const customStyles: StylesConfig<CountryOption, false> = {
-  control: (provided, state) => ({
+  control: (provided) => ({
     ...provided,
     backgroundColor: '#E9F2F5',
     border: 'none',

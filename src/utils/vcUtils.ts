@@ -12,7 +12,7 @@ export interface VerifiableCredential {
   validFrom: string;
   credentialSubject: {
     id: string;
-    [key: string]: any;
+    [key: string]: string | number | boolean;
   };
 }
 
@@ -24,7 +24,7 @@ export function createVC(params: {
   vcType: string;
   issuerDid: string;
   holderDid: string;
-  credentialData: Record<string, any>;
+  credentialData: Record<string, string | number | boolean>;
   validFrom?: string;
 }): VerifiableCredential {
   const { id, vcType, issuerDid, holderDid, credentialData, validFrom } = params;
@@ -52,20 +52,20 @@ export function createVC(params: {
 export function hashVC(vc: VerifiableCredential): string {
   // Convert VC to canonical JSON string (sorted keys for consistency)
   const vcString = JSON.stringify(vc, Object.keys(vc).sort());
-  
+
   // Convert string to Uint8Array
   const encoder = new TextEncoder();
   const data = encoder.encode(vcString);
-  
+
   // Hash using Keccak256
   const hashBytes = keccak_256(data);
-  
+
   // Convert Uint8Array to hex string
   let hashHex = '';
   for (let i = 0; i < hashBytes.length; i++) {
     hashHex += hashBytes[i].toString(16).padStart(2, '0');
   }
-  
+
   // Return with 0x prefix
   return `0x${hashHex}`;
 }
