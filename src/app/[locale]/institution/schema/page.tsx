@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
@@ -10,6 +11,7 @@ import UpdateSchemaForm, {
   SchemaFormData as UpdateSchemaFormData,
 } from '@/components/UpdateSchemaForm';
 import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
+import { redirectIfNotAuthenticated } from '@/utils/auth';
 
 interface Schema {
   id: string;
@@ -45,6 +47,7 @@ interface ApiSchemaResponse {
 }
 
 export default function SchemaPage() {
+  const router = useRouter();
   const [schemas, setSchemas] = useState<Schema[]>([]);
   const [filteredSchemas, setFilteredSchemas] = useState<Schema[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -55,6 +58,7 @@ export default function SchemaPage() {
   const [showUpdateSchemaModal, setShowUpdateSchemaModal] = useState(false);
   const [selectedSchema, setSelectedSchema] = useState<Schema | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -121,8 +125,18 @@ export default function SchemaPage() {
     }
   };
 
+  // Check authentication on component mount
+  useEffect(() => {
+    const shouldRedirect = redirectIfNotAuthenticated(router);
+    if (!shouldRedirect) {
+      setIsAuthenticated(true);
+    }
+  }, [router]);
+
   // Fetch schemas from API
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     const fetchSchemas = async () => {
       try {
         setIsLoading(true);
@@ -168,7 +182,7 @@ export default function SchemaPage() {
     };
 
     fetchSchemas();
-  }, []);
+  }, [isAuthenticated]);
 
   // Close filter modal when clicking outside
   useEffect(() => {
@@ -531,6 +545,18 @@ export default function SchemaPage() {
       ),
     },
   ];
+
+  // Show loading screen while checking authentication
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0D2B45] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <InstitutionLayout activeTab="schema">
