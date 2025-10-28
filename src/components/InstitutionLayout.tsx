@@ -3,7 +3,7 @@
 import { useState, ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { sidebarNavigation, NavigationSection, NavigationItem } from '@/constants/navigation';
 import { ThemedText } from './ThemedText';
 
@@ -15,12 +15,43 @@ interface InstitutionLayoutProps {
 export default function InstitutionLayout({ children, activeTab }: InstitutionLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   const isActive = (item: NavigationItem) => {
     if (activeTab) {
       return item.id === activeTab;
     }
     return pathname.includes(item.href);
+  };
+
+  const handleLogout = () => {
+    // Show confirmation prompt
+    const confirmed = window.confirm(
+      'Are you sure you want to logout?\n\nAll unsaved changes will be lost.'
+    );
+
+    if (!confirmed) {
+      return; // User cancelled the logout
+    }
+
+    // Clear all data from localStorage
+    localStorage.clear();
+
+    // Clear all data from sessionStorage
+    sessionStorage.clear();
+
+    // Clear all cookies
+    document.cookie.split(';').forEach((cookie) => {
+      const eqPos = cookie.indexOf('=');
+      const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
+      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+    });
+
+    // Extract locale from pathname (e.g., /en/institution/... -> en)
+    const locale = pathname.split('/')[1] || 'en';
+
+    // Redirect to base URL with locale
+    router.push(`/${locale}`);
   };
 
   return (
@@ -131,9 +162,36 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
 
         {/* Main Content Canvas */}
         <main
-          className={`bg-white rounded-3xl overflow-auto ${isCollapsed ? 'w-full h-full' : 'flex-1'}`}
+          className={`bg-white rounded-3xl overflow-auto ${isCollapsed ? 'w-full h-full' : 'flex-1'} flex flex-col`}
         >
-          {children}
+          {/* Navbar */}
+          <div className="sticky top-0 z-40 bg-white border-b border-gray-200 px-6 py-4">
+            <div className="flex items-center justify-end">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+                Logout
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-auto">{children}</div>
         </main>
       </div>
     </div>
