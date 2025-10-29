@@ -20,44 +20,16 @@ if (filesToLint.length === 0) {
 
 try {
   // Run eslint check with max warnings
-  execSync(`npx eslint --max-warnings=0 ${filesToLint.join(' ')}`, {
-    stdio: 'pipe',
+  // Properly quote each file path to handle special characters like parentheses
+  const quotedFiles = filesToLint.map((file) => `"${file}"`).join(' ');
+  execSync(`npx eslint --max-warnings=0 ${quotedFiles}`, {
+    stdio: 'inherit',
     encoding: 'utf-8',
   });
   process.exit(0);
 } catch (error) {
   console.error('\n❌ Commit blocked: Linting errors found\n');
-  console.error('Please fix the following issues:\n');
-
-  // Parse and display only the essential error info
-  const output = error.stdout || error.stderr || '';
-  const lines = output.split('\n');
-
-  let currentFile = '';
-  lines.forEach((line) => {
-    // Extract file path
-    if (
-      line.includes('.tsx') ||
-      line.includes('.ts') ||
-      line.includes('.jsx') ||
-      line.includes('.js')
-    ) {
-      const match = line.match(/([^\s]+\.(tsx?|jsx?))$/);
-      if (match && !line.includes('warning') && !line.includes('error')) {
-        currentFile = match[1].split('/').slice(-1)[0];
-        console.error(`\n📄 ${currentFile}`);
-      }
-    }
-
-    // Extract error/warning lines
-    if (line.match(/^\s+\d+:\d+/)) {
-      const cleaned = line.trim();
-      console.error(`   ${cleaned}`);
-    }
-  });
-
-  console.error('\n💡 Fix these issues and try committing again.');
-  console.error('   Run: npm run lint:fix\n');
-
+  console.error('💡 Fix these issues and try committing again.');
+  console.error('   Run: npm run format\n');
   process.exit(1);
 }
