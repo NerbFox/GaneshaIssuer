@@ -4,18 +4,22 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
-import { redirectIfNotAuthenticated } from '@/utils/auth';
+import { redirectIfJWTInvalid } from '@/utils/auth';
 
 export default function HistoryPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Check authentication on component mount
+  // Check authentication with JWT verification on component mount
   useEffect(() => {
-    const shouldRedirect = redirectIfNotAuthenticated(router);
-    if (!shouldRedirect) {
-      setIsAuthenticated(true);
-    }
+    const checkAuth = async () => {
+      const redirected = await redirectIfJWTInvalid(router);
+      if (!redirected) {
+        setIsAuthenticated(true);
+      }
+    };
+
+    checkAuth();
   }, [router]);
 
   // Show loading screen while checking authentication

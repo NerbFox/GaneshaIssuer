@@ -9,7 +9,8 @@ import Modal from '@/components/Modal';
 import FillIssueRequestForm, { IssueRequestFormData } from '@/components/FillIssueRequestForm';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { createVC, hashVC } from '@/utils/vcUtils';
-import { redirectIfNotAuthenticated } from '@/utils/auth';
+import { redirectIfJWTInvalid } from '@/utils/auth';
+import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
 
 interface IssueRequest {
   id: string;
@@ -91,12 +92,16 @@ export default function IssueRequestPage() {
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
-  // Check authentication on component mount
+  // Check authentication with JWT verification on component mount
   useEffect(() => {
-    const shouldRedirect = redirectIfNotAuthenticated(router);
-    if (!shouldRedirect) {
-      setIsAuthenticated(true);
-    }
+    const checkAuth = async () => {
+      const redirected = await redirectIfJWTInvalid(router);
+      if (!redirected) {
+        setIsAuthenticated(true);
+      }
+    };
+
+    checkAuth();
   }, [router]);
 
   // Fetch issue requests from API
@@ -117,12 +122,7 @@ export default function IssueRequestPage() {
           issuer_did: issuerDid,
         });
 
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            accept: 'application/json',
-          },
-        });
+        const response = await authenticatedGet(url);
 
         if (!response.ok) {
           throw new Error('Failed to fetch issue requests');
@@ -225,12 +225,7 @@ export default function IssueRequestPage() {
         const schemaUrl = buildApiUrl(
           API_ENDPOINTS.SCHEMA.DETAIL(request.encrypted_body, request.version)
         );
-        const schemaResponse = await fetch(schemaUrl, {
-          method: 'GET',
-          headers: {
-            accept: 'application/json',
-          },
-        });
+        const schemaResponse = await authenticatedGet(schemaUrl);
 
         if (schemaResponse.ok) {
           const schemaApiData: SchemaApiResponse = await schemaResponse.json();
@@ -347,14 +342,7 @@ export default function IssueRequestPage() {
 
       // Send POST request to issue VC
       const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.ISSUE_VC);
-      const response = await fetch(issueUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await authenticatedPost(issueUrl, requestBody);
 
       if (!response.ok) {
         const errorData = await response.json();

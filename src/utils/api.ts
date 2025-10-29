@@ -28,18 +28,20 @@ export const API_ENDPOINTS = {
   },
   // Institution Registration endpoints
   INSTITUTION: {
-    LIST: '/api/v1/institution-registration',
+    BASE: '/api/v1/institution-registration',
     DETAIL: (id: string) => `/api/v1/institution-registration/${id}`,
     UPDATE_STATUS: (id: string) => `/api/v1/institution-registration/${id}/status`,
   },
   // DID endpoints
   DID: {
-    LIST: '/api/v1/dids',
+    BASE: '/api/v1/dids',
     DETAIL: (id: string) => `/api/v1/dids/${id}`,
+    CHECK: (did: string) => `/api/v1/dids/check/${did}`,
+    DOCUMENT: (did: string) => `/api/v1/dids/${did}/document`,
   },
   // Schema endpoints
   SCHEMA: {
-    LIST: '/api/v1/schemas',
+    BASE: '/api/v1/schemas',
     DETAIL: (id: string, version: number) => `/api/v1/schemas/${id}/version/${version}`,
     CREATE: '/api/v1/schemas',
     UPDATE: (id: string) => `/api/v1/schemas/${id}`,
@@ -49,7 +51,7 @@ export const API_ENDPOINTS = {
   },
   // Credential endpoints
   CREDENTIAL: {
-    LIST: '/api/v1/credentials',
+    BASE: '/api/v1/credentials',
     DETAIL: (id: string) => `/api/v1/credentials/${id}`,
     GET_REQUESTS: '/api/v1/credentials/get-requests',
     REQUEST_DETAIL: (id: string) => `/api/v1/credentials/request/${id}`,
@@ -61,7 +63,7 @@ export const API_ENDPOINTS = {
  * Build full API URL
  */
 export const buildApiUrl = (endpoint: string): string => {
-  return `${getApiUrl()}${endpoint}`;
+  return `${getApiUrl()}${endpoint.replaceAll(':', '%3A')}`;
 };
 
 /**

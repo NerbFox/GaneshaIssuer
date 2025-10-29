@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
+import { adminAuthenticatedGet, adminAuthenticatedPost } from '@/utils/api-client';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
@@ -92,11 +93,7 @@ export default function AdminPage() {
           return;
         }
 
-        const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.PENDING_INSTITUTIONS), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await adminAuthenticatedGet(buildApiUrl(API_ENDPOINTS.AUTH.PENDING_INSTITUTIONS));
 
         const data = await response.json();
 
@@ -206,16 +203,12 @@ export default function AdminPage() {
         return;
       }
 
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.APPROVE(institutionId)), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const response = await adminAuthenticatedPost(
+        buildApiUrl(API_ENDPOINTS.AUTH.APPROVE(institutionId)),
+        {
           approvedBy: adminData?.name || 'Admin',
-        }),
-      });
+        }
+      );
 
       const data = await response.json();
 
@@ -269,12 +262,10 @@ export default function AdminPage() {
         return;
       }
 
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.REJECT(institutionId)), {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await adminAuthenticatedPost(
+        buildApiUrl(API_ENDPOINTS.AUTH.REJECT(institutionId)),
+        {}
+      );
 
       const data = await response.json();
 

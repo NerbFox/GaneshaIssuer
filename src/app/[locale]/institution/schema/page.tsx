@@ -11,7 +11,8 @@ import UpdateSchemaForm, {
   SchemaFormData as UpdateSchemaFormData,
 } from '@/components/UpdateSchemaForm';
 import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
-import { redirectIfNotAuthenticated } from '@/utils/auth';
+import { redirectIfJWTInvalid } from '@/utils/auth';
+import { authenticatedFetch, authenticatedGet, authenticatedPost } from '@/utils/api-client';
 
 interface Schema {
   id: string;
@@ -73,16 +74,12 @@ export default function SchemaPage() {
         throw new Error('Institution DID not found. Please log in again.');
       }
 
-      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.LIST, {
+      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.BASE, {
         issuerDid,
         activeOnly: false,
       });
 
-      const response = await fetch(url, {
-        headers: {
-          accept: 'application/json',
-        },
-      });
+      const response = await authenticatedGet(url);
 
       if (!response.ok) {
         throw new Error('Failed to fetch schemas');
@@ -127,12 +124,16 @@ export default function SchemaPage() {
     }
   };
 
-  // Check authentication on component mount
+  // Check authentication with JWT verification on component mount
   useEffect(() => {
-    const shouldRedirect = redirectIfNotAuthenticated(router);
-    if (!shouldRedirect) {
-      setIsAuthenticated(true);
-    }
+    const checkAuth = async () => {
+      const redirected = await redirectIfJWTInvalid(router);
+      if (!redirected) {
+        setIsAuthenticated(true);
+      }
+    };
+
+    checkAuth();
   }, [router]);
 
   // Fetch schemas from API
@@ -147,16 +148,12 @@ export default function SchemaPage() {
           throw new Error('Institution DID not found. Please log in again.');
         }
 
-        const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.LIST, {
+        const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.BASE, {
           issuerDid,
           activeOnly: false,
         });
 
-        const response = await fetch(url, {
-          headers: {
-            accept: 'application/json',
-          },
-        });
+        const response = await authenticatedGet(url);
 
         if (!response.ok) {
           throw new Error('Failed to fetch schemas');
@@ -260,7 +257,7 @@ export default function SchemaPage() {
   const handleUpdateSchema = async (schemaId: string, version: number) => {
     try {
       // Fetch the full schema details from API
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, version)));
+      const response = await authenticatedGet(buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, version)));
 
       if (!response.ok) {
         throw new Error('Failed to fetch schema details');
@@ -313,14 +310,13 @@ export default function SchemaPage() {
         },
       };
 
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.UPDATE(data.schemaId)), {
-        method: 'PUT',
-        headers: {
-          accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      const response = await authenticatedFetch(
+        buildApiUrl(API_ENDPOINTS.SCHEMA.UPDATE(data.schemaId)),
+        {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -373,12 +369,8 @@ export default function SchemaPage() {
         ? API_ENDPOINTS.SCHEMA.DEACTIVATE(schemaId)
         : API_ENDPOINTS.SCHEMA.REACTIVATE(schemaId);
 
-      const response = await fetch(buildApiUrl(endpoint), {
+      const response = await authenticatedFetch(buildApiUrl(endpoint), {
         method: 'PATCH',
-        headers: {
-          accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
       });
 
       if (!response.ok) {
@@ -451,14 +443,7 @@ export default function SchemaPage() {
         issuer_did: issuerDid,
       };
 
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), {
-        method: 'POST',
-        headers: {
-          accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      const response = await authenticatedPost(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), payload);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

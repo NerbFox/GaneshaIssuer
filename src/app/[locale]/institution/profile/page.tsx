@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
-import { redirectIfNotAuthenticated } from '@/utils/auth';
+import { redirectIfJWTInvalid } from '@/utils/auth';
 
 interface InstitutionData {
   id: string;
@@ -28,12 +28,16 @@ export default function InstitutionProfilePage() {
   const [institutionData, setInstitutionData] = useState<InstitutionData | null>(null);
   const [error, setError] = useState<string>('');
 
-  // Check authentication on component mount
+  // Check authentication with JWT verification on component mount
   useEffect(() => {
-    const shouldRedirect = redirectIfNotAuthenticated(router);
-    if (!shouldRedirect) {
-      setIsAuthenticated(true);
-    }
+    const checkAuth = async () => {
+      const redirected = await redirectIfJWTInvalid(router);
+      if (!redirected) {
+        setIsAuthenticated(true);
+      }
+    };
+
+    checkAuth();
   }, [router]);
 
   useEffect(() => {
