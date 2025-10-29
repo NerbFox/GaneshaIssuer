@@ -37,9 +37,6 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
     // Clear all data from localStorage
     localStorage.clear();
 
-    // Clear all data from sessionStorage
-    sessionStorage.clear();
-
     // Clear all cookies
     document.cookie.split(';').forEach((cookie) => {
       const eqPos = cookie.indexOf('=');
