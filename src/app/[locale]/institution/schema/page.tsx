@@ -76,7 +76,6 @@ export default function SchemaPage() {
 
       const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.BASE, {
         issuerDid,
-        activeOnly: false,
       });
 
       const response = await authenticatedGet(url);
@@ -150,7 +149,6 @@ export default function SchemaPage() {
 
         const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.BASE, {
           issuerDid,
-          activeOnly: false,
         });
 
         const response = await authenticatedGet(url);
@@ -257,7 +255,9 @@ export default function SchemaPage() {
   const handleUpdateSchema = async (schemaId: string, version: number) => {
     try {
       // Fetch the full schema details from API
-      const response = await authenticatedGet(buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, version)));
+      const response = await authenticatedGet(
+        buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, version))
+      );
 
       if (!response.ok) {
         throw new Error('Failed to fetch schema details');
