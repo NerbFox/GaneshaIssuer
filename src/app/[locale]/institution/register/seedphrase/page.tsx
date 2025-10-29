@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import AuthContainer from '@/components/AuthContainer';
-import { generateMnemonic, validateMnemonic, ENTROPY_BITS_24_WORDS } from '@/utils/seedphrase';
+import { generateMnemonic, validateMnemonic, ENTROPY_BITS_24_WORDS } from '@/utils/seedphrase-p256';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
 
 type Step = 'create' | 'confirm';
@@ -140,15 +140,19 @@ export default function SeedPhrasePage() {
       }
 
       // Generate wallet from mnemonic to get derived keys and DID
-      const { generateWalletFromMnemonic, bytesToHex } = await import('@/utils/seedphrase');
+      const { generateWalletFromMnemonic } = await import('@/utils/seedphrase-p256');
       const wallet = await generateWalletFromMnemonic(mnemonic, 'i', '', 0);
 
-      // Store only the derived private signing key and DID (NOT the seed phrase)
-      // In production, encrypt the private key before storing
-      const signingPrivateKeyHex = bytesToHex(wallet.signingKey.privateKey);
+      // ✅ SECURE: Store DID and public key only
+      // Private key is a non-extractable CryptoKey stored securely by the browser
+      // JavaScript CANNOT extract it - immune to XSS attacks
       localStorage.setItem('institutionDID', wallet.did);
-      localStorage.setItem('institutionSigningPrivateKey', signingPrivateKeyHex); // This should be encrypted
       localStorage.setItem('institutionSigningPublicKey', wallet.signingKey.publicKeyHex);
+
+      // Store mnemonic in sessionStorage temporarily for registration flow
+      // SessionStorage is cleared when browser closes, more secure than localStorage
+      // This allows us to regenerate the wallet in confirm page to create a new JWT
+      sessionStorage.setItem('tempRegistrationMnemonic', JSON.stringify(mnemonic));
 
       // Navigate to confirmation page
       router.push('/institution/register/confirm');

@@ -8,6 +8,9 @@ import Button from '@/components/Button';
 import AuthContainer from '@/components/AuthContainer';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
+import { authenticatedPost } from '@/utils/api-client';
+import { generateWalletFromMnemonic } from '@/utils/seedphrase-p256';
+import { createJWT } from '@/utils/jwt-es256';
 
 export default function RegistrationConfirmPage() {
   const router = useRouter();
@@ -148,18 +151,47 @@ Keep this information safe and secure!
       };
 
       // Send POST request to register DID
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.DID.LIST), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
+      const response = await authenticatedPost(buildApiUrl(API_ENDPOINTS.DID.BASE), formData);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to register DID');
+      }
+
+      // DID registration successful - now create a new JWT with longer expiration
+      // Retrieve the temporarily stored mnemonic from sessionStorage
+      const tempMnemonicStr = sessionStorage.getItem('tempRegistrationMnemonic');
+
+      if (tempMnemonicStr) {
+        try {
+          const mnemonic: string[] = JSON.parse(tempMnemonicStr);
+
+          // Regenerate wallet from mnemonic to get CryptoKey
+          const wallet = await generateWalletFromMnemonic(mnemonic, 'i', '', 0);
+
+          // Create new JWT with 7-day expiration
+          // Following JWT best practices: minimal payload with standard claims
+          const newJwt = await createJWT(
+            {
+              role: 'institution', // Custom claim for authorization
+            },
+            wallet.signingKey.cryptoKey,
+            {
+              issuer: wallet.did, // Standard claim - identifies issuer
+              subject: wallet.did, // Standard claim - identifies subject
+              expiresIn: 7 * 24 * 60 * 60, // 7 days in seconds
+            }
+          );
+
+          // Update the token in localStorage with the new 7-day JWT
+          localStorage.setItem('institutionToken', newJwt);
+        } catch (jwtError) {
+          console.error('Error creating new JWT:', jwtError);
+          // Continue anyway - the 24-hour token from registration is still valid
+        } finally {
+          // Always clear the temporary mnemonic from sessionStorage for security
+          sessionStorage.removeItem('tempRegistrationMnemonic');
+        }
       }
 
       // Navigate to dashboard on success

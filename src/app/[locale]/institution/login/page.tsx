@@ -6,7 +6,9 @@ import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import AuthContainer from '@/components/AuthContainer';
 import { Link } from '@/i18n/routing';
-import { validateMnemonic, generateWalletFromMnemonic } from '@/utils/seedphrase';
+import { validateMnemonic, generateWalletFromMnemonic } from '@/utils/seedphrase-p256';
+import { createJWT } from '@/utils/jwt-es256';
+import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 
 export default function InstitutionLoginPage() {
   const router = useRouter();
@@ -41,16 +43,53 @@ export default function InstitutionLoginPage() {
       // Generate wallet from mnemonic (institution entity type)
       const wallet = await generateWalletFromMnemonic(words, 'i', '', 0);
 
-      // Extract keys and DID
-      const did = wallet.did;
-      const signingPublicKeyHex = wallet.signingKey.publicKeyHex;
-      const didPublicKeyHex = wallet.didKey.publicKeyHex;
+      // Fetch DID document from API (URL encode the DID)
+      const didDocumentUrl = buildApiUrl(
+        API_ENDPOINTS.DID.DOCUMENT(wallet.did)
+      );
+      const didResponse = await fetch(didDocumentUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      // Store authentication state
-      sessionStorage.setItem('isAuthenticated', 'true');
-      sessionStorage.setItem('did', did);
-      sessionStorage.setItem('signingPublicKey', signingPublicKeyHex);
-      sessionStorage.setItem('didPublicKey', didPublicKeyHex);
+      if (!didResponse.ok) {
+        setError('Failed to retrieve institution information. Please try again.');
+        return;
+      }
+
+      const didData = await didResponse.json();
+
+      // Extract institution details from the response
+      const institutionDetails = {
+        name: didData.data?.details?.name || '',
+        email: didData.data?.details?.email || '',
+        phone: didData.data?.details?.phone || '',
+        country: didData.data?.details?.country || '',
+        address: didData.data?.details?.address || '',
+        website: didData.data?.details?.website || '',
+      };
+
+      // Create JWT token using the wallet's signing key
+      // Following JWT best practices: minimal payload with standard claims
+      const jwt = await createJWT(
+        {
+          role: 'institution', // Custom claim for authorization
+        },
+        wallet.signingKey.cryptoKey,
+        {
+          issuer: wallet.did, // Standard claim - identifies issuer
+          subject: wallet.did, // Standard claim - identifies subject
+          expiresIn: 7 * 24 * 60 * 60, // 7 days in seconds
+        }
+      );
+
+      // Store DID, public key, JWT token, and institution data (NOT the private key or seed phrase)
+      localStorage.setItem('institutionDID', wallet.did);
+      localStorage.setItem('institutionSigningPublicKey', wallet.signingKey.publicKeyHex);
+      localStorage.setItem('institutionToken', jwt);
+      localStorage.setItem('institutionData', JSON.stringify(institutionDetails));
 
       // Navigate to dashboard
       router.push('/institution/dashboard');
