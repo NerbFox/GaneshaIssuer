@@ -46,15 +46,16 @@ export const API_ENDPOINTS = {
     CREATE: '/api/v1/schemas',
     UPDATE: (id: string) => `/api/v1/schemas/${id}`,
     DELETE: (id: string) => `/api/v1/schemas/${id}`,
-    DEACTIVATE: (id: string) => `/api/v1/schemas/${id}/deactivate`,
-    REACTIVATE: (id: string) => `/api/v1/schemas/${id}/reactivate`,
+    DEACTIVATE: (id: string, version: number) =>
+      `/api/v1/schemas/${id}/version/${version}/deactivate`,
+    REACTIVATE: (id: string, version: number) =>
+      `/api/v1/schemas/${id}/version/${version}/reactivate`,
   },
   // Credential endpoints
   CREDENTIAL: {
     BASE: '/api/v1/credentials',
     DETAIL: (id: string) => `/api/v1/credentials/${id}`,
     GET_REQUESTS: '/api/v1/credentials/get-requests',
-    REQUEST_DETAIL: (id: string) => `/api/v1/credentials/request/${id}`,
     ISSUE_VC: '/api/v1/credentials/issue-vc',
   },
 };
