@@ -9,8 +9,8 @@ import Modal from '@/components/Modal';
 import FillIssueRequestForm, { IssueRequestFormData } from '@/components/FillIssueRequestForm';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { createVC, hashVC } from '@/utils/vcUtils';
-import { redirectIfJWTInvalid } from '@/utils/auth';
-import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
+import { signVCWithStoredKey, stringifySignedVC } from '@/utils/vcSigner';
+import { redirectIfNotAuthenticated } from '@/utils/auth';
 
 interface IssueRequest {
   id: string;
@@ -25,9 +25,13 @@ interface IssueRequest {
 }
 
 interface ApiResponse {
+  success: boolean;
   message: string;
-  count: number;
-  data: IssueRequest[];
+  data: {
+    message: string;
+    count: number;
+    data: IssueRequest[];
+  };
 }
 
 interface SchemaProperty {
@@ -92,16 +96,28 @@ export default function IssueRequestPage() {
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
-  // Check authentication with JWT verification on component mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      const redirected = await redirectIfJWTInvalid(router);
-      if (!redirected) {
-        setIsAuthenticated(true);
-      }
-    };
+  // Helper function to parse encrypted_body
+  const parseEncryptedBody = (
+    encryptedBody: string
+  ): { schema_id: string; schema_version: number } | null => {
+    try {
+      const parsed = JSON.parse(encryptedBody);
+      return {
+        schema_id: parsed.schema_id || '',
+        schema_version: parsed.schema_version || 1,
+      };
+    } catch (error) {
+      console.error('Failed to parse encrypted_body:', error);
+      return null;
+    }
+  };
 
-    checkAuth();
+  // Check authentication on component mount
+  useEffect(() => {
+    const shouldRedirect = redirectIfNotAuthenticated(router);
+    if (!shouldRedirect) {
+      setIsAuthenticated(true);
+    }
   }, [router]);
 
   // Fetch issue requests from API
@@ -122,15 +138,27 @@ export default function IssueRequestPage() {
           issuer_did: issuerDid,
         });
 
-        const response = await authenticatedGet(url);
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            accept: 'application/json',
+          },
+        });
 
         if (!response.ok) {
           throw new Error('Failed to fetch issue requests');
         }
 
-        const data: ApiResponse = await response.json();
-        setRequests(data.data);
-        setFilteredRequests(data.data);
+        const apiResponse: ApiResponse = await response.json();
+
+        // Extract the actual data array from nested structure
+        const requestsData = apiResponse.data.data;
+
+        console.log('Fetched requests:', requestsData);
+        console.log('Total count:', apiResponse.data.count);
+
+        setRequests(requestsData);
+        setFilteredRequests(requestsData);
       } catch (err) {
         console.error('Error fetching issue requests:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -167,12 +195,19 @@ export default function IssueRequestPage() {
   }, [showFilterModal]);
 
   const handleSearch = (value: string) => {
-    const filtered = requests.filter(
-      (request) =>
-        request.holder_did.toLowerCase().includes(value.toLowerCase()) ||
-        request.encrypted_body.toLowerCase().includes(value.toLowerCase()) ||
-        request.status.toLowerCase().includes(value.toLowerCase())
-    );
+    const filtered = requests.filter((request) => {
+      const searchLower = value.toLowerCase();
+
+      // Parse encrypted_body to get schema_id for searching
+      const parsedBody = parseEncryptedBody(request.encrypted_body);
+      const schemaId = parsedBody?.schema_id || '';
+
+      return (
+        request.holder_did.toLowerCase().includes(searchLower) ||
+        schemaId.toLowerCase().includes(searchLower) ||
+        request.status.toLowerCase().includes(searchLower)
+      );
+    });
     setFilteredRequests(filtered);
   };
 
@@ -193,9 +228,11 @@ export default function IssueRequestPage() {
     }
 
     if (schema) {
-      filtered = filtered.filter((request) =>
-        request.encrypted_body.toLowerCase().includes(schema.toLowerCase())
-      );
+      filtered = filtered.filter((request) => {
+        const parsedBody = parseEncryptedBody(request.encrypted_body);
+        const schemaId = parsedBody?.schema_id || '';
+        return schemaId.toLowerCase().includes(schema.toLowerCase());
+      });
     }
 
     setFilteredRequests(filtered);
@@ -221,11 +258,26 @@ export default function IssueRequestPage() {
       // Fetch schema data
       setIsLoadingSchema(true);
       try {
-        // Fetch schema details using encrypted_body as schema ID
-        const schemaUrl = buildApiUrl(
-          API_ENDPOINTS.SCHEMA.DETAIL(request.encrypted_body, request.version)
-        );
-        const schemaResponse = await authenticatedGet(schemaUrl);
+        // Parse encrypted_body to get schema_id and schema_version
+        const parsedBody = parseEncryptedBody(request.encrypted_body);
+
+        if (!parsedBody) {
+          throw new Error('Failed to parse encrypted_body');
+        }
+
+        const { schema_id: schemaId, schema_version: schemaVersion } = parsedBody;
+
+        console.log('Parsed schema ID:', schemaId);
+        console.log('Parsed schema version:', schemaVersion);
+
+        // Fetch schema details using parsed schema_id and schema_version
+        const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, schemaVersion));
+        const schemaResponse = await fetch(schemaUrl, {
+          method: 'GET',
+          headers: {
+            accept: 'application/json',
+          },
+        });
 
         if (schemaResponse.ok) {
           const schemaApiData: SchemaApiResponse = await schemaResponse.json();
@@ -304,23 +356,66 @@ export default function IssueRequestPage() {
         credentialData[attr.name] = attr.value;
       });
 
+      // Fetch DID Document to get issuer name
+      let issuerName = 'Issuer Institution'; // Default fallback
+      try {
+        const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DID.DOCUMENT(selectedRequest.issuer_did));
+        console.log('Fetching DID Document from:', didDocumentUrl);
+
+        const didDocResponse = await fetch(didDocumentUrl, {
+          method: 'GET',
+          headers: {
+            accept: 'application/json',
+          },
+        });
+
+        if (didDocResponse.ok) {
+          const didDocData = await didDocResponse.json();
+          console.log('DID Document response:', didDocData);
+
+          // Extract issuer name from DID Document
+          if (didDocData.data?.details?.name) {
+            issuerName = didDocData.data.details.name;
+            console.log('Extracted issuer name:', issuerName);
+          } else {
+            console.warn('Issuer name not found in DID Document, using default');
+          }
+        } else {
+          console.warn('Failed to fetch DID Document, using default issuer name');
+        }
+      } catch (didError) {
+        console.error('Error fetching DID Document:', didError);
+        console.warn('Using default issuer name');
+      }
+
       // Create Verifiable Credential
       const vc = createVC({
         id: selectedRequest.id,
         vcType: schemaData.name.replace(/\s+/g, ''), // Remove spaces for type name
         issuerDid: selectedRequest.issuer_did,
+        issuerName: issuerName,
         holderDid: selectedRequest.holder_did,
         credentialData: credentialData,
       });
 
-      // Hash the VC
-      const vcHash = hashVC(vc);
+      console.log('Created VC (unsigned):', vc);
 
-      console.log('Created VC:', vc);
+      // Sign the VC with stored private key
+      const signedVC = await signVCWithStoredKey(vc);
+      console.log('Signed VC with proof:', signedVC);
+
+      // Hash the original VC (before signing)
+      const vcHash = hashVC(vc);
       console.log('VC Hash:', vcHash);
+
+      // Convert signed VC to JSON string for encrypted_body
+      const encryptedBody = stringifySignedVC(signedVC);
+      console.log('Encrypted body (signed VC as JSON):', encryptedBody);
+      console.log('Encrypted body length:', encryptedBody.length);
 
       // Generate vc_id as concatenation of schema_id and holder_did
       const vcId = `${schemaData.id}:${selectedRequest.holder_did}`;
+      console.log('Generated VC ID:', vcId);
 
       // Prepare request body
       const requestBody = {
@@ -334,19 +429,57 @@ export default function IssueRequestPage() {
         schema_id: schemaData.id,
         schema_version: parseInt(schemaData.version),
         vc_hash: vcHash,
-        encrypted_body: 'string',
+        encrypted_body: encryptedBody, // Send signed VC as stringified JSON
       };
 
+      // Validate request body
+      console.log('Validating request body...');
+      console.log('- request_id:', requestBody.request_id);
+      console.log('- issuer_did:', requestBody.issuer_did);
+      console.log('- holder_did:', requestBody.holder_did);
+      console.log('- action:', requestBody.action);
+      console.log('- request_type:', requestBody.request_type);
+      console.log('- vc_id:', requestBody.vc_id);
+      console.log('- vc_type:', requestBody.vc_type);
+      console.log('- schema_id:', requestBody.schema_id);
+      console.log('- schema_version:', requestBody.schema_version);
+      console.log('- vc_hash:', requestBody.vc_hash);
+      console.log('- encrypted_body type:', typeof requestBody.encrypted_body);
+      console.log(
+        '- encrypted_body preview:',
+        requestBody.encrypted_body.substring(0, 100) + '...'
+      );
+
       console.log('Request body:', requestBody);
-      console.log('Generated VC ID:', vcId);
 
       // Send POST request to issue VC
       const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.ISSUE_VC);
-      const response = await authenticatedPost(issueUrl, requestBody);
+      console.log('Sending request to:', issueUrl);
+      console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
+      const response = await fetch(issueUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response statusText:', response.statusText);
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to issue credential');
+        console.error('Error response:', errorData);
+
+        // Check if there are validation errors
+        if (errorData.errors) {
+          const validationErrors = JSON.stringify(errorData.errors, null, 2);
+          throw new Error(`Validation failed:\n${validationErrors}`);
+        }
+
+        throw new Error(errorData.message || `Failed to issue credential (${response.status})`);
       }
 
       const result = await response.json();
@@ -486,9 +619,11 @@ export default function IssueRequestPage() {
       id: 'encrypted_body',
       label: 'SCHEMA',
       sortKey: 'encrypted_body',
-      render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{row.encrypted_body}</ThemedText>
-      ),
+      render: (row) => {
+        const parsedBody = parseEncryptedBody(row.encrypted_body);
+        const schemaId = parsedBody?.schema_id || row.encrypted_body;
+        return <ThemedText className="text-sm text-gray-900">{schemaId}</ThemedText>;
+      },
     },
     {
       id: 'status',

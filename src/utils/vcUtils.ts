@@ -9,6 +9,7 @@ export interface VerifiableCredential {
   id: string;
   type: string[];
   issuer: string;
+  issuerName: string;
   validFrom: string;
   credentialSubject: {
     id: string;
@@ -23,11 +24,12 @@ export function createVC(params: {
   id: string;
   vcType: string;
   issuerDid: string;
+  issuerName: string;
   holderDid: string;
   credentialData: Record<string, string | number | boolean>;
   validFrom?: string;
 }): VerifiableCredential {
-  const { id, vcType, issuerDid, holderDid, credentialData, validFrom } = params;
+  const { id, vcType, issuerDid, holderDid, credentialData, validFrom, issuerName } = params;
 
   return {
     '@context': [
@@ -37,6 +39,7 @@ export function createVC(params: {
     id: `http://credentials.example/${id}`,
     type: ['VerifiableCredential', vcType],
     issuer: issuerDid,
+    issuerName: issuerName,
     validFrom: validFrom || new Date().toISOString(),
     credentialSubject: {
       id: holderDid,
@@ -47,7 +50,7 @@ export function createVC(params: {
 
 /**
  * Hash a Verifiable Credential using Keccak256
- * Returns a 64-character hex string starting with 0x
+ * Returns a 64-character hex string (without 0x prefix)
  */
 export function hashVC(vc: VerifiableCredential): string {
   // Convert VC to canonical JSON string (sorted keys for consistency)
@@ -66,14 +69,14 @@ export function hashVC(vc: VerifiableCredential): string {
     hashHex += hashBytes[i].toString(16).padStart(2, '0');
   }
 
-  // Return with 0x prefix
-  return `0x${hashHex}`;
+  // Return WITHOUT 0x prefix (64 characters)
+  return hashHex;
 }
 
 /**
- * Validate VC hash format
+ * Validate VC hash format (64-character hex string without 0x prefix)
  */
 export function isValidVCHash(hash: string): boolean {
-  const pattern = /^0x[a-fA-F0-9]{64}$/;
+  const pattern = /^[a-fA-F0-9]{64}$/;
   return pattern.test(hash);
 }

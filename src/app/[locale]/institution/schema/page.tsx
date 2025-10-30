@@ -18,7 +18,7 @@ interface Schema {
   id: string;
   schemaName: string;
   attributes: number;
-  status: 'Active' | 'Inactive';
+  isActive: boolean;
   lastUpdated: string;
   schemaDetails?: {
     properties: Record<string, { type: string }>;
@@ -64,7 +64,7 @@ export default function SchemaPage() {
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
-  const activeCount = schemas.filter((s) => s.status === 'Active').length;
+  const activeCount = schemas.filter((s) => s.isActive === true).length;
 
   // Helper function to refresh schemas from API
   const refreshSchemas = async () => {
@@ -91,7 +91,7 @@ export default function SchemaPage() {
         id: schema.id,
         schemaName: `${schema.name} v${schema.version}`,
         attributes: Object.keys(schema.schema.properties).length,
-        status: schema.isActive ? 'Active' : 'Inactive',
+        isActive: schema.isActive,
         version: schema.version,
         lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
       }));
@@ -104,7 +104,7 @@ export default function SchemaPage() {
       let filtered = schemasToFilter;
 
       if (filterStatus !== 'all') {
-        filtered = filtered.filter((schema) => schema.status === filterStatus);
+        filtered = filtered.filter((schema) => schema.isActive === true || false);
       }
 
       if (filterSchemaId) {
@@ -164,7 +164,7 @@ export default function SchemaPage() {
           id: schema.id,
           schemaName: `${schema.name} v${schema.version}`,
           attributes: Object.keys(schema.schema.properties).length,
-          status: schema.isActive ? 'Active' : 'Inactive',
+          isActive: schema.isActive,
           version: schema.version,
           lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'), // Format as YYYY/MM/DD
         }));
@@ -230,7 +230,7 @@ export default function SchemaPage() {
     let filtered = schemasToFilter;
 
     if (status !== 'all') {
-      filtered = filtered.filter((schema) => schema.status === status);
+      filtered = filtered.filter((schema) => schema.isActive === true || false);
     }
 
     if (schemaId) {
@@ -347,17 +347,17 @@ export default function SchemaPage() {
     }
   };
 
-  const handleToggleStatus = async (schemaId: string) => {
+  const handleToggleStatus = async (schemaId: string, schemaVersion: number) => {
     try {
-      const schema = schemas.find((s) => s.id === schemaId);
+      const schema = schemas.find((s) => s.id === schemaId && s.version === schemaVersion);
       if (!schema) return;
 
-      const isCurrentlyActive = schema.status === 'Active';
+      const isCurrentlyActive = schema.isActive === true;
       const action = isCurrentlyActive ? 'deactivate' : 'reactivate';
 
       // Show confirmation prompt
       const confirmed = window.confirm(
-        `Are you sure you want to ${action} this schema?\n\nSchema: ${schema.schemaName}\nCurrent Status: ${schema.status}`
+        `Are you sure you want to ${action} this schema?\n\nSchema: ${schema.schemaName}\nCurrent Status: ${schema.isActive ? 'Active' : 'Inactive'}`
       );
 
       if (!confirmed) {
@@ -366,8 +366,8 @@ export default function SchemaPage() {
 
       // Call the appropriate API endpoint
       const endpoint = isCurrentlyActive
-        ? API_ENDPOINTS.SCHEMA.DEACTIVATE(schemaId)
-        : API_ENDPOINTS.SCHEMA.REACTIVATE(schemaId);
+        ? API_ENDPOINTS.SCHEMA.DEACTIVATE(schemaId, schemaVersion)
+        : API_ENDPOINTS.SCHEMA.REACTIVATE(schemaId, schemaVersion);
 
       const response = await authenticatedFetch(buildApiUrl(endpoint), {
         method: 'PATCH',
@@ -486,14 +486,13 @@ export default function SchemaPage() {
     {
       id: 'status',
       label: 'Status',
-      sortKey: 'status',
       render: (row) => (
         <span
           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-            row.status === 'Active' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+            row.isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
           }`}
         >
-          {row.status}
+          {row.isActive ? 'Active' : 'Inactive'}
         </span>
       ),
     },
@@ -514,16 +513,16 @@ export default function SchemaPage() {
           >
             UPDATE
           </button>
-          {row.status === 'Active' ? (
+          {row.isActive ? (
             <button
-              onClick={() => handleToggleStatus(row.id)}
+              onClick={() => handleToggleStatus(row.id, row.version)}
               className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer"
             >
               DEACTIVATE
             </button>
           ) : (
             <button
-              onClick={() => handleToggleStatus(row.id)}
+              onClick={() => handleToggleStatus(row.id, row.version)}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
             >
               REACTIVATE
@@ -694,7 +693,14 @@ export default function SchemaPage() {
             setShowUpdateSchemaModal(false);
             setSelectedSchema(null);
           }}
-          initialData={selectedSchema || undefined}
+          initialData={
+            selectedSchema
+              ? {
+                  ...selectedSchema,
+                  isActive: selectedSchema.isActive ? 'Active' : 'Inactive',
+                }
+              : undefined
+          }
         />
       </Modal>
     </InstitutionLayout>
