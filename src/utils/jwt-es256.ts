@@ -63,6 +63,140 @@ function base64UrlDecode(base64url: string): Uint8Array {
   return Uint8Array.from(binaryString, (char) => char.charCodeAt(0));
 }
 
+// =============================================================================
+// ECDSA SIGNATURE FORMAT CONVERSION (P-256)
+// =============================================================================
+
+/**
+ * Convert DER-encoded ECDSA signature to raw format (r||s)
+ *
+ * DER format: 0x30 [total-length] 0x02 [r-length] [r] 0x02 [s-length] [s]
+ * Raw format: [r (32 bytes)] || [s (32 bytes)] = 64 bytes total
+ *
+ * @param derSignature - DER-encoded signature
+ * @returns Raw signature (64 bytes)
+ */
+function derToRawSignature(derSignature: Uint8Array): Uint8Array {
+  // If already 64 bytes, assume it's raw format
+  if (derSignature.length === 64) {
+    return derSignature;
+  }
+
+  let offset = 0;
+
+  // Check for SEQUENCE tag (0x30)
+  if (derSignature[offset++] !== 0x30) {
+    throw new Error('Invalid DER signature: missing SEQUENCE tag');
+  }
+
+  // Skip total length
+  offset++;
+
+  // Check for INTEGER tag for r (0x02)
+  if (derSignature[offset++] !== 0x02) {
+    throw new Error('Invalid DER signature: missing r INTEGER tag');
+  }
+
+  // Get r length and value
+  const rLength = derSignature[offset++];
+  let r = derSignature.slice(offset, offset + rLength);
+  offset += rLength;
+
+  // Check for INTEGER tag for s (0x02)
+  if (derSignature[offset++] !== 0x02) {
+    throw new Error('Invalid DER signature: missing s INTEGER tag');
+  }
+
+  // Get s length and value
+  const sLength = derSignature[offset++];
+  let s = derSignature.slice(offset, offset + sLength);
+
+  // Remove leading zeros from r and s (DER encoding adds 0x00 if high bit is set)
+  // But ensure we keep at least 32 bytes for P-256
+  while (r.length > 32 && r[0] === 0x00) {
+    r = r.slice(1);
+  }
+  while (s.length > 32 && s[0] === 0x00) {
+    s = s.slice(1);
+  }
+
+  // Pad to 32 bytes if needed
+  const rPadded = new Uint8Array(32);
+  const sPadded = new Uint8Array(32);
+  rPadded.set(r, 32 - r.length);
+  sPadded.set(s, 32 - s.length);
+
+  // Concatenate r and s
+  const rawSignature = new Uint8Array(64);
+  rawSignature.set(rPadded, 0);
+  rawSignature.set(sPadded, 32);
+
+  return rawSignature;
+}
+
+/**
+ * Convert raw ECDSA signature (r||s) to DER format
+ *
+ * Raw format: [r (32 bytes)] || [s (32 bytes)] = 64 bytes total
+ * DER format: 0x30 [total-length] 0x02 [r-length] [r] 0x02 [s-length] [s]
+ *
+ * @param rawSignature - Raw signature (64 bytes)
+ * @returns DER-encoded signature
+ */
+function rawToDerSignature(rawSignature: Uint8Array): Uint8Array {
+  if (rawSignature.length !== 64) {
+    throw new Error('Raw signature must be exactly 64 bytes');
+  }
+
+  let r = rawSignature.slice(0, 32);
+  let s = rawSignature.slice(32, 64);
+
+  // Remove leading zeros from r (but keep at least one byte)
+  let rStart = 0;
+  while (rStart < r.length - 1 && r[rStart] === 0) {
+    rStart++;
+  }
+  r = r.slice(rStart);
+
+  // Remove leading zeros from s (but keep at least one byte)
+  let sStart = 0;
+  while (sStart < s.length - 1 && s[sStart] === 0) {
+    sStart++;
+  }
+  s = s.slice(sStart);
+
+  // Add 0x00 prefix if high bit is set (to maintain positive integer in DER)
+  if (r[0] & 0x80) {
+    const temp = new Uint8Array(r.length + 1);
+    temp[0] = 0x00;
+    temp.set(r, 1);
+    r = temp;
+  }
+  if (s[0] & 0x80) {
+    const temp = new Uint8Array(s.length + 1);
+    temp[0] = 0x00;
+    temp.set(s, 1);
+    s = temp;
+  }
+
+  // Build DER sequence
+  const totalLength = 2 + r.length + 2 + s.length;
+  const derSignature = new Uint8Array(2 + totalLength);
+
+  let offset = 0;
+  derSignature[offset++] = 0x30; // SEQUENCE tag
+  derSignature[offset++] = totalLength; // Total length
+  derSignature[offset++] = 0x02; // INTEGER tag for r
+  derSignature[offset++] = r.length; // r length
+  derSignature.set(r, offset); // r value
+  offset += r.length;
+  derSignature[offset++] = 0x02; // INTEGER tag for s
+  derSignature[offset++] = s.length; // s length
+  derSignature.set(s, offset); // s value
+
+  return derSignature;
+}
+
 /**
  * Encode object to base64url JSON
  */
@@ -158,8 +292,25 @@ export async function signJWT(
     );
   }
 
-  // Encode signature to base64url
-  const signature = base64UrlEncode(new Uint8Array(signatureBuffer));
+  // Convert signature to Uint8Array
+  const signatureBytes = new Uint8Array(signatureBuffer);
+
+  // IMPORTANT: SubtleCrypto.sign() returns raw signature (r||s) for ECDSA
+  // For P-256, this should be exactly 64 bytes
+  if (signatureBytes.length !== 64) {
+    console.warn(`⚠️ Unexpected signature length: ${signatureBytes.length} bytes (expected 64)`);
+    console.warn('Signature (hex):', Array.from(signatureBytes).map(b => b.toString(16).padStart(2, '0')).join(''));
+  }
+
+  // CRITICAL: Convert raw signature to DER format for backend compatibility
+  // Backend (Node.js crypto) expects DER-encoded signatures
+  const derSignature = rawToDerSignature(signatureBytes);
+
+  console.log('[JWT Sign] Raw signature:', signatureBytes.length, 'bytes');
+  console.log('[JWT Sign] DER signature:', derSignature.length, 'bytes');
+
+  // Encode DER signature to base64url
+  const signature = base64UrlEncode(derSignature);
 
   // Return complete JWT
   return `${signingInput}.${signature}`;
@@ -290,28 +441,57 @@ export async function verifyJWT(jwt: string, publicKey: CryptoKey | Uint8Array):
     const signingInput = `${encodedHeader}.${encodedPayload}`;
     const signingInputBytes = new TextEncoder().encode(signingInput);
 
-    // Decode signature
+    // Decode signature from base64url
     const signatureBytes = base64UrlDecode(encodedSignature);
+
+    console.log('[JWT Verify] Signature length:', signatureBytes.length, 'bytes');
+    console.log('[JWT Verify] Signature (first 10 bytes hex):', Array.from(signatureBytes.slice(0, 10)).map(b => b.toString(16).padStart(2, '0')).join(''));
+
+    // CRITICAL: Signatures are DER-encoded for backend compatibility
+    // SubtleCrypto expects raw format, so convert DER → raw
+    let rawSignature: Uint8Array;
+
+    if (signatureBytes.length > 64 && signatureBytes[0] === 0x30) {
+      // DER-encoded signature (expected format), convert to raw for SubtleCrypto
+      console.log('[JWT Verify] Converting DER signature to raw format for SubtleCrypto');
+      rawSignature = derToRawSignature(signatureBytes);
+      console.log('[JWT Verify] Raw signature length:', rawSignature.length, 'bytes');
+    } else if (signatureBytes.length === 64) {
+      // Already raw format (legacy/fallback)
+      console.log('[JWT Verify] Using raw signature format (64 bytes)');
+      rawSignature = signatureBytes;
+    } else {
+      console.error('[JWT Verify] Invalid signature length:', signatureBytes.length, 'bytes (expected DER ~70-72 bytes or raw 64 bytes)');
+      return false;
+    }
 
     // Import public key if it's raw bytes
     let cryptoPublicKey: CryptoKey;
 
     if (publicKey instanceof Uint8Array) {
+      console.log('[JWT Verify] Public key length:', publicKey.length, 'bytes');
+      console.log('[JWT Verify] Public key (first 33 bytes):', Array.from(publicKey.slice(0, 33)).map(b => b.toString(16).padStart(2, '0')).join(''));
       cryptoPublicKey = await importPublicKey(publicKey);
     } else {
       cryptoPublicKey = publicKey;
     }
 
-    // Verify signature
+    console.log('[JWT Verify] Signing input length:', signingInput.length, 'chars');
+    console.log('[JWT Verify] Signing input (first 50):', signingInput.substring(0, 50));
+
+    // Verify signature using SubtleCrypto
+    // SubtleCrypto expects raw signature format (r||s) for ECDSA
     const isValid = await window.crypto.subtle.verify(
       {
         name: 'ECDSA',
         hash: { name: 'SHA-256' },
       },
       cryptoPublicKey,
-      signatureBytes as BufferSource,
+      rawSignature as BufferSource,
       signingInputBytes as BufferSource
     );
+
+    console.log('[JWT Verify] Verification result:', isValid);
 
     return isValid;
   } catch (error) {
