@@ -143,10 +143,10 @@ export default function SeedPhrasePage() {
       const { generateWalletFromMnemonic } = await import('@/utils/seedphrase-p256');
       const wallet = await generateWalletFromMnemonic(mnemonic, 'i', '', 0);
 
-      // ✅ SECURE: Store DID and public key only
-      // Private key is a non-extractable CryptoKey stored securely by the browser
-      // JavaScript CANNOT extract it - immune to XSS attacks
+      // ⚠️ DEVELOPMENT MODE: Store private key in localStorage
+      // WARNING: This is INSECURE for production! Use non-extractable CryptoKey in production.
       localStorage.setItem('institutionDID', wallet.did);
+      localStorage.setItem('institutionSigningPrivateKey', wallet.signingKey.privateKeyHex);
       localStorage.setItem('institutionSigningPublicKey', wallet.signingKey.publicKeyHex);
 
       // Store mnemonic in sessionStorage temporarily for registration flow

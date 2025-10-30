@@ -759,17 +759,16 @@ export function parseDID(did: string): {
 // =============================================================================
 
 /**
- * Generate complete wallet from mnemonic with P-256 keys and SubtleCrypto integration
+ * Generate complete wallet from mnemonic with P-256 keys
  *
- * SECURITY NOTE: This function does NOT return private keys.
- * - Signing private key is stored as non-extractable CryptoKey
- * - DID private key is never returned (only used to generate DID)
+ * ⚠️ DEVELOPMENT MODE: Returns raw private key for localStorage storage
+ * WARNING: This is INSECURE for production! Private keys should be non-extractable CryptoKeys.
  *
  * @param words - Mnemonic words
  * @param entityType - Entity type for DID
  * @param passphrase - Optional passphrase
  * @param addressIndex - Address index for signing key
- * @returns Wallet with DID, non-extractable signing key, and public key (hex)
+ * @returns Wallet with DID, raw private key (hex), and public key (hex)
  */
 export async function generateWalletFromMnemonic(
   words: string[],
@@ -779,7 +778,7 @@ export async function generateWalletFromMnemonic(
 ): Promise<{
   did: string; // DID derived from DID key (separate from signing key)
   signingKey: {
-    cryptoKey: CryptoKey; // Non-extractable CryptoKey for JWT signing
+    privateKeyHex: string; // ⚠️ DEVELOPMENT ONLY: Raw private key in hex format
     publicKeyHex: string; // Hex format for blockchain/display/verification
   };
 }> {
@@ -795,8 +794,8 @@ export async function generateWalletFromMnemonic(
   // Derive signing key (for JWT signing)
   const signingKey = deriveSigningKey(seed, addressIndex);
 
-  // Import signing key to SubtleCrypto as non-extractable
-  const cryptoKey = await importPrivateKeyToSubtleCrypto(signingKey.privateKey);
+  // Convert private key to hex for storage
+  const privateKeyHex = bytesToHex(signingKey.privateKey);
 
   // Derive DID identifier key (separate from signing key for security)
   const didKey = deriveDIDIdentifierKey(seed);
@@ -812,7 +811,7 @@ export async function generateWalletFromMnemonic(
   return {
     did,
     signingKey: {
-      cryptoKey, // Non-extractable CryptoKey (secure!)
+      privateKeyHex, // ⚠️ DEVELOPMENT ONLY: Raw private key (INSECURE!)
       publicKeyHex: signingKey.publicKeyHex, // Hex format (blockchain-ready)
     },
   };
@@ -820,6 +819,8 @@ export async function generateWalletFromMnemonic(
 
 /**
  * Generate new wallet with fresh mnemonic
+ *
+ * ⚠️ DEVELOPMENT MODE: Returns raw private key
  *
  * @param entityType - Entity type for DID ('u' = user, 'i' = institution)
  * @param entropyBits - Entropy size (default: 256 for 24 words)
@@ -832,7 +833,7 @@ export async function generateNewWallet(
   mnemonic: string[]; // Store this securely! Only way to recover wallet
   did: string;
   signingKey: {
-    cryptoKey: CryptoKey;
+    privateKeyHex: string; // ⚠️ DEVELOPMENT ONLY
     publicKeyHex: string;
   };
 }> {

@@ -86,23 +86,18 @@ function decodeBase64UrlToJson<T = any>(base64url: string): T {
 // =============================================================================
 
 /**
- * Sign a JWT using ES256 with non-extractable CryptoKey
+ * Sign a JWT using ES256 with CryptoKey or raw private key
  *
  * @param payload - JWT payload (claims)
- * @param privateKey - Non-extractable CryptoKey from SubtleCrypto
+ * @param privateKey - CryptoKey or raw private key bytes (Uint8Array) or hex string
  * @param kid - Optional Key ID for header
  * @returns Signed JWT string (header.payload.signature)
  */
 export async function signJWT(
   payload: JWTPayload,
-  privateKey: CryptoKey,
+  privateKey: CryptoKey | Uint8Array | string,
   kid?: string
 ): Promise<string> {
-  // Validate that the key is for signing
-  if (!privateKey.usages.includes('sign')) {
-    throw new Error('CryptoKey does not have sign usage');
-  }
-
   // Create JWT header
   const header: JWTHeader = {
     alg: 'ES256',
@@ -121,15 +116,47 @@ export async function signJWT(
   const signingInput = `${encodedHeader}.${encodedPayload}`;
   const signingInputBytes = new TextEncoder().encode(signingInput);
 
-  // Sign with ES256 (ECDSA P-256 + SHA-256)
-  const signatureBuffer = await window.crypto.subtle.sign(
-    {
-      name: 'ECDSA',
-      hash: { name: 'SHA-256' },
-    },
-    privateKey,
-    signingInputBytes
-  );
+  let signatureBuffer: ArrayBuffer;
+
+  // Handle different private key types
+  if (privateKey instanceof CryptoKey) {
+    // CryptoKey (non-extractable) - use SubtleCrypto
+    if (!privateKey.usages.includes('sign')) {
+      throw new Error('CryptoKey does not have sign usage');
+    }
+
+    signatureBuffer = await window.crypto.subtle.sign(
+      {
+        name: 'ECDSA',
+        hash: { name: 'SHA-256' },
+      },
+      privateKey,
+      signingInputBytes
+    );
+  } else {
+    // Raw private key (Uint8Array or hex string) - import then sign
+    let privateKeyBytes: Uint8Array;
+
+    if (typeof privateKey === 'string') {
+      // Convert hex string to Uint8Array
+      privateKeyBytes = hexToBytes(privateKey);
+    } else {
+      privateKeyBytes = privateKey;
+    }
+
+    // Import private key to SubtleCrypto (extractable for development)
+    const { importPrivateKeyToSubtleCrypto } = await import('@/utils/seedphrase-p256');
+    const cryptoKey = await importPrivateKeyToSubtleCrypto(privateKeyBytes);
+
+    signatureBuffer = await window.crypto.subtle.sign(
+      {
+        name: 'ECDSA',
+        hash: { name: 'SHA-256' },
+      },
+      cryptoKey,
+      signingInputBytes
+    );
+  }
 
   // Encode signature to base64url
   const signature = base64UrlEncode(new Uint8Array(signatureBuffer));
@@ -139,16 +166,31 @@ export async function signJWT(
 }
 
 /**
+ * Convert hexadecimal string to Uint8Array
+ * Helper function for JWT signing with hex private keys
+ */
+function hexToBytes(hex: string): Uint8Array {
+  if (hex.length % 2 !== 0) {
+    throw new Error('Hex string must have even length');
+  }
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+/**
  * Create a JWT with automatic timestamps
  *
  * @param payload - JWT payload
- * @param privateKey - Non-extractable CryptoKey
+ * @param privateKey - CryptoKey or raw private key (Uint8Array or hex string)
  * @param options - JWT options
  * @returns Signed JWT string
  */
 export async function createJWT(
   payload: JWTPayload,
-  privateKey: CryptoKey,
+  privateKey: CryptoKey | Uint8Array | string,
   options: {
     issuer?: string; // DID of issuer
     subject?: string; // DID of subject

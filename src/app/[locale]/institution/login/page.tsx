@@ -6,7 +6,7 @@ import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import AuthContainer from '@/components/AuthContainer';
 import { Link } from '@/i18n/routing';
-import { validateMnemonic, generateWalletFromMnemonic } from '@/utils/seedphrase-p256';
+import { validateMnemonic, generateWalletFromMnemonic, exportPublicKeyJwk } from '@/utils/seedphrase-p256';
 import { createJWT } from '@/utils/jwt-es256';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 
@@ -77,7 +77,7 @@ export default function InstitutionLoginPage() {
         {
           role: 'institution', // Custom claim for authorization
         },
-        wallet.signingKey.cryptoKey,
+        wallet.signingKey.privateKeyHex, // ⚠️ DEVELOPMENT MODE: Using hex private key
         {
           issuer: wallet.did, // Standard claim - identifies issuer
           subject: wallet.did, // Standard claim - identifies subject
@@ -85,8 +85,10 @@ export default function InstitutionLoginPage() {
         }
       );
 
-      // Store DID, public key, JWT token, and institution data (NOT the private key or seed phrase)
+      // ⚠️ DEVELOPMENT MODE: Store private key in localStorage
+      // WARNING: This is INSECURE for production! Use non-extractable CryptoKey in production.
       localStorage.setItem('institutionDID', wallet.did);
+      localStorage.setItem('institutionSigningPrivateKey', wallet.signingKey.privateKeyHex);
       localStorage.setItem('institutionSigningPublicKey', wallet.signingKey.publicKeyHex);
       localStorage.setItem('institutionToken', jwt);
       localStorage.setItem('institutionData', JSON.stringify(institutionDetails));

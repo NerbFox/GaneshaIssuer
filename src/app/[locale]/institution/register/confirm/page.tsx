@@ -166,7 +166,7 @@ Keep this information safe and secure!
         try {
           const mnemonic: string[] = JSON.parse(tempMnemonicStr);
 
-          // Regenerate wallet from mnemonic to get CryptoKey
+          // Regenerate wallet from mnemonic to get private key
           const wallet = await generateWalletFromMnemonic(mnemonic, 'i', '', 0);
 
           // Create new JWT with 7-day expiration
@@ -175,7 +175,7 @@ Keep this information safe and secure!
             {
               role: 'institution', // Custom claim for authorization
             },
-            wallet.signingKey.cryptoKey,
+            wallet.signingKey.privateKeyHex, // ⚠️ DEVELOPMENT MODE: Using hex private key
             {
               issuer: wallet.did, // Standard claim - identifies issuer
               subject: wallet.did, // Standard claim - identifies subject
