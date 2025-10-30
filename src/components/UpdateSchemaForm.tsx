@@ -19,7 +19,7 @@ interface UpdateSchemaFormProps {
     id: string;
     schemaName: string;
     attributes: number;
-    status: string;
+    isActive: string;
     lastUpdated: string;
     schemaDetails?: {
       properties: Record<string, { type: string }>;
