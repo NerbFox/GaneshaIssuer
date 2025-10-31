@@ -27,6 +27,11 @@ export interface DataTableProps<T> {
   totalCount?: number;
   rowsPerPageOptions?: number[];
   idKey?: keyof T; // Key to use for the ID column (e.g., 'id')
+  enableDragDrop?: boolean; // Enable drag and drop for rows
+  onDragStart?: (index: number) => void;
+  onDragOver?: (e: React.DragEvent, index: number) => void;
+  onDragEnd?: () => void;
+  draggedIndex?: number | null;
 }
 
 export function DataTable<T>({
@@ -41,6 +46,11 @@ export function DataTable<T>({
   totalCount,
   rowsPerPageOptions = [5, 10, 25, 50, 100],
   idKey,
+  enableDragDrop = false,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
+  draggedIndex,
 }: DataTableProps<T>) {
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
@@ -232,13 +242,22 @@ export function DataTable<T>({
             <tr>
               {/* Checkbox Column */}
               {enableSelection && (
-                <th className="px-6 py-3 text-left w-12">
+                <th className="px-6 py-3 text-left">
                   <input
                     type="checkbox"
                     checked={selectAll}
                     onChange={handleSelectAll}
                     className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
                   />
+                </th>
+              )}
+
+              {/* Drag Handle Column */}
+              {enableDragDrop && (
+                <th className="px-6 py-3 text-left w-16">
+                  <ThemedText className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    {/* Empty header for drag handle */}
+                  </ThemedText>
                 </th>
               )}
 
@@ -310,14 +329,21 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {paginatedData.map((row, index) => {
-              const actualIndex = (currentPage - 1) * rowsPerPage + index;
+            {paginatedData.map((row, paginatedIndex) => {
+              const actualIndex = (currentPage - 1) * rowsPerPage + paginatedIndex;
+              const isDragging = draggedIndex === actualIndex;
+              // Use idKey if available, otherwise use index
+              const rowKey = idKey ? String(row[idKey]) : `row-${actualIndex}`;
               return (
                 <tr
-                  key={index}
+                  key={rowKey}
+                  draggable={enableDragDrop}
+                  onDragStart={() => enableDragDrop && onDragStart?.(actualIndex)}
+                  onDragOver={(e) => enableDragDrop && onDragOver?.(e, actualIndex)}
+                  onDragEnd={() => enableDragDrop && onDragEnd?.()}
                   className={`hover:bg-gray-50 transition-colors ${
                     selectedRows.has(actualIndex) ? 'bg-blue-50' : ''
-                  }`}
+                  } ${isDragging ? 'opacity-50' : ''} ${enableDragDrop ? 'cursor-move' : ''}`}
                 >
                   {/* Checkbox Cell */}
                   {enableSelection && (
@@ -325,16 +351,35 @@ export function DataTable<T>({
                       <input
                         type="checkbox"
                         checked={selectedRows.has(actualIndex)}
-                        onChange={() => handleSelectRow(index)}
+                        onChange={() => handleSelectRow(paginatedIndex)}
                         className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
                       />
+                    </td>
+                  )}
+
+                  {/* Drag Handle Cell */}
+                  {enableDragDrop && (
+                    <td className="px-6 py-4">
+                      <svg
+                        className="w-5 h-5 text-gray-400 cursor-move"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 8h16M4 16h16"
+                        />
+                      </svg>
                     </td>
                   )}
 
                   {/* # Cell */}
                   <td className="px-6 py-4">
                     <ThemedText className="text-sm text-gray-900">
-                      {idKey ? String(row[idKey]) : startIndex + index}
+                      {idKey ? String(row[idKey]) : actualIndex + 1}
                     </ThemedText>
                   </td>
 
@@ -342,7 +387,7 @@ export function DataTable<T>({
                   {columns.map((column) => (
                     <td key={column.id} className="px-6 py-4">
                       <ThemedText className="text-sm text-gray-900">
-                        {column.render(row, index)}
+                        {column.render(row, paginatedIndex)}
                       </ThemedText>
                     </td>
                   ))}

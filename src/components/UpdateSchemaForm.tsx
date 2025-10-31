@@ -44,6 +44,7 @@ export default function UpdateSchemaForm({
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Pre-fill form with initial data
   useEffect(() => {
@@ -96,14 +97,41 @@ export default function UpdateSchemaForm({
     setAttributes(attributes.map((attr) => (attr.id === id ? { ...attr, [field]: value } : attr)));
   };
 
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const newAttributes = [...attributes];
+    const draggedItem = newAttributes[draggedIndex];
+    newAttributes.splice(draggedIndex, 1);
+    newAttributes.splice(index, 0, draggedItem);
+
+    setAttributes(newAttributes);
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
   const handleSubmit = async () => {
     if (isSubmitting) return; // Prevent double submission
 
     setIsSubmitting(true);
     try {
+      // Reassign IDs based on current order before submitting
+      const reorderedAttributes = attributes.map((attr, index) => ({
+        ...attr,
+        id: index + 1,
+      }));
+
       await onSubmit({
         schemaId,
-        attributes,
+        attributes: reorderedAttributes,
       });
     } finally {
       setIsSubmitting(false);
@@ -193,6 +221,9 @@ export default function UpdateSchemaForm({
     attr.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Use full attributes list when dragging to maintain correct indices
+  const displayAttributes = searchTerm ? filteredAttributes : attributes;
+
   return (
     <div className="px-8 py-6">
       {/* Schema ID */}
@@ -268,14 +299,19 @@ export default function UpdateSchemaForm({
 
         {/* Data Table */}
         <DataTable
-          data={filteredAttributes}
+          data={displayAttributes}
           columns={columns}
           searchPlaceholder="Search..."
           onSearch={handleSearch}
           enableSelection={true}
-          totalCount={filteredAttributes.length}
+          totalCount={displayAttributes.length}
           rowsPerPageOptions={[5, 10, 25, 50]}
           idKey="id"
+          enableDragDrop={true}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          draggedIndex={draggedIndex}
         />
       </div>
 
