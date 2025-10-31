@@ -6,7 +6,7 @@ import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import AuthContainer from '@/components/AuthContainer';
 import { Link } from '@/i18n/routing';
-import { validateMnemonic, generateWalletFromMnemonic, exportPublicKeyJwk } from '@/utils/seedphrase-p256';
+import { validateMnemonic, generateWalletFromMnemonic } from '@/utils/seedphrase-p256';
 import { createJWT } from '@/utils/jwt-es256';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 
@@ -44,9 +44,7 @@ export default function InstitutionLoginPage() {
       const wallet = await generateWalletFromMnemonic(words, 'i', '', 0);
 
       // Fetch DID document from API (URL encode the DID)
-      const didDocumentUrl = buildApiUrl(
-        API_ENDPOINTS.DID.DOCUMENT(wallet.did)
-      );
+      const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DID.DOCUMENT(wallet.did));
       const didResponse = await fetch(didDocumentUrl, {
         method: 'GET',
         headers: {
@@ -54,12 +52,12 @@ export default function InstitutionLoginPage() {
         },
       });
 
-      if (!didResponse.ok) {
+      const didData = await didResponse.json();
+
+      if (!didData.data.found) {
         setError('Failed to retrieve institution information. Please try again.');
         return;
       }
-
-      const didData = await didResponse.json();
 
       // Extract institution details from the response
       const institutionDetails = {
