@@ -509,7 +509,7 @@ export default function SchemaPage() {
         <div className="flex gap-2">
           <button
             onClick={() => handleUpdateSchema(row.id, row.version)}
-            className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors text-sm font-medium cursor-pointer"
+            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer"
           >
             UPDATE
           </button>
