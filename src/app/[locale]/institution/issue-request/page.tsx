@@ -413,9 +413,11 @@ export default function IssueRequestPage() {
       console.log('Encrypted body (signed VC as JSON):', encryptedBody);
       console.log('Encrypted body length:', encryptedBody.length);
 
-      // Generate vc_id as concatenation of schema_id and holder_did
-      const vcId = `${schemaData.id}:${selectedRequest.holder_did}`;
-      console.log('Generated VC ID:', vcId);
+      // Generate unique vc_id with timestamp and random component
+      const timestamp = Date.now();
+      const randomComponent = Math.random().toString(36).substring(2, 10);
+      const vcId = `${schemaData.id}:${selectedRequest.holder_did}:${timestamp}:${randomComponent}`;
+      console.log('Generated unique VC ID:', vcId);
 
       // Prepare request body
       const requestBody = {
@@ -507,11 +509,76 @@ export default function IssueRequestPage() {
     }
   };
 
-  const handleReject = (requestId: string) => {
+  const handleReject = async (requestId: string) => {
     console.log('Reject request:', requestId);
-    // Implement reject logic
-    setRequests((prev) => prev.filter((request) => request.id !== requestId));
-    setFilteredRequests((prev) => prev.filter((request) => request.id !== requestId));
+
+    const request = requests.find((r) => r.id === requestId);
+    if (!request) {
+      console.error('Request not found');
+      return;
+    }
+
+    // Confirm rejection
+    const confirmed = window.confirm('Are you sure you want to reject this credential request?');
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Generate unique vc_id for rejection tracking
+      const timestamp = Date.now();
+      const randomComponent = Math.random().toString(36).substring(2, 10);
+      const parsedBody = parseEncryptedBody(request.encrypted_body);
+      const schemaId = parsedBody?.schema_id || 'unknown';
+      const vcId = `${schemaId}:${request.holder_did}:${timestamp}:${randomComponent}`;
+
+      console.log('Generated unique VC ID for rejection:', vcId);
+
+      // Prepare rejection request body
+      const requestBody = {
+        request_id: request.id,
+        issuer_did: request.issuer_did,
+        holder_did: request.holder_did,
+        action: 'REJECTED',
+        request_type: 'ISSUANCE',
+        vc_id: vcId,
+      };
+
+      console.log('Rejection request body:', requestBody);
+
+      // Send rejection request to API
+      const rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.ISSUE_VC);
+      const response = await fetch(rejectUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error response:', errorData);
+        throw new Error(errorData.message || `Failed to reject request (${response.status})`);
+      }
+
+      const result = await response.json();
+      console.log('Reject result:', result);
+
+      // Remove the request from the list
+      setRequests((prev) => prev.filter((r) => r.id !== requestId));
+      setFilteredRequests((prev) => prev.filter((r) => r.id !== requestId));
+
+      alert('Credential request rejected successfully');
+    } catch (err) {
+      console.error('Error rejecting request:', err);
+      alert(`Failed to reject request: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCopyDid = async (did: string, id: string) => {
