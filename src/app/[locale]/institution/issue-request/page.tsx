@@ -11,6 +11,7 @@ import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey, stringifySignedVC } from '@/utils/vcSigner';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
+import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
 
 interface IssueRequest {
   id: string;
@@ -137,12 +138,7 @@ export default function IssueRequestPage() {
           issuer_did: issuerDid,
         });
 
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            accept: 'application/json',
-          },
-        });
+        const response = await authenticatedGet(url);
 
         if (!response.ok) {
           throw new Error('Failed to fetch issue requests');
@@ -264,12 +260,7 @@ export default function IssueRequestPage() {
 
         // Fetch schema details using parsed schema_id and schema_version
         const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, schemaVersion));
-        const schemaResponse = await fetch(schemaUrl, {
-          method: 'GET',
-          headers: {
-            accept: 'application/json',
-          },
-        });
+        const schemaResponse = await authenticatedGet(schemaUrl);
 
         if (schemaResponse.ok) {
           const schemaApiData: SchemaApiResponse = await schemaResponse.json();
@@ -354,12 +345,7 @@ export default function IssueRequestPage() {
         const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DID.DOCUMENT(selectedRequest.issuer_did));
         console.log('Fetching DID Document from:', didDocumentUrl);
 
-        const didDocResponse = await fetch(didDocumentUrl, {
-          method: 'GET',
-          headers: {
-            accept: 'application/json',
-          },
-        });
+        const didDocResponse = await authenticatedGet(didDocumentUrl);
 
         if (didDocResponse.ok) {
           const didDocData = await didDocResponse.json();
@@ -451,14 +437,7 @@ export default function IssueRequestPage() {
       console.log('Sending request to:', issueUrl);
       console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
-      const response = await fetch(issueUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await authenticatedPost(issueUrl, requestBody);
 
       console.log('Response status:', response.status);
       console.log('Response statusText:', response.statusText);
@@ -542,14 +521,7 @@ export default function IssueRequestPage() {
 
       // Send rejection request to API
       const rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.ISSUE_VC);
-      const response = await fetch(rejectUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await authenticatedPost(rejectUrl, requestBody);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -611,6 +583,21 @@ export default function IssueRequestPage() {
     return did.substring(0, maxLength) + '...';
   };
 
+  const getRequestTypeColor = (type: string) => {
+    switch (type.toUpperCase()) {
+      case 'ISSUANCE':
+        return 'bg-blue-100 text-blue-700';
+      case 'RENEWAL':
+        return 'bg-purple-100 text-purple-700';
+      case 'UPDATE':
+        return 'bg-cyan-100 text-cyan-700';
+      case 'REVOCATION':
+        return 'bg-orange-100 text-orange-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
   const columns: Column<IssueRequest>[] = [
     {
       id: 'holder_did',
@@ -663,13 +650,24 @@ export default function IssueRequestPage() {
     },
     {
       id: 'encrypted_body',
-      label: 'SCHEMA',
+      label: 'SCHEMA NAME',
       sortKey: 'encrypted_body',
       render: (row) => {
         const parsedBody = parseEncryptedBody(row.encrypted_body);
         const schemaId = parsedBody?.schema_id || row.encrypted_body;
         return <ThemedText className="text-sm text-gray-900">{schemaId}</ThemedText>;
       },
+    },
+    {
+      id: 'request_type',
+      label: 'TYPE',
+      render: (row) => (
+        <span
+          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRequestTypeColor('ISSUANCE')}`}
+        >
+          Issuance
+        </span>
+      ),
     },
     {
       id: 'createdAt',
