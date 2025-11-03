@@ -1,14 +1,37 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
+import { DataTable, Column } from '@/components/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
+
+interface VerificationRequest {
+  id: string;
+  credentialType: string;
+  holderDid: string;
+  requestedDate: string;
+  status: 'Pending' | 'Verified' | 'Rejected';
+}
 
 export default function VerifyRequestPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [requests, setRequests] = useState<VerificationRequest[]>([]);
+  const [filteredRequests, setFilteredRequests] = useState<VerificationRequest[]>([]);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'Pending' | 'Verified' | 'Rejected'>(
+    'all'
+  );
+  const [filterType, setFilterType] = useState('');
+  const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+
+  const filterModalRef = useRef<HTMLDivElement>(null);
+
+  const pendingCount = requests.filter((r) => r.status === 'Pending').length;
+  const verifiedCount = requests.filter((r) => r.status === 'Verified').length;
 
   // Check authentication with JWT verification on component mount
   useEffect(() => {
@@ -16,11 +39,188 @@ export default function VerifyRequestPage() {
       const redirected = await redirectIfJWTInvalid(router);
       if (!redirected) {
         setIsAuthenticated(true);
+        setIsLoading(false);
+        // TODO: Fetch verification requests from API
+        // For now, using empty array
+        setRequests([]);
+        setFilteredRequests([]);
       }
     };
 
     checkAuth();
   }, [router]);
+
+  // Close filter modal when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showFilterModal &&
+        filterModalRef.current &&
+        !filterModalRef.current.contains(event.target as Node)
+      ) {
+        setShowFilterModal(false);
+      }
+    };
+
+    if (showFilterModal) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFilterModal]);
+
+  const handleSearch = (value: string) => {
+    const filtered = requests.filter((request) => {
+      const searchLower = value.toLowerCase();
+      return (
+        request.credentialType.toLowerCase().includes(searchLower) ||
+        request.holderDid.toLowerCase().includes(searchLower) ||
+        request.status.toLowerCase().includes(searchLower)
+      );
+    });
+    setFilteredRequests(filtered);
+  };
+
+  const handleFilter = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setFilterButtonPosition({
+      top: rect.bottom + 8,
+      left: rect.left,
+    });
+    setShowFilterModal(true);
+  };
+
+  const applyFilters = (status: 'all' | 'Pending' | 'Verified' | 'Rejected', type: string) => {
+    let filtered = requests;
+
+    if (status !== 'all') {
+      filtered = filtered.filter((request) => request.status === status);
+    }
+
+    if (type) {
+      filtered = filtered.filter((request) =>
+        request.credentialType.toLowerCase().includes(type.toLowerCase())
+      );
+    }
+
+    setFilteredRequests(filtered);
+  };
+
+  const handleStatusChange = (status: 'all' | 'Pending' | 'Verified' | 'Rejected') => {
+    setFilterStatus(status);
+    applyFilters(status, filterType);
+  };
+
+  const handleTypeChange = (type: string) => {
+    setFilterType(type);
+    applyFilters(filterStatus, type);
+  };
+
+  const handleVerify = (id: string) => {
+    console.log('Verify request:', id);
+    // TODO: Implement verify request
+  };
+
+  const handleReject = (id: string) => {
+    console.log('Reject request:', id);
+    // TODO: Implement reject request
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Pending':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'Verified':
+        return 'bg-green-100 text-green-700';
+      case 'Rejected':
+        return 'bg-red-100 text-red-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date
+      .toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+      .replace(/\//g, '/');
+  };
+
+  const columns: Column<VerificationRequest>[] = [
+    {
+      id: 'credentialType',
+      label: 'CREDENTIAL TYPE',
+      sortKey: 'credentialType',
+      render: (row) => (
+        <ThemedText className="text-sm font-medium text-gray-900">{row.credentialType}</ThemedText>
+      ),
+    },
+    {
+      id: 'holderDid',
+      label: 'HOLDER DID',
+      sortKey: 'holderDid',
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">
+          {row.holderDid.substring(0, 25)}...
+        </ThemedText>
+      ),
+    },
+    {
+      id: 'requestedDate',
+      label: 'REQUESTED DATE',
+      sortKey: 'requestedDate',
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">{formatDate(row.requestedDate)}</ThemedText>
+      ),
+    },
+    {
+      id: 'status',
+      label: 'STATUS',
+      sortKey: 'status',
+      render: (row) => (
+        <span
+          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(row.status)}`}
+        >
+          {row.status}
+        </span>
+      ),
+    },
+    {
+      id: 'action',
+      label: 'ACTION',
+      render: (row) => (
+        <div className="flex gap-2">
+          {row.status === 'Pending' && (
+            <>
+              <button
+                onClick={() => handleVerify(row.id)}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
+              >
+                VERIFY
+              </button>
+              <button
+                onClick={() => handleReject(row.id)}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
+              >
+                REJECT
+              </button>
+            </>
+          )}
+          {row.status !== 'Pending' && (
+            <span className="text-sm text-gray-500 px-4 py-2">
+              {row.status === 'Verified' ? 'Verified' : 'Rejected'}
+            </span>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   // Show loading screen while checking authentication
   if (!isAuthenticated) {
@@ -41,41 +241,108 @@ export default function VerifyRequestPage() {
           Verify Request
         </ThemedText>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-blue-50 rounded-2xl p-6">
-            <ThemedText className="text-sm text-gray-600 mb-2">Total Requests</ThemedText>
-            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-              0
-            </ThemedText>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+              <ThemedText className="text-gray-600">Loading verification requests...</ThemedText>
+            </div>
           </div>
-          <div className="bg-yellow-50 rounded-2xl p-6">
-            <ThemedText className="text-sm text-gray-600 mb-2">Pending</ThemedText>
-            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-              0
-            </ThemedText>
-          </div>
-          <div className="bg-green-50 rounded-2xl p-6">
-            <ThemedText className="text-sm text-gray-600 mb-2">Verified</ThemedText>
-            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-              0
-            </ThemedText>
-          </div>
-        </div>
+        ) : (
+          <>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
+              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+                <ThemedText className="text-sm text-gray-600 mb-2">Total Requests</ThemedText>
+                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                  {requests.length}
+                </ThemedText>
+              </div>
+              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+                <ThemedText className="text-sm text-gray-600 mb-2">Pending</ThemedText>
+                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                  {pendingCount}
+                </ThemedText>
+              </div>
+            </div>
 
-        {/* Content Area */}
-        <div className="bg-white rounded-lg border border-gray-200 p-8">
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">✅</div>
-            <ThemedText fontSize={20} fontWeight={600} className="text-gray-900 mb-2">
-              No Verification Requests Yet
+            {/* Data Table */}
+            <DataTable
+              data={filteredRequests}
+              columns={columns}
+              onFilter={handleFilter}
+              searchPlaceholder="Search..."
+              onSearch={handleSearch}
+              enableSelection={true}
+              totalCount={filteredRequests.length}
+              rowsPerPageOptions={[5, 10, 25, 50, 100]}
+              idKey="id"
+            />
+          </>
+        )}
+      </div>
+
+      {/* Filter Popup */}
+      {showFilterModal && (
+        <div
+          ref={filterModalRef}
+          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 p-6 w-80 z-50"
+          style={{
+            top: `${filterButtonPosition.top}px`,
+            left: `${filterButtonPosition.left}px`,
+          }}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
+              Filter Requests
             </ThemedText>
-            <ThemedText className="text-gray-500">
-              Verification requests will appear here
+            <button
+              onClick={() => setShowFilterModal(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
+          {/* Status Filter */}
+          <div className="mb-4">
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">Status</ThemedText>
+            <select
+              value={filterStatus}
+              onChange={(e) =>
+                handleStatusChange(e.target.value as 'all' | 'Pending' | 'Verified' | 'Rejected')
+              }
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            >
+              <option value="all">All</option>
+              <option value="Pending">Pending</option>
+              <option value="Verified">Verified</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+
+          {/* Type Filter */}
+          <div>
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
+              Credential Type
             </ThemedText>
+            <input
+              type="text"
+              value={filterType}
+              onChange={(e) => handleTypeChange(e.target.value)}
+              placeholder="Enter credential type"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            />
           </div>
         </div>
-      </div>
+      )}
     </InstitutionLayout>
   );
 }
