@@ -20,6 +20,7 @@ interface Schema {
   attributes: number;
   isActive: boolean;
   lastUpdated: string;
+  expiredIn: number;
   schemaDetails?: {
     properties: Record<string, { type: string }>;
     required: string[];
@@ -39,6 +40,7 @@ interface ApiSchemaResponse {
         type: string;
         required: string[];
         properties: Record<string, unknown>;
+        expired_in?: number;
       };
       issuer_did: string;
       version: number;
@@ -58,6 +60,8 @@ export default function SchemaPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [filterMinAttributes, setFilterMinAttributes] = useState('');
   const [filterMaxAttributes, setFilterMaxAttributes] = useState('');
+  const [filterMinExpiredIn, setFilterMinExpiredIn] = useState('');
+  const [filterMaxExpiredIn, setFilterMaxExpiredIn] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [showCreateSchemaModal, setShowCreateSchemaModal] = useState(false);
   const [showUpdateSchemaModal, setShowUpdateSchemaModal] = useState(false);
@@ -103,6 +107,7 @@ export default function SchemaPage() {
         attributes: Object.keys(schema.schema.properties).length,
         isActive: schema.isActive,
         version: schema.version,
+        expiredIn: schema.schema.expired_in || 1,
         lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
         uniqueKey: `${schema.id}-${schema.version}`, // Composite unique key
       }));
@@ -160,6 +165,7 @@ export default function SchemaPage() {
           attributes: Object.keys(schema.schema.properties).length,
           isActive: schema.isActive,
           version: schema.version,
+          expiredIn: schema.schema.expired_in || 1,
           lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'), // Format as YYYY/MM/DD
           uniqueKey: `${schema.id}-${schema.version}`, // Composite unique key
         }));
@@ -269,6 +275,22 @@ export default function SchemaPage() {
       }
     }
 
+    // Min expired in filter
+    if (filterMinExpiredIn) {
+      const minExp = parseInt(filterMinExpiredIn);
+      if (!isNaN(minExp)) {
+        filtered = filtered.filter((schema) => schema.expiredIn >= minExp);
+      }
+    }
+
+    // Max expired in filter
+    if (filterMaxExpiredIn) {
+      const maxExp = parseInt(filterMaxExpiredIn);
+      if (!isNaN(maxExp)) {
+        filtered = filtered.filter((schema) => schema.expiredIn <= maxExp);
+      }
+    }
+
     setFilteredSchemas(filtered);
   };
 
@@ -276,13 +298,23 @@ export default function SchemaPage() {
   useEffect(() => {
     applyFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchValue, filterStatus, filterMinAttributes, filterMaxAttributes, schemas]);
+  }, [
+    searchValue,
+    filterStatus,
+    filterMinAttributes,
+    filterMaxAttributes,
+    filterMinExpiredIn,
+    filterMaxExpiredIn,
+    schemas,
+  ]);
 
   const clearFilters = () => {
     setSearchValue('');
     setFilterStatus('all');
     setFilterMinAttributes('');
     setFilterMaxAttributes('');
+    setFilterMinExpiredIn('');
+    setFilterMaxExpiredIn('');
   };
 
   const handleUpdateSchema = async (schemaId: string, version: number) => {
@@ -334,12 +366,13 @@ export default function SchemaPage() {
         }
       });
 
-      // API expects only the schema object (type, properties, required)
+      // API expects only the schema object (type, properties, required, expired_in)
       const payload = {
         schema: {
           type: 'object',
           properties,
           required,
+          expired_in: data.expiredIn,
         },
       };
 
@@ -610,13 +643,14 @@ export default function SchemaPage() {
       });
 
       // Note: schemaId, version, and status from the form are not sent to the API
-      // Only name, schema structure, and issuer_did are sent
+      // Only name, schema structure, expired_in, and issuer_did are sent
       const payload = {
         name: data.schemaName,
         schema: {
           type: 'object',
           properties,
           required,
+          expired_in: data.expiredIn,
         },
         issuer_did: issuerDid,
       };
@@ -660,6 +694,16 @@ export default function SchemaPage() {
       label: '# Attributes',
       sortKey: 'attributes',
       render: (row) => <ThemedText className="text-sm text-gray-900">{row.attributes}</ThemedText>,
+    },
+    {
+      id: 'expiredIn',
+      label: 'Expired In (Years)',
+      sortKey: 'expiredIn',
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">
+          {row.expiredIn === 0 ? 'Lifetime' : row.expiredIn}
+        </ThemedText>
+      ),
     },
     {
       id: 'status',
@@ -952,6 +996,31 @@ export default function SchemaPage() {
                 type="number"
                 value={filterMaxAttributes}
                 onChange={(e) => setFilterMaxAttributes(e.target.value)}
+                placeholder="Max"
+                min="0"
+                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+              />
+            </div>
+          </div>
+
+          {/* Expired In Filter */}
+          <div className="mb-4">
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
+              Expired In (Years)
+            </ThemedText>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={filterMinExpiredIn}
+                onChange={(e) => setFilterMinExpiredIn(e.target.value)}
+                placeholder="Min"
+                min="0"
+                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+              />
+              <input
+                type="number"
+                value={filterMaxExpiredIn}
+                onChange={(e) => setFilterMaxExpiredIn(e.target.value)}
                 placeholder="Max"
                 min="0"
                 className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
