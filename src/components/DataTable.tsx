@@ -199,7 +199,7 @@ export function DataTable<T>({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Top Controls */}
       <div className="flex items-center justify-between px-4 pt-4 bg-gray-50">
         <div className="flex items-center gap-3">

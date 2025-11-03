@@ -9,6 +9,7 @@ import { adminAuthenticatedGet, adminAuthenticatedPost } from '@/utils/api-clien
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
+import { DataTable, Column } from '@/components/DataTable';
 
 interface Institution {
   id: string;
@@ -72,7 +73,12 @@ export default function AdminPage() {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set()); // Track multiple processing institutions
+  const [selectedInstitutionIds, setSelectedInstitutionIds] = useState<Set<string>>(new Set()); // Track selected institutions
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false); // Track bulk operations
+  const [bulkProcessingAction, setBulkProcessingAction] = useState<'approve' | 'reject' | null>(
+    null
+  ); // Track which bulk action is in progress
   const [adminData, setAdminData] = useState<AdminData | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
@@ -192,7 +198,7 @@ export default function AdminPage() {
       return;
     }
 
-    setProcessingId(institutionId);
+    setProcessingIds((prev) => new Set(prev).add(institutionId));
     try {
       if (devBypass) {
         // Simulate API call in development mode
@@ -201,7 +207,11 @@ export default function AdminPage() {
         alert(t('approveSuccess'));
         // Remove institution from list
         setInstitutions((prev) => prev.filter((inst) => inst.id !== institutionId));
-        setProcessingId(null);
+        setProcessingIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(institutionId);
+          return newSet;
+        });
         return;
       }
 
@@ -231,7 +241,11 @@ export default function AdminPage() {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       alert(errorMessage);
     } finally {
-      setProcessingId(null);
+      setProcessingIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(institutionId);
+        return newSet;
+      });
     }
   };
 
@@ -251,7 +265,7 @@ export default function AdminPage() {
       return;
     }
 
-    setProcessingId(institutionId);
+    setProcessingIds((prev) => new Set(prev).add(institutionId));
     try {
       if (devBypass) {
         // Simulate API call in development mode
@@ -260,7 +274,11 @@ export default function AdminPage() {
         alert(t('rejectSuccess'));
         // Remove institution from list
         setInstitutions((prev) => prev.filter((inst) => inst.id !== institutionId));
-        setProcessingId(null);
+        setProcessingIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(institutionId);
+          return newSet;
+        });
         return;
       }
 
@@ -288,7 +306,136 @@ export default function AdminPage() {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       alert(errorMessage);
     } finally {
-      setProcessingId(null);
+      setProcessingIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(institutionId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleBulkAction = async (action: 'approve' | 'reject') => {
+    if (selectedInstitutionIds.size === 0) {
+      alert(`Please select at least one institution to ${action}.`);
+      return;
+    }
+
+    const confirmMessage = `Are you sure you want to ${action} ${selectedInstitutionIds.size} selected institution(s)?`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setIsBulkProcessing(true);
+    setBulkProcessingAction(action);
+    const results: {
+      id: string;
+      status: 'success' | 'error';
+      message?: string;
+    }[] = [];
+
+    // Get selected institutions
+    const selectedInstitutions = institutions.filter((inst) => selectedInstitutionIds.has(inst.id));
+
+    // Development bypass check
+    const urlParams = new URLSearchParams(window.location.search);
+    const devBypass =
+      process.env.NEXT_PUBLIC_DEV_BYPASS === 'true' || urlParams.get('dev') === 'true';
+
+    const token = localStorage.getItem('adminToken');
+
+    // Process each selected institution
+    for (const institution of selectedInstitutions) {
+      try {
+        setProcessingIds((prev) => new Set(prev).add(institution.id));
+
+        if (devBypass) {
+          // Simulate API call in development mode
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          console.log(`DEV MODE: ${action}ing institution`, institution.id);
+          results.push({
+            id: institution.id,
+            status: 'success',
+          });
+        } else {
+          const endpoint =
+            action === 'approve'
+              ? API_ENDPOINTS.AUTH.APPROVE(institution.id)
+              : API_ENDPOINTS.AUTH.REJECT(institution.id);
+
+          const body = action === 'approve' ? { approvedBy: adminData?.name || 'Admin' } : {};
+
+          const response = await adminAuthenticatedPost(buildApiUrl(endpoint), body);
+
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || `Failed to ${action} institution`);
+          }
+
+          results.push({
+            id: institution.id,
+            status: 'success',
+          });
+        }
+      } catch (error) {
+        results.push({
+          id: institution.id,
+          status: 'error',
+          message: error instanceof Error ? error.message : `Failed to ${action}`,
+        });
+      } finally {
+        setProcessingIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(institution.id);
+          return newSet;
+        });
+      }
+    }
+
+    setIsBulkProcessing(false);
+    setBulkProcessingAction(null);
+
+    // Show results summary
+    const successCount = results.filter((r) => r.status === 'success').length;
+    const failCount = results.filter((r) => r.status === 'error').length;
+    const failedInstitutions = results
+      .filter((r) => r.status === 'error')
+      .map((r) => {
+        const inst = institutions.find((i) => i.id === r.id);
+        return `- ${inst?.name || r.id}: ${r.message || 'Unknown error'}`;
+      })
+      .join('\n');
+
+    let resultMessage = `Bulk ${action} completed:\n✓ Success: ${successCount}`;
+    if (failCount > 0) {
+      resultMessage += `\n✗ Failed: ${failCount}\n\nFailed institutions:\n${failedInstitutions}`;
+    }
+
+    alert(resultMessage);
+
+    // Clear selection and refresh data
+    setSelectedInstitutionIds(new Set());
+    if (devBypass) {
+      // In dev mode, remove successful institutions from the list
+      const successIds = new Set(results.filter((r) => r.status === 'success').map((r) => r.id));
+      setInstitutions((prev) => prev.filter((inst) => !successIds.has(inst.id)));
+    } else {
+      if (token) {
+        fetchPendingInstitutions(token);
+      }
+    }
+  };
+
+  const handleSelectionChange = (
+    selectedIndices: number[],
+    selectedIdValues?: (string | number)[]
+  ) => {
+    if (selectedIdValues && selectedIdValues.length > 0) {
+      setSelectedInstitutionIds(new Set(selectedIdValues as string[]));
+    } else {
+      const selectedIds = new Set(
+        selectedIndices.map((index) => institutions[index]?.id).filter(Boolean)
+      );
+      setSelectedInstitutionIds(selectedIds);
     }
   };
 
@@ -299,6 +446,97 @@ export default function AdminPage() {
       router.push('/admin/login');
     }
   };
+
+  // Define columns for DataTable
+  const columns: Column<Institution>[] = [
+    {
+      id: 'name',
+      label: t('table.name'),
+      render: (row) => (
+        <div className="space-y-1">
+          <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 block">
+            {row.name}
+          </ThemedText>
+          <ThemedText fontSize={12} className="text-gray-500 block">
+            {row.address}
+          </ThemedText>
+        </div>
+      ),
+    },
+    {
+      id: 'email',
+      label: t('table.email'),
+      render: (row) => (
+        <ThemedText fontSize={14} className="text-gray-900">
+          {row.email}
+        </ThemedText>
+      ),
+    },
+    {
+      id: 'phone',
+      label: t('table.phone'),
+      render: (row) => (
+        <ThemedText fontSize={14} className="text-gray-900">
+          {row.phone}
+        </ThemedText>
+      ),
+    },
+    {
+      id: 'country',
+      label: t('table.country'),
+      render: (row) => (
+        <ThemedText fontSize={14} className="text-gray-900">
+          {row.country}
+        </ThemedText>
+      ),
+    },
+    {
+      id: 'website',
+      label: t('table.website'),
+      render: (row) => (
+        <a
+          href={row.website}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[#0D2B45] hover:underline font-medium"
+        >
+          <ThemedText fontSize={14}>{row.website}</ThemedText>
+        </a>
+      ),
+    },
+    {
+      id: 'actions',
+      label: t('table.actions'),
+      render: (row) => {
+        const isProcessing = processingIds.has(row.id);
+        return (
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleApprove(row.id)}
+              disabled={isProcessing}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2"
+            >
+              {isProcessing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  <span>{t('table.processing')}</span>
+                </>
+              ) : (
+                t('table.approve')
+              )}
+            </button>
+            <button
+              onClick={() => handleReject(row.id)}
+              disabled={isProcessing}
+              className="px-4 py-2 border border-red-600 text-red-600 hover:bg-red-600 hover:text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {t('table.reject')}
+            </button>
+          </div>
+        );
+      },
+    },
+  ];
 
   if (loading) {
     return (
@@ -397,101 +635,93 @@ export default function AdminPage() {
             </ThemedText>
           </div>
         ) : (
-          <div className="bg-white rounded-4xl shadow-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-[#E9F2F5]">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-[#0D2B45] uppercase tracking-wider">
-                      {t('table.name')}
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-[#0D2B45] uppercase tracking-wider">
-                      {t('table.email')}
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-[#0D2B45] uppercase tracking-wider">
-                      {t('table.phone')}
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-[#0D2B45] uppercase tracking-wider">
-                      {t('table.country')}
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-[#0D2B45] uppercase tracking-wider">
-                      {t('table.website')}
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-[#0D2B45] uppercase tracking-wider">
-                      {t('table.actions')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {institutions.map((institution) => (
-                    <tr key={institution.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          <ThemedText
-                            fontSize={14}
-                            fontWeight={600}
-                            className="text-gray-900 block"
+          <DataTable
+            data={institutions}
+            columns={columns}
+            topRightButtons={
+              <div className="flex items-center gap-3">
+                {/* Selection indicator */}
+                {selectedInstitutionIds.size > 0 && (
+                  <ThemedText className="text-sm text-gray-700">
+                    {selectedInstitutionIds.size} institution(s) selected
+                  </ThemedText>
+                )}
+
+                {/* Bulk Action Buttons */}
+                {selectedInstitutionIds.size > 0 && (
+                  <>
+                    <button
+                      onClick={() => handleBulkAction('approve')}
+                      disabled={isBulkProcessing}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isBulkProcessing && bulkProcessingAction === 'approve' ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                          <span>Approving all...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            {institution.name}
-                          </ThemedText>
-                          <ThemedText fontSize={12} className="text-gray-500 block">
-                            {institution.address}
-                          </ThemedText>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <ThemedText fontSize={14} className="text-gray-900">
-                          {institution.email}
-                        </ThemedText>
-                      </td>
-                      <td className="px-6 py-4">
-                        <ThemedText fontSize={14} className="text-gray-900">
-                          {institution.phone}
-                        </ThemedText>
-                      </td>
-                      <td className="px-6 py-4">
-                        <ThemedText fontSize={14} className="text-gray-900">
-                          {institution.country}
-                        </ThemedText>
-                      </td>
-                      <td className="px-6 py-4">
-                        <a
-                          href={institution.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#0D2B45] hover:underline font-medium"
-                        >
-                          <ThemedText fontSize={14}>{institution.website}</ThemedText>
-                        </a>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => handleApprove(institution.id)}
-                            disabled={processingId === institution.id}
-                            variant="primary"
-                            className="bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-4"
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          <span>Approve All</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Separator */}
+                    <div className="h-8 w-px bg-gray-300"></div>
+
+                    <button
+                      onClick={() => handleBulkAction('reject')}
+                      disabled={isBulkProcessing}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isBulkProcessing && bulkProcessingAction === 'reject' ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                          <span>Rejecting all...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            {processingId === institution.id
-                              ? t('table.processing')
-                              : t('table.approve')}
-                          </Button>
-                          <Button
-                            onClick={() => handleReject(institution.id)}
-                            disabled={processingId === institution.id}
-                            variant="outline"
-                            className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white text-sm py-2 px-4"
-                          >
-                            {t('table.reject')}
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                          <span>Reject All</span>
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+            }
+            enableSelection={true}
+            onSelectionChange={handleSelectionChange}
+            totalCount={institutions.length}
+            rowsPerPageOptions={[5, 10, 25, 50, 100]}
+            idKey="id"
+          />
         )}
       </div>
     </div>
