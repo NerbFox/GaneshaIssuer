@@ -79,7 +79,6 @@ export default function IssueRequestPage() {
   const [requests, setRequests] = useState<IssueRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<IssueRequest[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filterType, setFilterType] = useState<'all' | 'PENDING' | 'APPROVED' | 'REJECTED'>('all');
   const [filterSchema, setFilterSchema] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -157,8 +156,10 @@ export default function IssueRequestPage() {
         console.log('Fetched requests:', requestsData);
         console.log('Total count:', apiResponse.data.count);
 
-        setRequests(requestsData);
-        setFilteredRequests(requestsData);
+        // Filter to show only PENDING requests
+        const pendingRequests = requestsData.filter((r) => r.status === 'PENDING');
+        setRequests(pendingRequests);
+        setFilteredRequests(pendingRequests);
       } catch (err) {
         console.error('Error fetching issue requests:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -220,12 +221,8 @@ export default function IssueRequestPage() {
     setShowFilterModal(true);
   };
 
-  const applyFilters = (type: 'all' | 'PENDING' | 'APPROVED' | 'REJECTED', schema: string) => {
+  const applyFilters = (schema: string) => {
     let filtered = requests;
-
-    if (type !== 'all') {
-      filtered = filtered.filter((request) => request.status === type);
-    }
 
     if (schema) {
       filtered = filtered.filter((request) => {
@@ -238,14 +235,9 @@ export default function IssueRequestPage() {
     setFilteredRequests(filtered);
   };
 
-  const handleTypeChange = (type: 'all' | 'PENDING' | 'APPROVED' | 'REJECTED') => {
-    setFilterType(type);
-    applyFilters(type, filterSchema);
-  };
-
   const handleSchemaChange = (schema: string) => {
     setFilterSchema(schema);
-    applyFilters(filterType, schema);
+    applyFilters(schema);
   };
 
   const handleReview = async (requestId: string) => {
@@ -595,19 +587,6 @@ export default function IssueRequestPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return 'text-orange-600';
-      case 'APPROVED':
-        return 'text-green-600';
-      case 'REJECTED':
-        return 'text-red-600';
-      default:
-        return 'text-gray-600';
-    }
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date
@@ -691,16 +670,6 @@ export default function IssueRequestPage() {
         const schemaId = parsedBody?.schema_id || row.encrypted_body;
         return <ThemedText className="text-sm text-gray-900">{schemaId}</ThemedText>;
       },
-    },
-    {
-      id: 'status',
-      label: 'TYPE',
-      sortKey: 'status',
-      render: (row) => (
-        <ThemedText className={`text-sm font-medium ${getStatusColor(row.status)}`}>
-          {row.status}
-        </ThemedText>
-      ),
     },
     {
       id: 'createdAt',
@@ -836,21 +805,6 @@ export default function IssueRequestPage() {
                 />
               </svg>
             </button>
-          </div>
-
-          {/* Status Filter */}
-          <div className="mb-4">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">Status</ThemedText>
-            <select
-              value={filterType}
-              onChange={(e) => handleTypeChange(e.target.value as typeof filterType)}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-            >
-              <option value="all">All</option>
-              <option value="PENDING">Pending</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
           </div>
 
           {/* Schema Filter */}

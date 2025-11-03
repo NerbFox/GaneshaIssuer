@@ -6,14 +6,37 @@ import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
+import { API_ENDPOINTS, buildApiUrlWithParams } from '@/utils/api';
+
+interface IssueRequest {
+  id: string;
+  encrypted_body: string;
+  issuer_did: string;
+  holder_did: string;
+  version: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    message: string;
+    count: number;
+    data: IssueRequest[];
+  };
+}
 
 interface HistoryActivity {
   id: string;
-  activityType: 'Issued' | 'Revoked' | 'Verified' | 'Shared';
+  activityType: 'Issued' | 'Revoked';
   credentialType: string;
   targetDid: string;
   timestamp: string;
-  status: 'Success' | 'Failed' | 'Pending';
+  status: 'APPROVED' | 'REJECTED';
 }
 
 export default function HistoryPage() {
@@ -23,7 +46,7 @@ export default function HistoryPage() {
   const [filteredActivities, setFilteredActivities] = useState<HistoryActivity[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterActivityType, setFilterActivityType] = useState<
-    'all' | 'Issued' | 'Revoked' | 'Verified' | 'Shared'
+    'all' | 'Issued' | 'Revoked'
   >('all');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
@@ -33,7 +56,23 @@ export default function HistoryPage() {
   const filterModalRef = useRef<HTMLDivElement>(null);
 
   const totalActivities = activities.length;
-  const successCount = activities.filter((a) => a.status === 'Success').length;
+  const approvedCount = activities.filter((a) => a.status === 'APPROVED').length;
+
+  // Helper function to parse encrypted_body
+  const parseEncryptedBody = (
+    encryptedBody: string
+  ): { schema_id: string; schema_version: number } | null => {
+    try {
+      const parsed = JSON.parse(encryptedBody);
+      return {
+        schema_id: parsed.schema_id || '',
+        schema_version: parsed.schema_version || 1,
+      };
+    } catch (error) {
+      console.error('Failed to parse encrypted_body:', error);
+      return null;
+    }
+  };
 
   // Check authentication with JWT verification on component mount
   useEffect(() => {
@@ -41,16 +80,77 @@ export default function HistoryPage() {
       const redirected = await redirectIfJWTInvalid(router);
       if (!redirected) {
         setIsAuthenticated(true);
-        setIsLoading(false);
-        // TODO: Fetch history from API
-        // For now, using empty array
-        setActivities([]);
-        setFilteredActivities([]);
       }
     };
 
     checkAuth();
   }, [router]);
+
+  // Fetch APPROVED and REJECTED requests from API
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchHistory = async () => {
+      setIsLoading(true);
+      try {
+        const issuerDid = localStorage.getItem('institutionDID');
+        if (!issuerDid) {
+          throw new Error('Institution DID not found. Please log in again.');
+        }
+
+        const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIAL.GET_REQUESTS, {
+          type: 'ISSUANCE',
+          issuer_did: issuerDid,
+        });
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            accept: 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch history');
+        }
+
+        const apiResponse: ApiResponse = await response.json();
+
+        // Extract the actual data array from nested structure
+        const requestsData = apiResponse.data.data;
+
+        // Filter to show only APPROVED and REJECTED requests
+        const historyRequests = requestsData.filter(
+          (r) => r.status === 'APPROVED' || r.status === 'REJECTED'
+        );
+
+        // Transform to HistoryActivity format
+        const transformedActivities: HistoryActivity[] = historyRequests.map((request) => {
+          const parsedBody = parseEncryptedBody(request.encrypted_body);
+          const schemaId = parsedBody?.schema_id || 'Unknown Schema';
+
+          return {
+            id: request.id,
+            activityType: request.status === 'APPROVED' ? 'Issued' : 'Revoked',
+            credentialType: schemaId,
+            targetDid: request.holder_did,
+            timestamp: request.updatedAt,
+            status: request.status as 'APPROVED' | 'REJECTED',
+          };
+        });
+
+        console.log('Fetched history:', transformedActivities);
+        setActivities(transformedActivities);
+        setFilteredActivities(transformedActivities);
+      } catch (err) {
+        console.error('Error fetching history:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [isAuthenticated]);
 
   // Close filter modal when clicking outside
   useEffect(() => {
@@ -95,7 +195,7 @@ export default function HistoryPage() {
   };
 
   const applyFilters = (
-    activityType: 'all' | 'Issued' | 'Revoked' | 'Verified' | 'Shared',
+    activityType: 'all' | 'Issued' | 'Revoked',
     dateFrom: string,
     dateTo: string
   ) => {
@@ -117,7 +217,7 @@ export default function HistoryPage() {
   };
 
   const handleActivityTypeChange = (
-    activityType: 'all' | 'Issued' | 'Revoked' | 'Verified' | 'Shared'
+    activityType: 'all' | 'Issued' | 'Revoked'
   ) => {
     setFilterActivityType(activityType);
     applyFilters(activityType, filterDateFrom, filterDateTo);
@@ -144,10 +244,6 @@ export default function HistoryPage() {
         return 'bg-green-100 text-green-700';
       case 'Revoked':
         return 'bg-red-100 text-red-700';
-      case 'Verified':
-        return 'bg-blue-100 text-blue-700';
-      case 'Shared':
-        return 'bg-purple-100 text-purple-700';
       default:
         return 'bg-gray-100 text-gray-700';
     }
@@ -155,12 +251,10 @@ export default function HistoryPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Success':
+      case 'APPROVED':
         return 'bg-green-100 text-green-700';
-      case 'Failed':
+      case 'REJECTED':
         return 'bg-red-100 text-red-700';
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-700';
       default:
         return 'bg-gray-100 text-gray-700';
     }
@@ -279,11 +373,9 @@ export default function HistoryPage() {
                 </ThemedText>
               </div>
               <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">
-                  Successful Activities
-                </ThemedText>
+                <ThemedText className="text-sm text-gray-600 mb-2">Approved Requests</ThemedText>
                 <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {successCount}
+                  {approvedCount}
                 </ThemedText>
               </div>
             </div>
@@ -342,7 +434,7 @@ export default function HistoryPage() {
               value={filterActivityType}
               onChange={(e) =>
                 handleActivityTypeChange(
-                  e.target.value as 'all' | 'Issued' | 'Revoked' | 'Verified' | 'Shared'
+                  e.target.value as 'all' | 'Issued' | 'Revoked'
                 )
               }
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -350,8 +442,6 @@ export default function HistoryPage() {
               <option value="all">All Activities</option>
               <option value="Issued">Issued</option>
               <option value="Revoked">Revoked</option>
-              <option value="Verified">Verified</option>
-              <option value="Shared">Shared</option>
             </select>
           </div>
 
@@ -370,7 +460,9 @@ export default function HistoryPage() {
 
           {/* Date To Filter */}
           <div>
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">To Date</ThemedText>
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
+              To Date
+            </ThemedText>
             <input
               type="date"
               value={filterDateTo}
