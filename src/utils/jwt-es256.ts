@@ -32,7 +32,7 @@ export interface JWTPayload {
   jti?: string; // JWT ID (unique identifier)
 
   // Custom claims (your application-specific data)
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface DecodedJWT {
@@ -200,7 +200,7 @@ function rawToDerSignature(rawSignature: Uint8Array): Uint8Array {
 /**
  * Encode object to base64url JSON
  */
-function encodeJsonToBase64Url(obj: any): string {
+function encodeJsonToBase64Url(obj: object): string {
   const json = JSON.stringify(obj);
   const bytes = new TextEncoder().encode(json);
   return base64UrlEncode(bytes);
@@ -209,7 +209,7 @@ function encodeJsonToBase64Url(obj: any): string {
 /**
  * Decode base64url to JSON object
  */
-function decodeBase64UrlToJson<T = any>(base64url: string): T {
+function decodeBase64UrlToJson<T = Record<string, unknown>>(base64url: string): T {
   const bytes = base64UrlDecode(base64url);
   const json = new TextDecoder().decode(bytes);
   return JSON.parse(json);
@@ -299,7 +299,12 @@ export async function signJWT(
   // For P-256, this should be exactly 64 bytes
   if (signatureBytes.length !== 64) {
     console.warn(`⚠️ Unexpected signature length: ${signatureBytes.length} bytes (expected 64)`);
-    console.warn('Signature (hex):', Array.from(signatureBytes).map(b => b.toString(16).padStart(2, '0')).join(''));
+    console.warn(
+      'Signature (hex):',
+      Array.from(signatureBytes)
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+    );
   }
 
   // CRITICAL: Convert raw signature to DER format for backend compatibility
@@ -407,7 +412,7 @@ export function decodeJWT(jwt: string): DecodedJWT {
       payload,
       signature,
     };
-  } catch (error) {
+  } catch {
     throw new Error('Failed to decode JWT. Invalid base64url encoding.');
   }
 }
@@ -445,7 +450,12 @@ export async function verifyJWT(jwt: string, publicKey: CryptoKey | Uint8Array):
     const signatureBytes = base64UrlDecode(encodedSignature);
 
     console.log('[JWT Verify] Signature length:', signatureBytes.length, 'bytes');
-    console.log('[JWT Verify] Signature (first 10 bytes hex):', Array.from(signatureBytes.slice(0, 10)).map(b => b.toString(16).padStart(2, '0')).join(''));
+    console.log(
+      '[JWT Verify] Signature (first 10 bytes hex):',
+      Array.from(signatureBytes.slice(0, 10))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+    );
 
     // CRITICAL: Signatures are DER-encoded for backend compatibility
     // SubtleCrypto expects raw format, so convert DER → raw
@@ -461,7 +471,11 @@ export async function verifyJWT(jwt: string, publicKey: CryptoKey | Uint8Array):
       console.log('[JWT Verify] Using raw signature format (64 bytes)');
       rawSignature = signatureBytes;
     } else {
-      console.error('[JWT Verify] Invalid signature length:', signatureBytes.length, 'bytes (expected DER ~70-72 bytes or raw 64 bytes)');
+      console.error(
+        '[JWT Verify] Invalid signature length:',
+        signatureBytes.length,
+        'bytes (expected DER ~70-72 bytes or raw 64 bytes)'
+      );
       return false;
     }
 
@@ -470,7 +484,12 @@ export async function verifyJWT(jwt: string, publicKey: CryptoKey | Uint8Array):
 
     if (publicKey instanceof Uint8Array) {
       console.log('[JWT Verify] Public key length:', publicKey.length, 'bytes');
-      console.log('[JWT Verify] Public key (first 33 bytes):', Array.from(publicKey.slice(0, 33)).map(b => b.toString(16).padStart(2, '0')).join(''));
+      console.log(
+        '[JWT Verify] Public key (first 33 bytes):',
+        Array.from(publicKey.slice(0, 33))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')
+      );
       cryptoPublicKey = await importPublicKey(publicKey);
     } else {
       cryptoPublicKey = publicKey;
@@ -574,7 +593,7 @@ export function validateJWTClaims(payload: JWTPayload): {
  */
 export async function importPublicKey(publicKeyBytes: Uint8Array): Promise<CryptoKey> {
   // Ensure public key is in uncompressed format (65 bytes)
-  let uncompressedKey = publicKeyBytes;
+  const uncompressedKey = publicKeyBytes;
 
   if (publicKeyBytes.length === 33) {
     // Compressed format - need to convert to uncompressed
