@@ -93,7 +93,9 @@ export default function AdminPage() {
           return;
         }
 
-        const response = await adminAuthenticatedGet(buildApiUrl(API_ENDPOINTS.AUTH.PENDING_INSTITUTIONS));
+        const response = await adminAuthenticatedGet(
+          buildApiUrl(API_ENDPOINTS.AUTH.PENDING_INSTITUTIONS)
+        );
 
         const data = await response.json();
 

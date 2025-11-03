@@ -25,6 +25,7 @@ interface Schema {
     required: string[];
   };
   version: number;
+  uniqueKey: string; // Composite key: id-version
 }
 
 interface ApiSchemaResponse {
@@ -61,6 +62,7 @@ export default function SchemaPage() {
   const [selectedSchema, setSelectedSchema] = useState<Schema | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [togglingSchemas, setTogglingSchemas] = useState<Set<string>>(new Set()); // Track multiple schemas being toggled
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -94,6 +96,7 @@ export default function SchemaPage() {
         isActive: schema.isActive,
         version: schema.version,
         lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
+        uniqueKey: `${schema.id}-${schema.version}`, // Composite unique key
       }));
 
       // Update schemas state
@@ -167,6 +170,7 @@ export default function SchemaPage() {
           isActive: schema.isActive,
           version: schema.version,
           lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'), // Format as YYYY/MM/DD
+          uniqueKey: `${schema.id}-${schema.version}`, // Composite unique key
         }));
 
         setSchemas(transformedSchemas);
@@ -348,6 +352,8 @@ export default function SchemaPage() {
   };
 
   const handleToggleStatus = async (schemaId: string, schemaVersion: number) => {
+    const schemaKey = `${schemaId}-${schemaVersion}`;
+
     try {
       const schema = schemas.find((s) => s.id === schemaId && s.version === schemaVersion);
       if (!schema) return;
@@ -363,6 +369,9 @@ export default function SchemaPage() {
       if (!confirmed) {
         return; // User cancelled the action
       }
+
+      // Add schema to toggling set
+      setTogglingSchemas((prev) => new Set(prev).add(schemaKey));
 
       // Call the appropriate API endpoint
       const endpoint = isCurrentlyActive
@@ -403,6 +412,13 @@ export default function SchemaPage() {
       } catch (refreshError) {
         console.error('Error refreshing schemas:', refreshError);
       }
+    } finally {
+      // Remove schema from toggling set
+      setTogglingSchemas((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(schemaKey);
+        return newSet;
+      });
     }
   };
 
@@ -505,31 +521,52 @@ export default function SchemaPage() {
     {
       id: 'action',
       label: 'Action',
-      render: (row) => (
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleUpdateSchema(row.id, row.version)}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer"
-          >
-            UPDATE
-          </button>
-          {row.isActive ? (
+      render: (row) => {
+        const schemaKey = `${row.id}-${row.version}`;
+        const isToggling = togglingSchemas.has(schemaKey);
+        return (
+          <div className="flex gap-2">
             <button
-              onClick={() => handleToggleStatus(row.id, row.version)}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer"
+              onClick={() => handleUpdateSchema(row.id, row.version)}
+              disabled={isToggling}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              DEACTIVATE
+              UPDATE
             </button>
-          ) : (
-            <button
-              onClick={() => handleToggleStatus(row.id, row.version)}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
-            >
-              REACTIVATE
-            </button>
-          )}
-        </div>
-      ),
+            {row.isActive ? (
+              <button
+                onClick={() => handleToggleStatus(row.id, row.version)}
+                disabled={isToggling}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isToggling ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <span>DEACTIVATING...</span>
+                  </>
+                ) : (
+                  'DEACTIVATE'
+                )}
+              </button>
+            ) : (
+              <button
+                onClick={() => handleToggleStatus(row.id, row.version)}
+                disabled={isToggling}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isToggling ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <span>REACTIVATING...</span>
+                  </>
+                ) : (
+                  'REACTIVATE'
+                )}
+              </button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -601,7 +638,7 @@ export default function SchemaPage() {
               enableSelection={true}
               totalCount={filteredSchemas.length}
               rowsPerPageOptions={[5, 10, 25, 50, 100]}
-              idKey="id"
+              idKey="uniqueKey"
             />
           </>
         )}
