@@ -63,6 +63,11 @@ export default function SchemaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [togglingSchemas, setTogglingSchemas] = useState<Set<string>>(new Set()); // Track multiple schemas being toggled
+  const [selectedSchemaKeys, setSelectedSchemaKeys] = useState<Set<string>>(new Set()); // Track selected schemas by uniqueKey
+  const [isBulkToggling, setIsBulkToggling] = useState(false); // Track bulk toggle operation
+  const [bulkTogglingAction, setBulkTogglingAction] = useState<'reactivate' | 'deactivate' | null>(
+    null
+  ); // Track which bulk action is in progress
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -422,6 +427,139 @@ export default function SchemaPage() {
     }
   };
 
+  const handleSelectionChange = (
+    selectedIndices: number[],
+    selectedIdValues?: (string | number)[]
+  ) => {
+    // Use the ID values directly if provided, otherwise fall back to index mapping
+    if (selectedIdValues && selectedIdValues.length > 0) {
+      setSelectedSchemaKeys(new Set(selectedIdValues as string[]));
+    } else {
+      // Fallback: Convert indices to schema uniqueKeys
+      const selectedKeys = new Set(
+        selectedIndices.map((index) => filteredSchemas[index]?.uniqueKey).filter(Boolean)
+      );
+      setSelectedSchemaKeys(selectedKeys);
+    }
+  };
+
+  const handleBulkToggle = async (action: 'reactivate' | 'deactivate') => {
+    if (selectedSchemaKeys.size === 0) {
+      alert('Please select at least one schema');
+      return;
+    }
+
+    // Get selected schemas from uniqueKeys
+    const selectedSchemas = schemas.filter((schema) => selectedSchemaKeys.has(schema.uniqueKey));
+
+    const actionText = action === 'reactivate' ? 'reactivate' : 'deactivate';
+    const confirmed = window.confirm(
+      `Are you sure you want to ${actionText} ${selectedSchemas.length} schema(s)?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsBulkToggling(true);
+    setBulkTogglingAction(action);
+
+    const results: {
+      success: boolean;
+      skipped: boolean;
+      schema: Schema;
+      error?: string;
+      reason?: string;
+    }[] = [];
+
+    // Process each schema
+    for (const schema of selectedSchemas) {
+      const schemaKey = `${schema.id}-${schema.version}`;
+      const targetIsActive = action === 'reactivate';
+
+      // Check if schema is already in the desired state
+      if (schema.isActive === targetIsActive) {
+        results.push({
+          success: false,
+          skipped: true,
+          schema,
+          reason: `Already ${targetIsActive ? 'active' : 'inactive'}`,
+        });
+        continue;
+      }
+
+      try {
+        // Add to toggling set
+        setTogglingSchemas((prev) => new Set(prev).add(schemaKey));
+
+        // Call the appropriate API endpoint
+        const endpoint =
+          action === 'deactivate'
+            ? API_ENDPOINTS.SCHEMA.DEACTIVATE(schema.id, schema.version)
+            : API_ENDPOINTS.SCHEMA.REACTIVATE(schema.id, schema.version);
+
+        const response = await authenticatedFetch(buildApiUrl(endpoint), {
+          method: 'PATCH',
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Failed to ${action} schema`);
+        }
+
+        results.push({ success: true, skipped: false, schema });
+      } catch (error) {
+        results.push({
+          success: false,
+          skipped: false,
+          schema,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      } finally {
+        // Remove from toggling set
+        setTogglingSchemas((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(schemaKey);
+          return newSet;
+        });
+      }
+    }
+
+    // Refresh schemas to get latest state
+    await refreshSchemas();
+
+    // Clear selection
+    setSelectedSchemaKeys(new Set());
+
+    // Show results
+    const successCount = results.filter((r) => r.success).length;
+    const skippedCount = results.filter((r) => r.skipped).length;
+    const failCount = results.filter((r) => !r.success && !r.skipped).length;
+
+    let resultMessage = `Bulk ${action} completed:\n✓ Success: ${successCount}`;
+
+    if (skippedCount > 0) {
+      const skippedSchemas = results
+        .filter((r) => r.skipped)
+        .map((r) => `${r.schema.schemaName}: ${r.reason}`)
+        .join('\n');
+      resultMessage += `\n⊘ Skipped: ${skippedCount}\n\nSkipped schemas:\n${skippedSchemas}`;
+    }
+
+    if (failCount > 0) {
+      const failedSchemas = results
+        .filter((r) => !r.success && !r.skipped)
+        .map((r) => `${r.schema.schemaName}: ${r.error}`)
+        .join('\n');
+      resultMessage += `\n✗ Failed: ${failCount}\n\nFailed schemas:\n${failedSchemas}`;
+    }
+
+    alert(resultMessage);
+
+    setIsBulkToggling(false);
+    setBulkTogglingAction(null);
+  };
+
   const handleNewSchema = () => {
     setShowCreateSchemaModal(true);
   };
@@ -621,21 +759,105 @@ export default function SchemaPage() {
               onFilter={handleFilter}
               searchPlaceholder="Search..."
               onSearch={handleSearch}
-              topRightButton={{
-                label: 'New Schema',
-                onClick: handleNewSchema,
-                icon: (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                ),
-              }}
+              topRightButtons={
+                <div className="flex items-center gap-3">
+                  {/* Selection indicator */}
+                  {selectedSchemaKeys.size > 0 && (
+                    <ThemedText className="text-sm text-gray-700">
+                      {selectedSchemaKeys.size} schema(s) selected
+                    </ThemedText>
+                  )}
+
+                  {/* Bulk Action Buttons */}
+                  {selectedSchemaKeys.size > 0 && (
+                    <>
+                      <button
+                        onClick={() => handleBulkToggle('reactivate')}
+                        disabled={isBulkToggling}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        {isBulkToggling && bulkTogglingAction === 'reactivate' ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            <span>Reactivating all...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                            <span>Reactivate All</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Separator */}
+                      <div className="h-8 w-px bg-gray-300"></div>
+
+                      <button
+                        onClick={() => handleBulkToggle('deactivate')}
+                        disabled={isBulkToggling}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        {isBulkToggling && bulkTogglingAction === 'deactivate' ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            <span>Deactivating all...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                            <span>Deactivate All</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Separator */}
+                      <div className="h-8 w-px bg-gray-300"></div>
+                    </>
+                  )}
+
+                  {/* New Schema Button */}
+                  <button
+                    onClick={handleNewSchema}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    New Schema
+                  </button>
+                </div>
+              }
               enableSelection={true}
+              onSelectionChange={handleSelectionChange}
               totalCount={filteredSchemas.length}
               rowsPerPageOptions={[5, 10, 25, 50, 100]}
               idKey="uniqueKey"
