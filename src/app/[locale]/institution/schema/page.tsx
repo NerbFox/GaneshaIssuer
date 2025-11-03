@@ -683,7 +683,7 @@ export default function SchemaPage() {
   const columns: Column<Schema>[] = [
     {
       id: 'schemaName',
-      label: 'Schema Name',
+      label: 'SCHEMA NAME',
       sortKey: 'schemaName',
       render: (row) => (
         <ThemedText className="text-sm font-medium text-gray-900">{row.schemaName}</ThemedText>
@@ -691,7 +691,7 @@ export default function SchemaPage() {
     },
     {
       id: 'attributes',
-      label: '# Attributes',
+      label: '# ATTRIBUTES',
       sortKey: 'attributes',
       render: (row) => <ThemedText className="text-sm text-gray-900">{row.attributes}</ThemedText>,
     },
@@ -707,11 +707,11 @@ export default function SchemaPage() {
     },
     {
       id: 'status',
-      label: 'Status',
+      label: 'STATUS',
       render: (row) => (
         <span
           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-            row.isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+            row.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
           }`}
         >
           {row.isActive ? 'Active' : 'Inactive'}
@@ -720,7 +720,7 @@ export default function SchemaPage() {
     },
     {
       id: 'lastUpdated',
-      label: 'Last Updated',
+      label: 'LAST UPDATED',
       sortKey: 'lastUpdated',
       render: (row) => <ThemedText className="text-sm text-gray-900">{row.lastUpdated}</ThemedText>,
     },
@@ -795,33 +795,32 @@ export default function SchemaPage() {
           Schema
         </ThemedText>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-              <ThemedText className="text-gray-600">Loading schemas...</ThemedText>
-            </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
+          <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+            <ThemedText className="text-sm text-gray-600 mb-2">All Schemas</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              {schemas.length}
+            </ThemedText>
           </div>
-        ) : (
-          <>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
-              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">All Schemas</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {schemas.length}
-                </ThemedText>
-              </div>
-              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Active Schemas</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {activeCount.toLocaleString()}
-                </ThemedText>
-              </div>
-            </div>
+          <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+            <ThemedText className="text-sm text-gray-600 mb-2">Active Schemas</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              {activeCount.toLocaleString()}
+            </ThemedText>
+          </div>
+        </div>
 
-            {/* Data Table */}
-            <DataTable
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        )}
+
+        {/* Data Table */}
+        {!isLoading && (
+          <DataTable
               data={filteredSchemas}
               columns={columns}
               onFilter={handleFilter}
@@ -931,7 +930,6 @@ export default function SchemaPage() {
               rowsPerPageOptions={[5, 10, 25, 50, 100]}
               idKey="uniqueKey"
             />
-          </>
         )}
       </div>
 

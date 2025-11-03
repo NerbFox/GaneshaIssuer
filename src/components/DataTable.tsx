@@ -413,7 +413,7 @@ export function DataTable<T>({
                   {/* # Cell */}
                   <td className="px-6 py-4">
                     <ThemedText className="text-sm text-gray-900">
-                      {idKey ? String(row[idKey]) : actualIndex + 1}
+                      {actualIndex + 1}
                     </ThemedText>
                   </td>
 

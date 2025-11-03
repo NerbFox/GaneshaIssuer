@@ -218,22 +218,6 @@ Keep this information safe and secure!
 
   return (
     <AuthContainer>
-      {/* GaneshaWallet Logo */}
-      <div className="mb-8 flex justify-end">
-        <div className="flex items-center gap-2">
-          <Image
-            src="/GWallet.svg"
-            alt="GaneshaWallet"
-            width={24}
-            height={24}
-            className="w-6 h-6"
-          />
-          <ThemedText fontSize={16} fontWeight={600} className="text-gray-800">
-            GaneshaWallet
-          </ThemedText>
-        </div>
-      </div>
-
       {/* Title */}
       <div className="mb-6">
         <ThemedText fontSize={32} fontWeight={700} className="text-black mb-1 block">

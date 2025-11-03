@@ -11,6 +11,7 @@ import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey, stringifySignedVC } from '@/utils/vcSigner';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
+import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
 
 interface IssueRequest {
   id: string;
@@ -79,7 +80,6 @@ export default function IssueRequestPage() {
   const [requests, setRequests] = useState<IssueRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<IssueRequest[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filterType, setFilterType] = useState<'all' | 'PENDING' | 'APPROVED' | 'REJECTED'>('all');
   const [filterSchema, setFilterSchema] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -138,12 +138,7 @@ export default function IssueRequestPage() {
           issuer_did: issuerDid,
         });
 
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            accept: 'application/json',
-          },
-        });
+        const response = await authenticatedGet(url);
 
         if (!response.ok) {
           throw new Error('Failed to fetch issue requests');
@@ -157,8 +152,10 @@ export default function IssueRequestPage() {
         console.log('Fetched requests:', requestsData);
         console.log('Total count:', apiResponse.data.count);
 
-        setRequests(requestsData);
-        setFilteredRequests(requestsData);
+        // Filter to show only PENDING requests
+        const pendingRequests = requestsData.filter((r) => r.status === 'PENDING');
+        setRequests(pendingRequests);
+        setFilteredRequests(pendingRequests);
       } catch (err) {
         console.error('Error fetching issue requests:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -220,12 +217,8 @@ export default function IssueRequestPage() {
     setShowFilterModal(true);
   };
 
-  const applyFilters = (type: 'all' | 'PENDING' | 'APPROVED' | 'REJECTED', schema: string) => {
+  const applyFilters = (schema: string) => {
     let filtered = requests;
-
-    if (type !== 'all') {
-      filtered = filtered.filter((request) => request.status === type);
-    }
 
     if (schema) {
       filtered = filtered.filter((request) => {
@@ -238,14 +231,9 @@ export default function IssueRequestPage() {
     setFilteredRequests(filtered);
   };
 
-  const handleTypeChange = (type: 'all' | 'PENDING' | 'APPROVED' | 'REJECTED') => {
-    setFilterType(type);
-    applyFilters(type, filterSchema);
-  };
-
   const handleSchemaChange = (schema: string) => {
     setFilterSchema(schema);
-    applyFilters(filterType, schema);
+    applyFilters(schema);
   };
 
   const handleReview = async (requestId: string) => {
@@ -272,12 +260,7 @@ export default function IssueRequestPage() {
 
         // Fetch schema details using parsed schema_id and schema_version
         const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, schemaVersion));
-        const schemaResponse = await fetch(schemaUrl, {
-          method: 'GET',
-          headers: {
-            accept: 'application/json',
-          },
-        });
+        const schemaResponse = await authenticatedGet(schemaUrl);
 
         if (schemaResponse.ok) {
           const schemaApiData: SchemaApiResponse = await schemaResponse.json();
@@ -362,12 +345,7 @@ export default function IssueRequestPage() {
         const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DID.DOCUMENT(selectedRequest.issuer_did));
         console.log('Fetching DID Document from:', didDocumentUrl);
 
-        const didDocResponse = await fetch(didDocumentUrl, {
-          method: 'GET',
-          headers: {
-            accept: 'application/json',
-          },
-        });
+        const didDocResponse = await authenticatedGet(didDocumentUrl);
 
         if (didDocResponse.ok) {
           const didDocData = await didDocResponse.json();
@@ -459,14 +437,7 @@ export default function IssueRequestPage() {
       console.log('Sending request to:', issueUrl);
       console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
-      const response = await fetch(issueUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await authenticatedPost(issueUrl, requestBody);
 
       console.log('Response status:', response.status);
       console.log('Response statusText:', response.statusText);
@@ -550,14 +521,7 @@ export default function IssueRequestPage() {
 
       // Send rejection request to API
       const rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.ISSUE_VC);
-      const response = await fetch(rejectUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await authenticatedPost(rejectUrl, requestBody);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -595,19 +559,6 @@ export default function IssueRequestPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return 'text-orange-600';
-      case 'APPROVED':
-        return 'text-green-600';
-      case 'REJECTED':
-        return 'text-red-600';
-      default:
-        return 'text-gray-600';
-    }
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date
@@ -630,6 +581,21 @@ export default function IssueRequestPage() {
       return did;
     }
     return did.substring(0, maxLength) + '...';
+  };
+
+  const getRequestTypeColor = (type: string) => {
+    switch (type.toUpperCase()) {
+      case 'ISSUANCE':
+        return 'bg-blue-100 text-blue-700';
+      case 'RENEWAL':
+        return 'bg-purple-100 text-purple-700';
+      case 'UPDATE':
+        return 'bg-cyan-100 text-cyan-700';
+      case 'REVOCATION':
+        return 'bg-orange-100 text-orange-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
   };
 
   const columns: Column<IssueRequest>[] = [
@@ -684,7 +650,7 @@ export default function IssueRequestPage() {
     },
     {
       id: 'encrypted_body',
-      label: 'SCHEMA',
+      label: 'SCHEMA NAME',
       sortKey: 'encrypted_body',
       render: (row) => {
         const parsedBody = parseEncryptedBody(row.encrypted_body);
@@ -693,13 +659,14 @@ export default function IssueRequestPage() {
       },
     },
     {
-      id: 'status',
+      id: 'request_type',
       label: 'TYPE',
-      sortKey: 'status',
       render: (row) => (
-        <ThemedText className={`text-sm font-medium ${getStatusColor(row.status)}`}>
-          {row.status}
-        </ThemedText>
+        <span
+          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRequestTypeColor('ISSUANCE')}`}
+        >
+          Issuance
+        </span>
       ),
     },
     {
@@ -836,21 +803,6 @@ export default function IssueRequestPage() {
                 />
               </svg>
             </button>
-          </div>
-
-          {/* Status Filter */}
-          <div className="mb-4">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">Status</ThemedText>
-            <select
-              value={filterType}
-              onChange={(e) => handleTypeChange(e.target.value as typeof filterType)}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-            >
-              <option value="all">All</option>
-              <option value="PENDING">Pending</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
           </div>
 
           {/* Schema Filter */}
