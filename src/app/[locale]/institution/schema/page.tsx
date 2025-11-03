@@ -20,11 +20,13 @@ interface Schema {
   attributes: number;
   isActive: boolean;
   lastUpdated: string;
+  expiredIn: number;
   schemaDetails?: {
     properties: Record<string, { type: string }>;
     required: string[];
   };
   version: number;
+  uniqueKey: string; // Composite key: id-version
 }
 
 interface ApiSchemaResponse {
@@ -38,6 +40,7 @@ interface ApiSchemaResponse {
         type: string;
         required: string[];
         properties: Record<string, unknown>;
+        expired_in?: number;
       };
       issuer_did: string;
       version: number;
@@ -53,16 +56,27 @@ export default function SchemaPage() {
   const [schemas, setSchemas] = useState<Schema[]>([]);
   const [filteredSchemas, setFilteredSchemas] = useState<Schema[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'Active' | 'Inactive'>('all');
-  const [filterSchemaId, setFilterSchemaId] = useState('');
+  const [searchValue, setSearchValue] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [filterMinAttributes, setFilterMinAttributes] = useState('');
+  const [filterMaxAttributes, setFilterMaxAttributes] = useState('');
+  const [filterMinExpiredIn, setFilterMinExpiredIn] = useState('');
+  const [filterMaxExpiredIn, setFilterMaxExpiredIn] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [showCreateSchemaModal, setShowCreateSchemaModal] = useState(false);
   const [showUpdateSchemaModal, setShowUpdateSchemaModal] = useState(false);
   const [selectedSchema, setSelectedSchema] = useState<Schema | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [togglingSchemas, setTogglingSchemas] = useState<Set<string>>(new Set()); // Track multiple schemas being toggled
+  const [selectedSchemaKeys, setSelectedSchemaKeys] = useState<Set<string>>(new Set()); // Track selected schemas by uniqueKey
+  const [isBulkToggling, setIsBulkToggling] = useState(false); // Track bulk toggle operation
+  const [bulkTogglingAction, setBulkTogglingAction] = useState<'reactivate' | 'deactivate' | null>(
+    null
+  ); // Track which bulk action is in progress
 
   const filterModalRef = useRef<HTMLDivElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
 
   const activeCount = schemas.filter((s) => s.isActive === true).length;
 
@@ -93,29 +107,14 @@ export default function SchemaPage() {
         attributes: Object.keys(schema.schema.properties).length,
         isActive: schema.isActive,
         version: schema.version,
+        expiredIn: schema.schema.expired_in || 1,
         lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
+        uniqueKey: `${schema.id}-${schema.version}`, // Composite unique key
       }));
 
       // Update schemas state
       setSchemas(transformedSchemas);
-
-      // Apply filters to the new data
-      const schemasToFilter = transformedSchemas;
-      let filtered = schemasToFilter;
-
-      if (filterStatus !== 'all') {
-        filtered = filtered.filter((schema) => schema.isActive === true || false);
-      }
-
-      if (filterSchemaId) {
-        filtered = filtered.filter((schema) =>
-          schema.id.toLowerCase().includes(filterSchemaId.toLowerCase())
-        );
-      }
-
-      // Update filtered schemas state
-      setFilteredSchemas(filtered);
-
+      // Don't apply filters here - let the useEffect handle it
       return transformedSchemas;
     } catch (error) {
       console.error('Error refreshing schemas:', error);
@@ -166,7 +165,9 @@ export default function SchemaPage() {
           attributes: Object.keys(schema.schema.properties).length,
           isActive: schema.isActive,
           version: schema.version,
+          expiredIn: schema.schema.expired_in || 1,
           lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'), // Format as YYYY/MM/DD
+          uniqueKey: `${schema.id}-${schema.version}`, // Composite unique key
         }));
 
         setSchemas(transformedSchemas);
@@ -203,13 +204,31 @@ export default function SchemaPage() {
     };
   }, [showFilterModal]);
 
+  // Update filter modal position when scrolling
+  useEffect(() => {
+    const updateFilterPosition = () => {
+      if (showFilterModal && filterButtonRef.current) {
+        const rect = filterButtonRef.current.getBoundingClientRect();
+        setFilterButtonPosition({
+          top: rect.bottom + 8,
+          left: rect.left,
+        });
+      }
+    };
+
+    if (showFilterModal) {
+      window.addEventListener('scroll', updateFilterPosition, true);
+      window.addEventListener('resize', updateFilterPosition);
+    }
+
+    return () => {
+      window.removeEventListener('scroll', updateFilterPosition, true);
+      window.removeEventListener('resize', updateFilterPosition);
+    };
+  }, [showFilterModal]);
+
   const handleSearch = (value: string) => {
-    const filtered = schemas.filter(
-      (schema) =>
-        schema.schemaName.toLowerCase().includes(value.toLowerCase()) ||
-        schema.id.toLowerCase().includes(value.toLowerCase())
-    );
-    setFilteredSchemas(filtered);
+    setSearchValue(value);
   };
 
   const handleFilter = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -221,35 +240,81 @@ export default function SchemaPage() {
     setShowFilterModal(true);
   };
 
-  const applyFilters = (
-    status: 'all' | 'Active' | 'Inactive',
-    schemaId: string,
-    sourceSchemas?: Schema[]
-  ) => {
-    const schemasToFilter = sourceSchemas || schemas;
-    let filtered = schemasToFilter;
+  const applyFilters = () => {
+    let filtered = schemas;
 
-    if (status !== 'all') {
-      filtered = filtered.filter((schema) => schema.isActive === true || false);
+    // Search filter (applies to schema name and ID)
+    if (searchValue.trim()) {
+      filtered = filtered.filter(
+        (schema) =>
+          schema.schemaName.toLowerCase().includes(searchValue.toLowerCase()) ||
+          schema.id.toLowerCase().includes(searchValue.toLowerCase())
+      );
     }
 
-    if (schemaId) {
-      filtered = filtered.filter((schema) =>
-        schema.id.toLowerCase().includes(schemaId.toLowerCase())
-      );
+    // Status filter
+    if (filterStatus === 'active') {
+      filtered = filtered.filter((schema) => schema.isActive === true);
+    } else if (filterStatus === 'inactive') {
+      filtered = filtered.filter((schema) => schema.isActive === false);
+    }
+
+    // Min attributes filter
+    if (filterMinAttributes) {
+      const minAttr = parseInt(filterMinAttributes);
+      if (!isNaN(minAttr)) {
+        filtered = filtered.filter((schema) => schema.attributes >= minAttr);
+      }
+    }
+
+    // Max attributes filter
+    if (filterMaxAttributes) {
+      const maxAttr = parseInt(filterMaxAttributes);
+      if (!isNaN(maxAttr)) {
+        filtered = filtered.filter((schema) => schema.attributes <= maxAttr);
+      }
+    }
+
+    // Min expired in filter
+    if (filterMinExpiredIn) {
+      const minExp = parseInt(filterMinExpiredIn);
+      if (!isNaN(minExp)) {
+        filtered = filtered.filter((schema) => schema.expiredIn >= minExp);
+      }
+    }
+
+    // Max expired in filter
+    if (filterMaxExpiredIn) {
+      const maxExp = parseInt(filterMaxExpiredIn);
+      if (!isNaN(maxExp)) {
+        filtered = filtered.filter((schema) => schema.expiredIn <= maxExp);
+      }
     }
 
     setFilteredSchemas(filtered);
   };
 
-  const handleStatusChange = (status: 'all' | 'Active' | 'Inactive') => {
-    setFilterStatus(status);
-    applyFilters(status, filterSchemaId);
-  };
+  // Apply filters whenever filter values change
+  useEffect(() => {
+    applyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    searchValue,
+    filterStatus,
+    filterMinAttributes,
+    filterMaxAttributes,
+    filterMinExpiredIn,
+    filterMaxExpiredIn,
+    schemas,
+  ]);
 
-  const handleSchemaIdChange = (schemaId: string) => {
-    setFilterSchemaId(schemaId);
-    applyFilters(filterStatus, schemaId);
+  const clearFilters = () => {
+    setSearchValue('');
+    setFilterStatus('all');
+    setFilterMinAttributes('');
+    setFilterMaxAttributes('');
+    setFilterMinExpiredIn('');
+    setFilterMaxExpiredIn('');
   };
 
   const handleUpdateSchema = async (schemaId: string, version: number) => {
@@ -301,12 +366,13 @@ export default function SchemaPage() {
         }
       });
 
-      // API expects only the schema object (type, properties, required)
+      // API expects only the schema object (type, properties, required, expired_in)
       const payload = {
         schema: {
           type: 'object',
           properties,
           required,
+          expired_in: data.expiredIn,
         },
       };
 
@@ -348,6 +414,8 @@ export default function SchemaPage() {
   };
 
   const handleToggleStatus = async (schemaId: string, schemaVersion: number) => {
+    const schemaKey = `${schemaId}-${schemaVersion}`;
+
     try {
       const schema = schemas.find((s) => s.id === schemaId && s.version === schemaVersion);
       if (!schema) return;
@@ -363,6 +431,9 @@ export default function SchemaPage() {
       if (!confirmed) {
         return; // User cancelled the action
       }
+
+      // Add schema to toggling set
+      setTogglingSchemas((prev) => new Set(prev).add(schemaKey));
 
       // Call the appropriate API endpoint
       const endpoint = isCurrentlyActive
@@ -403,7 +474,147 @@ export default function SchemaPage() {
       } catch (refreshError) {
         console.error('Error refreshing schemas:', refreshError);
       }
+    } finally {
+      // Remove schema from toggling set
+      setTogglingSchemas((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(schemaKey);
+        return newSet;
+      });
     }
+  };
+
+  const handleSelectionChange = (
+    selectedIndices: number[],
+    selectedIdValues?: (string | number)[]
+  ) => {
+    // Use the ID values directly if provided, otherwise fall back to index mapping
+    if (selectedIdValues && selectedIdValues.length > 0) {
+      setSelectedSchemaKeys(new Set(selectedIdValues as string[]));
+    } else {
+      // Fallback: Convert indices to schema uniqueKeys
+      const selectedKeys = new Set(
+        selectedIndices.map((index) => filteredSchemas[index]?.uniqueKey).filter(Boolean)
+      );
+      setSelectedSchemaKeys(selectedKeys);
+    }
+  };
+
+  const handleBulkToggle = async (action: 'reactivate' | 'deactivate') => {
+    if (selectedSchemaKeys.size === 0) {
+      alert('Please select at least one schema');
+      return;
+    }
+
+    // Get selected schemas from uniqueKeys
+    const selectedSchemas = schemas.filter((schema) => selectedSchemaKeys.has(schema.uniqueKey));
+
+    const actionText = action === 'reactivate' ? 'reactivate' : 'deactivate';
+    const confirmed = window.confirm(
+      `Are you sure you want to ${actionText} ${selectedSchemas.length} schema(s)?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsBulkToggling(true);
+    setBulkTogglingAction(action);
+
+    const results: {
+      success: boolean;
+      skipped: boolean;
+      schema: Schema;
+      error?: string;
+      reason?: string;
+    }[] = [];
+
+    // Process each schema
+    for (const schema of selectedSchemas) {
+      const schemaKey = `${schema.id}-${schema.version}`;
+      const targetIsActive = action === 'reactivate';
+
+      // Check if schema is already in the desired state
+      if (schema.isActive === targetIsActive) {
+        results.push({
+          success: false,
+          skipped: true,
+          schema,
+          reason: `Already ${targetIsActive ? 'active' : 'inactive'}`,
+        });
+        continue;
+      }
+
+      try {
+        // Add to toggling set
+        setTogglingSchemas((prev) => new Set(prev).add(schemaKey));
+
+        // Call the appropriate API endpoint
+        const endpoint =
+          action === 'deactivate'
+            ? API_ENDPOINTS.SCHEMA.DEACTIVATE(schema.id, schema.version)
+            : API_ENDPOINTS.SCHEMA.REACTIVATE(schema.id, schema.version);
+
+        const response = await authenticatedFetch(buildApiUrl(endpoint), {
+          method: 'PATCH',
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Failed to ${action} schema`);
+        }
+
+        results.push({ success: true, skipped: false, schema });
+      } catch (error) {
+        results.push({
+          success: false,
+          skipped: false,
+          schema,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      } finally {
+        // Remove from toggling set
+        setTogglingSchemas((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(schemaKey);
+          return newSet;
+        });
+      }
+    }
+
+    // Refresh schemas to get latest state
+    await refreshSchemas();
+
+    // Clear selection
+    setSelectedSchemaKeys(new Set());
+
+    // Show results
+    const successCount = results.filter((r) => r.success).length;
+    const skippedCount = results.filter((r) => r.skipped).length;
+    const failCount = results.filter((r) => !r.success && !r.skipped).length;
+
+    let resultMessage = `Bulk ${action} completed:\n✓ Success: ${successCount}`;
+
+    if (skippedCount > 0) {
+      const skippedSchemas = results
+        .filter((r) => r.skipped)
+        .map((r) => `${r.schema.schemaName}: ${r.reason}`)
+        .join('\n');
+      resultMessage += `\n⊘ Skipped: ${skippedCount}\n\nSkipped schemas:\n${skippedSchemas}`;
+    }
+
+    if (failCount > 0) {
+      const failedSchemas = results
+        .filter((r) => !r.success && !r.skipped)
+        .map((r) => `${r.schema.schemaName}: ${r.error}`)
+        .join('\n');
+      resultMessage += `\n✗ Failed: ${failCount}\n\nFailed schemas:\n${failedSchemas}`;
+    }
+
+    alert(resultMessage);
+
+    setIsBulkToggling(false);
+    setBulkTogglingAction(null);
   };
 
   const handleNewSchema = () => {
@@ -432,13 +643,14 @@ export default function SchemaPage() {
       });
 
       // Note: schemaId, version, and status from the form are not sent to the API
-      // Only name, schema structure, and issuer_did are sent
+      // Only name, schema structure, expired_in, and issuer_did are sent
       const payload = {
         name: data.schemaName,
         schema: {
           type: 'object',
           properties,
           required,
+          expired_in: data.expiredIn,
         },
         issuer_did: issuerDid,
       };
@@ -484,6 +696,16 @@ export default function SchemaPage() {
       render: (row) => <ThemedText className="text-sm text-gray-900">{row.attributes}</ThemedText>,
     },
     {
+      id: 'expiredIn',
+      label: 'Expired In (Years)',
+      sortKey: 'expiredIn',
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">
+          {row.expiredIn === 0 ? 'Lifetime' : row.expiredIn}
+        </ThemedText>
+      ),
+    },
+    {
       id: 'status',
       label: 'STATUS',
       render: (row) => (
@@ -504,32 +726,53 @@ export default function SchemaPage() {
     },
     {
       id: 'action',
-      label: 'ACTION',
-      render: (row) => (
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleUpdateSchema(row.id, row.version)}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer"
-          >
-            UPDATE
-          </button>
-          {row.isActive ? (
+      label: 'Action',
+      render: (row) => {
+        const schemaKey = `${row.id}-${row.version}`;
+        const isToggling = togglingSchemas.has(schemaKey);
+        return (
+          <div className="flex gap-2">
             <button
-              onClick={() => handleToggleStatus(row.id, row.version)}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer"
+              onClick={() => handleUpdateSchema(row.id, row.version)}
+              disabled={isToggling}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              DEACTIVATE
+              UPDATE
             </button>
-          ) : (
-            <button
-              onClick={() => handleToggleStatus(row.id, row.version)}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
-            >
-              REACTIVATE
-            </button>
-          )}
-        </div>
-      ),
+            {row.isActive ? (
+              <button
+                onClick={() => handleToggleStatus(row.id, row.version)}
+                disabled={isToggling}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isToggling ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <span>DEACTIVATING...</span>
+                  </>
+                ) : (
+                  'DEACTIVATE'
+                )}
+              </button>
+            ) : (
+              <button
+                onClick={() => handleToggleStatus(row.id, row.version)}
+                disabled={isToggling}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isToggling ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <span>REACTIVATING...</span>
+                  </>
+                ) : (
+                  'REACTIVATE'
+                )}
+              </button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -578,15 +821,97 @@ export default function SchemaPage() {
         {/* Data Table */}
         {!isLoading && (
           <DataTable
-              data={filteredSchemas}
-              columns={columns}
-              onFilter={handleFilter}
-              searchPlaceholder="Search..."
-              onSearch={handleSearch}
-              topRightButton={{
-                label: 'New Schema',
-                onClick: handleNewSchema,
-                icon: (
+            data={filteredSchemas}
+            columns={columns}
+            onFilter={handleFilter}
+            filterButtonRef={filterButtonRef}
+            searchPlaceholder="Search..."
+            onSearch={handleSearch}
+            topRightButtons={
+              <div className="flex items-center gap-3">
+                {/* Selection indicator */}
+                {selectedSchemaKeys.size > 0 && (
+                  <ThemedText className="text-sm text-gray-700">
+                    {selectedSchemaKeys.size} schema(s) selected
+                  </ThemedText>
+                )}
+
+                {/* Bulk Action Buttons */}
+                {selectedSchemaKeys.size > 0 && (
+                  <>
+                    <button
+                      onClick={() => handleBulkToggle('reactivate')}
+                      disabled={isBulkToggling}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isBulkToggling && bulkTogglingAction === 'reactivate' ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                          <span>Reactivating all...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          <span>Reactivate All</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Separator */}
+                    <div className="h-8 w-px bg-gray-300"></div>
+
+                    <button
+                      onClick={() => handleBulkToggle('deactivate')}
+                      disabled={isBulkToggling}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isBulkToggling && bulkTogglingAction === 'deactivate' ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                          <span>Deactivating all...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                          <span>Deactivate All</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Separator */}
+                    <div className="h-8 w-px bg-gray-300"></div>
+                  </>
+                )}
+
+                {/* New Schema Button */}
+                <button
+                  onClick={handleNewSchema}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
+                >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
@@ -595,13 +920,16 @@ export default function SchemaPage() {
                       d="M12 4v16m8-8H4"
                     />
                   </svg>
-                ),
-              }}
-              enableSelection={true}
-              totalCount={filteredSchemas.length}
-              rowsPerPageOptions={[5, 10, 25, 50, 100]}
-              idKey="id"
-            />
+                  New Schema
+                </button>
+              </div>
+            }
+            enableSelection={true}
+            onSelectionChange={handleSelectionChange}
+            totalCount={filteredSchemas.length}
+            rowsPerPageOptions={[5, 10, 25, 50, 100]}
+            idKey="uniqueKey"
+          />
         )}
       </div>
 
@@ -609,7 +937,7 @@ export default function SchemaPage() {
       {showFilterModal && (
         <div
           ref={filterModalRef}
-          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 p-6 w-80 z-50"
+          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 p-6 w-80 z-30"
           style={{
             top: `${filterButtonPosition.top}px`,
             left: `${filterButtonPosition.left}px`,
@@ -639,28 +967,72 @@ export default function SchemaPage() {
             <ThemedText className="block text-sm font-medium text-gray-900 mb-2">Status</ThemedText>
             <select
               value={filterStatus}
-              onChange={(e) => handleStatusChange(e.target.value as 'all' | 'Active' | 'Inactive')}
+              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
             >
               <option value="all">All</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
             </select>
           </div>
 
-          {/* Schema ID Filter */}
-          <div>
+          {/* Attribute Count Filter */}
+          <div className="mb-4">
             <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              Schema ID
+              Number of Attributes
             </ThemedText>
-            <input
-              type="text"
-              value={filterSchemaId}
-              onChange={(e) => handleSchemaIdChange(e.target.value)}
-              placeholder="Enter Schema ID"
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm placeholder:text-gray-500"
-            />
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={filterMinAttributes}
+                onChange={(e) => setFilterMinAttributes(e.target.value)}
+                placeholder="Min"
+                min="0"
+                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+              />
+              <input
+                type="number"
+                value={filterMaxAttributes}
+                onChange={(e) => setFilterMaxAttributes(e.target.value)}
+                placeholder="Max"
+                min="0"
+                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+              />
+            </div>
           </div>
+
+          {/* Expired In Filter */}
+          <div className="mb-4">
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
+              Expired In (Years)
+            </ThemedText>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={filterMinExpiredIn}
+                onChange={(e) => setFilterMinExpiredIn(e.target.value)}
+                placeholder="Min"
+                min="0"
+                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+              />
+              <input
+                type="number"
+                value={filterMaxExpiredIn}
+                onChange={(e) => setFilterMaxExpiredIn(e.target.value)}
+                placeholder="Max"
+                min="0"
+                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+              />
+            </div>
+          </div>
+
+          {/* Clear Filters Button */}
+          <button
+            onClick={clearFilters}
+            className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium cursor-pointer"
+          >
+            Clear All Filters
+          </button>
         </div>
       )}
 

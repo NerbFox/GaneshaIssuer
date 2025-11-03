@@ -674,7 +674,6 @@ export function exportPublicKeyPem(publicKeyBytes: Uint8Array): string {
   let uncompressedKey = publicKeyBytes;
   if (publicKeyBytes.length === 33) {
     // Convert compressed to uncompressed
-    const privateKeyForConversion = new Uint8Array(32); // dummy for conversion
     uncompressedKey = p256.getPublicKey(publicKeyBytes, false);
   }
 
@@ -704,10 +703,7 @@ export type DIDEntityType = 'u' | 'i'; // 'u' = user, 'i' = institution
 export function generateDID(publicKey: Uint8Array, entityType: DIDEntityType = 'i'): string {
   // Convert public key to base64url (URL-safe, no padding)
   const base64 = btoa(String.fromCharCode(...publicKey));
-  const base64url = base64
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
+  const base64url = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
   return `did:${DID_METHOD}:${entityType}${base64url}`;
 }
@@ -736,12 +732,10 @@ export function parseDID(did: string): {
   let publicKey: Uint8Array | null = null;
   try {
     // Convert base64url to base64
-    const base64 = identifier
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
+    const base64 = identifier.replace(/-/g, '+').replace(/_/g, '/');
     const padding = '='.repeat((4 - (base64.length % 4)) % 4);
     const binaryString = atob(base64 + padding);
-    publicKey = Uint8Array.from(binaryString, char => char.charCodeAt(0));
+    publicKey = Uint8Array.from(binaryString, (char) => char.charCodeAt(0));
   } catch {
     // Invalid base64url, leave publicKey as null
   }

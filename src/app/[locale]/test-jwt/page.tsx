@@ -10,14 +10,16 @@ export default function TestJWTPage() {
   const [jwt, setJwt] = useState('');
   const [result, setResult] = useState<{
     valid: boolean;
-    payload: any | null;
+    payload: Record<string, unknown> | null;
     errors: string[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const verifyJWTWithLocalKey = async (token: string): Promise<{
+  const verifyJWTWithLocalKey = async (
+    token: string
+  ): Promise<{
     valid: boolean;
-    payload: any | null;
+    payload: Record<string, unknown> | null;
     errors: string[];
   }> => {
     const errors: string[] = [];
@@ -57,7 +59,9 @@ export default function TestJWTPage() {
         errors: [],
       };
     } catch (error) {
-      errors.push(`Verification error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      errors.push(
+        `Verification error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
       return { valid: false, payload: null, errors };
     }
   };
@@ -151,9 +155,7 @@ export default function TestJWTPage() {
           <div className="mt-8">
             <div
               className={`p-6 rounded-lg border-2 ${
-                result.valid
-                  ? 'bg-green-50 border-green-500'
-                  : 'bg-red-50 border-red-500'
+                result.valid ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'
               }`}
             >
               <div className="flex items-center gap-3 mb-4">
@@ -243,8 +245,8 @@ export default function TestJWTPage() {
               Note:
             </ThemedText>
             <p className="text-blue-800 text-sm">
-              This test uses the public key from localStorage (same as the optimized auth flow).
-              No API calls are made for verification.
+              This test uses the public key from localStorage (same as the optimized auth flow). No
+              API calls are made for verification.
             </p>
           </div>
         </div>

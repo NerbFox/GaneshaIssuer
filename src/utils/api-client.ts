@@ -49,7 +49,10 @@ export async function authenticatedGet(url: string): Promise<Response> {
  * @param body - Request body (will be JSON stringified)
  * @returns Response object
  */
-export async function authenticatedPost(url: string, body: any): Promise<Response> {
+export async function authenticatedPost(
+  url: string,
+  body: Record<string, unknown>
+): Promise<Response> {
   return authenticatedFetch(url, {
     method: 'POST',
     body: JSON.stringify(body),
@@ -63,7 +66,10 @@ export async function authenticatedPost(url: string, body: any): Promise<Respons
  * @param body - Request body (will be JSON stringified)
  * @returns Response object
  */
-export async function authenticatedPut(url: string, body: any): Promise<Response> {
+export async function authenticatedPut(
+  url: string,
+  body: Record<string, unknown>
+): Promise<Response> {
   return authenticatedFetch(url, {
     method: 'PUT',
     body: JSON.stringify(body),
@@ -87,7 +93,10 @@ export async function authenticatedDelete(url: string): Promise<Response> {
  * @param body - Request body (will be JSON stringified)
  * @returns Response object
  */
-export async function authenticatedPatch(url: string, body: any): Promise<Response> {
+export async function authenticatedPatch(
+  url: string,
+  body: Record<string, unknown>
+): Promise<Response> {
   return authenticatedFetch(url, {
     method: 'PATCH',
     body: JSON.stringify(body),
@@ -144,7 +153,10 @@ export async function adminAuthenticatedGet(url: string): Promise<Response> {
  * @param body - Request body (will be JSON stringified)
  * @returns Response object
  */
-export async function adminAuthenticatedPost(url: string, body: any): Promise<Response> {
+export async function adminAuthenticatedPost(
+  url: string,
+  body: Record<string, unknown>
+): Promise<Response> {
   return adminAuthenticatedFetch(url, {
     method: 'POST',
     body: JSON.stringify(body),

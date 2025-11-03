@@ -15,6 +15,7 @@ export interface DataTableProps<T> {
   data: T[];
   columns: Column<T>[];
   onFilter?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  filterButtonRef?: React.RefObject<HTMLButtonElement | null>;
   searchPlaceholder?: string;
   onSearch?: (value: string) => void;
   topRightButton?: {
@@ -22,8 +23,9 @@ export interface DataTableProps<T> {
     onClick: () => void;
     icon?: ReactNode;
   };
+  topRightButtons?: ReactNode; // New prop for custom buttons
   enableSelection?: boolean;
-  onSelectionChange?: (selectedIds: number[]) => void;
+  onSelectionChange?: (selectedIds: number[], selectedIdValues?: (string | number)[]) => void;
   totalCount?: number;
   rowsPerPageOptions?: number[];
   idKey?: keyof T; // Key to use for the ID column (e.g., 'id')
@@ -38,9 +40,11 @@ export function DataTable<T>({
   data,
   columns,
   onFilter,
+  filterButtonRef,
   searchPlaceholder = 'Search...',
   onSearch,
   topRightButton,
+  topRightButtons,
   enableSelection = true,
   onSelectionChange,
   totalCount,
@@ -52,7 +56,7 @@ export function DataTable<T>({
   onDragEnd,
   draggedIndex,
 }: DataTableProps<T>) {
-  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -123,26 +127,50 @@ export function DataTable<T>({
     if (selectAll) {
       setSelectedRows(new Set());
       setSelectAll(false);
-      onSelectionChange?.([]);
+      onSelectionChange?.([], []);
     } else {
-      const allIds = paginatedData.map((_, index) => (currentPage - 1) * rowsPerPage + index);
-      setSelectedRows(new Set(allIds));
-      setSelectAll(true);
-      onSelectionChange?.(allIds);
+      // Get ID values if idKey is provided
+      if (idKey) {
+        const allIdValues = paginatedData.map((row) => row[idKey] as string | number);
+        const allIndices = paginatedData.map((_, index) => (currentPage - 1) * rowsPerPage + index);
+        setSelectedRows(new Set(allIdValues));
+        setSelectAll(true);
+        onSelectionChange?.(allIndices, allIdValues);
+      } else {
+        const allIndices = paginatedData.map((_, index) => (currentPage - 1) * rowsPerPage + index);
+        setSelectedRows(new Set(allIndices));
+        setSelectAll(true);
+        onSelectionChange?.(allIndices, allIndices);
+      }
     }
   };
 
   const handleSelectRow = (index: number) => {
-    const actualIndex = (currentPage - 1) * rowsPerPage + index;
+    const row = paginatedData[index];
+    const rowId = idKey ? (row[idKey] as string | number) : (currentPage - 1) * rowsPerPage + index;
+
     const newSelected = new Set(selectedRows);
-    if (newSelected.has(actualIndex)) {
-      newSelected.delete(actualIndex);
+    if (newSelected.has(rowId)) {
+      newSelected.delete(rowId);
     } else {
-      newSelected.add(actualIndex);
+      newSelected.add(rowId);
     }
     setSelectedRows(newSelected);
     setSelectAll(newSelected.size === paginatedData.length);
-    onSelectionChange?.(Array.from(newSelected));
+
+    // Convert selected IDs back to indices for backwards compatibility
+    if (idKey) {
+      const selectedIndices: number[] = [];
+      paginatedData.forEach((row, idx) => {
+        const id = row[idKey] as string | number;
+        if (newSelected.has(id)) {
+          selectedIndices.push((currentPage - 1) * rowsPerPage + idx);
+        }
+      });
+      onSelectionChange?.(selectedIndices, Array.from(newSelected));
+    } else {
+      onSelectionChange?.(Array.from(newSelected) as number[], Array.from(newSelected));
+    }
   };
 
   const handleSearchChange = (value: string) => {
@@ -171,13 +199,14 @@ export function DataTable<T>({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Top Controls */}
       <div className="flex items-center justify-between px-4 pt-4 bg-gray-50">
         <div className="flex items-center gap-3">
           {/* Filter Button */}
           {onFilter && (
             <button
+              ref={filterButtonRef}
               onClick={(e) => onFilter(e)}
               className="p-2 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-colors cursor-pointer"
               title="Filter"
@@ -223,16 +252,18 @@ export function DataTable<T>({
           </div>
         </div>
 
-        {/* Top Right Button */}
-        {topRightButton && (
-          <button
-            onClick={topRightButton.onClick}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
-          >
-            {topRightButton.icon}
-            {topRightButton.label}
-          </button>
-        )}
+        {/* Top Right Buttons */}
+        {topRightButtons
+          ? topRightButtons
+          : topRightButton && (
+              <button
+                onClick={topRightButton.onClick}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
+              >
+                {topRightButton.icon}
+                {topRightButton.label}
+              </button>
+            )}
       </div>
 
       {/* Table */}
@@ -334,6 +365,9 @@ export function DataTable<T>({
               const isDragging = draggedIndex === actualIndex;
               // Use idKey if available, otherwise use index
               const rowKey = idKey ? String(row[idKey]) : `row-${actualIndex}`;
+              const rowId = idKey ? (row[idKey] as string | number) : actualIndex;
+              const isSelected = selectedRows.has(rowId);
+
               return (
                 <tr
                   key={rowKey}
@@ -342,7 +376,7 @@ export function DataTable<T>({
                   onDragOver={(e) => enableDragDrop && onDragOver?.(e, actualIndex)}
                   onDragEnd={() => enableDragDrop && onDragEnd?.()}
                   className={`hover:bg-gray-50 transition-colors ${
-                    selectedRows.has(actualIndex) ? 'bg-blue-50' : ''
+                    isSelected ? 'bg-blue-50' : ''
                   } ${isDragging ? 'opacity-50' : ''} ${enableDragDrop ? 'cursor-move' : ''}`}
                 >
                   {/* Checkbox Cell */}
@@ -350,7 +384,7 @@ export function DataTable<T>({
                     <td className="px-6 py-4">
                       <input
                         type="checkbox"
-                        checked={selectedRows.has(actualIndex)}
+                        checked={isSelected}
                         onChange={() => handleSelectRow(paginatedIndex)}
                         className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
                       />
@@ -378,9 +412,7 @@ export function DataTable<T>({
 
                   {/* # Cell */}
                   <td className="px-6 py-4">
-                    <ThemedText className="text-sm text-gray-900">
-                      {actualIndex + 1}
-                    </ThemedText>
+                    <ThemedText className="text-sm text-gray-900">{actualIndex + 1}</ThemedText>
                   </td>
 
                   {/* Dynamic Cells */}
