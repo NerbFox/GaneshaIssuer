@@ -57,6 +57,7 @@ export const API_ENDPOINTS = {
     DETAIL: (id: string) => `/api/v1/credentials/${id}`,
     GET_REQUESTS: '/api/v1/credentials/get-requests',
     ISSUE_VC: '/api/v1/credentials/issue-vc',
+    ISSUER_HISTORY: '/api/v1/credentials/issuer-history',
   },
 };
 

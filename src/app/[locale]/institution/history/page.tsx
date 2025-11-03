@@ -6,37 +6,35 @@ import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
-import { API_ENDPOINTS, buildApiUrlWithParams } from '@/utils/api';
+import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
+import { authenticatedGet } from '@/utils/api-client';
 
-interface IssueRequest {
+interface HistoryRequest {
   id: string;
-  encrypted_body: string;
+  request_type: string;
   issuer_did: string;
   holder_did: string;
-  version: number;
   status: string;
+  encrypted_body: string;
   createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
 }
 
 interface ApiResponse {
   success: boolean;
   message: string;
   data: {
-    message: string;
     count: number;
-    data: IssueRequest[];
+    requests: HistoryRequest[];
   };
 }
 
 interface HistoryActivity {
   id: string;
-  activityType: 'Issued' | 'Revoked';
-  credentialType: string;
-  targetDid: string;
-  timestamp: string;
-  status: 'APPROVED' | 'REJECTED';
+  date: string;
+  requesterDid: string;
+  requestType: string;
+  actionType: string;
+  status: string;
 }
 
 export default function HistoryPage() {
@@ -45,8 +43,8 @@ export default function HistoryPage() {
   const [activities, setActivities] = useState<HistoryActivity[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<HistoryActivity[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filterActivityType, setFilterActivityType] = useState<
-    'all' | 'Issued' | 'Revoked'
+  const [filterActionType, setFilterActionType] = useState<
+    'all' | 'PENDING' | 'APPROVED' | 'REJECTED'
   >('all');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
@@ -56,23 +54,7 @@ export default function HistoryPage() {
   const filterModalRef = useRef<HTMLDivElement>(null);
 
   const totalActivities = activities.length;
-  const approvedCount = activities.filter((a) => a.status === 'APPROVED').length;
-
-  // Helper function to parse encrypted_body
-  const parseEncryptedBody = (
-    encryptedBody: string
-  ): { schema_id: string; schema_version: number } | null => {
-    try {
-      const parsed = JSON.parse(encryptedBody);
-      return {
-        schema_id: parsed.schema_id || '',
-        schema_version: parsed.schema_version || 1,
-      };
-    } catch (error) {
-      console.error('Failed to parse encrypted_body:', error);
-      return null;
-    }
-  };
+  const approvedCount = activities.filter((a) => a.actionType === 'APPROVED').length;
 
   // Check authentication with JWT verification on component mount
   useEffect(() => {
@@ -86,7 +68,7 @@ export default function HistoryPage() {
     checkAuth();
   }, [router]);
 
-  // Fetch APPROVED and REJECTED requests from API
+  // Fetch history from issuer-history API endpoint
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -98,17 +80,11 @@ export default function HistoryPage() {
           throw new Error('Institution DID not found. Please log in again.');
         }
 
-        const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIAL.GET_REQUESTS, {
-          type: 'ISSUANCE',
+        const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIAL.ISSUER_HISTORY, {
           issuer_did: issuerDid,
         });
 
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            accept: 'application/json',
-          },
-        });
+        const response = await authenticatedGet(url);
 
         if (!response.ok) {
           throw new Error('Failed to fetch history');
@@ -116,26 +92,18 @@ export default function HistoryPage() {
 
         const apiResponse: ApiResponse = await response.json();
 
-        // Extract the actual data array from nested structure
-        const requestsData = apiResponse.data.data;
-
-        // Filter to show only APPROVED and REJECTED requests
-        const historyRequests = requestsData.filter(
-          (r) => r.status === 'APPROVED' || r.status === 'REJECTED'
-        );
+        // Extract the requests array
+        const requestsData = apiResponse.data.requests;
 
         // Transform to HistoryActivity format
-        const transformedActivities: HistoryActivity[] = historyRequests.map((request) => {
-          const parsedBody = parseEncryptedBody(request.encrypted_body);
-          const schemaId = parsedBody?.schema_id || 'Unknown Schema';
-
+        const transformedActivities: HistoryActivity[] = requestsData.map((request) => {
           return {
             id: request.id,
-            activityType: request.status === 'APPROVED' ? 'Issued' : 'Revoked',
-            credentialType: schemaId,
-            targetDid: request.holder_did,
-            timestamp: request.updatedAt,
-            status: request.status as 'APPROVED' | 'REJECTED',
+            date: request.createdAt,
+            requesterDid: request.holder_did,
+            requestType: request.request_type,
+            actionType: request.status,
+            status: request.status,
           };
         });
 
@@ -177,9 +145,9 @@ export default function HistoryPage() {
     const filtered = activities.filter((activity) => {
       const searchLower = value.toLowerCase();
       return (
-        activity.activityType.toLowerCase().includes(searchLower) ||
-        activity.credentialType.toLowerCase().includes(searchLower) ||
-        activity.targetDid.toLowerCase().includes(searchLower)
+        activity.requestType.toLowerCase().includes(searchLower) ||
+        activity.actionType.toLowerCase().includes(searchLower) ||
+        activity.requesterDid.toLowerCase().includes(searchLower)
       );
     });
     setFilteredActivities(filtered);
@@ -195,42 +163,42 @@ export default function HistoryPage() {
   };
 
   const applyFilters = (
-    activityType: 'all' | 'Issued' | 'Revoked',
+    actionType: 'all' | 'PENDING' | 'APPROVED' | 'REJECTED',
     dateFrom: string,
     dateTo: string
   ) => {
     let filtered = activities;
 
-    if (activityType !== 'all') {
-      filtered = filtered.filter((activity) => activity.activityType === activityType);
+    if (actionType !== 'all') {
+      filtered = filtered.filter((activity) => activity.actionType === actionType);
     }
 
     if (dateFrom) {
-      filtered = filtered.filter((activity) => new Date(activity.timestamp) >= new Date(dateFrom));
+      filtered = filtered.filter((activity) => new Date(activity.date) >= new Date(dateFrom));
     }
 
     if (dateTo) {
-      filtered = filtered.filter((activity) => new Date(activity.timestamp) <= new Date(dateTo));
+      filtered = filtered.filter((activity) => new Date(activity.date) <= new Date(dateTo));
     }
 
     setFilteredActivities(filtered);
   };
 
-  const handleActivityTypeChange = (
-    activityType: 'all' | 'Issued' | 'Revoked'
+  const handleActionTypeChange = (
+    actionType: 'all' | 'PENDING' | 'APPROVED' | 'REJECTED'
   ) => {
-    setFilterActivityType(activityType);
-    applyFilters(activityType, filterDateFrom, filterDateTo);
+    setFilterActionType(actionType);
+    applyFilters(actionType, filterDateFrom, filterDateTo);
   };
 
   const handleDateFromChange = (dateFrom: string) => {
     setFilterDateFrom(dateFrom);
-    applyFilters(filterActivityType, dateFrom, filterDateTo);
+    applyFilters(filterActionType, dateFrom, filterDateTo);
   };
 
   const handleDateToChange = (dateTo: string) => {
     setFilterDateTo(dateTo);
-    applyFilters(filterActivityType, filterDateFrom, dateTo);
+    applyFilters(filterActionType, filterDateFrom, dateTo);
   };
 
   const handleView = (id: string) => {
@@ -238,100 +206,95 @@ export default function HistoryPage() {
     // TODO: Implement view activity details
   };
 
-  const getActivityTypeColor = (type: string) => {
+  const getActionTypeColor = (type: string) => {
     switch (type) {
-      case 'Issued':
-        return 'bg-green-100 text-green-700';
-      case 'Revoked':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
       case 'APPROVED':
         return 'bg-green-100 text-green-700';
       case 'REJECTED':
         return 'bg-red-100 text-red-700';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-700';
       default:
         return 'bg-gray-100 text-gray-700';
     }
   };
 
-  const formatDateTime = (dateString: string) => {
+  const getRequestTypeColor = (type: string) => {
+    switch (type.toUpperCase()) {
+      case 'ISSUANCE':
+        return 'bg-blue-100 text-blue-700';
+      case 'RENEWAL':
+        return 'bg-purple-100 text-purple-700';
+      case 'UPDATE':
+        return 'bg-cyan-100 text-cyan-700';
+      case 'REVOCATION':
+        return 'bg-orange-100 text-orange-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
     });
+  };
+
+  const truncateDid = (did: string, maxLength: number = 25): string => {
+    if (did.length <= maxLength) {
+      return did;
+    }
+    return did.substring(0, maxLength) + '...';
+  };
+
+  const formatText = (text: string): string => {
+    return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
   };
 
   const columns: Column<HistoryActivity>[] = [
     {
-      id: 'activityType',
-      label: 'ACTIVITY TYPE',
-      sortKey: 'activityType',
+      id: 'date',
+      label: 'DATE',
+      sortKey: 'date',
       render: (row) => (
-        <span
-          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getActivityTypeColor(row.activityType)}`}
-        >
-          {row.activityType}
-        </span>
+        <ThemedText className="text-sm text-gray-900">{formatDate(row.date)}</ThemedText>
       ),
     },
     {
-      id: 'credentialType',
-      label: 'CREDENTIAL TYPE',
-      sortKey: 'credentialType',
-      render: (row) => (
-        <ThemedText className="text-sm font-medium text-gray-900">{row.credentialType}</ThemedText>
-      ),
-    },
-    {
-      id: 'targetDid',
-      label: 'TARGET DID',
-      sortKey: 'targetDid',
+      id: 'requesterDid',
+      label: 'REQUESTER DID',
+      sortKey: 'requesterDid',
       render: (row) => (
         <ThemedText className="text-sm text-gray-900">
-          {row.targetDid.substring(0, 25)}...
+          {truncateDid(row.requesterDid)}
         </ThemedText>
       ),
     },
     {
-      id: 'timestamp',
-      label: 'TIMESTAMP',
-      sortKey: 'timestamp',
-      render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{formatDateTime(row.timestamp)}</ThemedText>
-      ),
-    },
-    {
-      id: 'status',
-      label: 'STATUS',
-      sortKey: 'status',
+      id: 'requestType',
+      label: 'REQUEST TYPE',
+      sortKey: 'requestType',
       render: (row) => (
         <span
-          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(row.status)}`}
+          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRequestTypeColor(row.requestType)}`}
         >
-          {row.status}
+          {formatText(row.requestType)}
         </span>
       ),
     },
     {
-      id: 'action',
-      label: 'ACTION',
+      id: 'actionType',
+      label: 'ACTION TYPE',
+      sortKey: 'actionType',
       render: (row) => (
-        <button
-          onClick={() => handleView(row.id)}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+        <span
+          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getActionTypeColor(row.actionType)}`}
         >
-          VIEW
-        </button>
+          {formatText(row.actionType)}
+        </span>
       ),
     },
   ];
@@ -355,44 +318,42 @@ export default function HistoryPage() {
           History
         </ThemedText>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-              <ThemedText className="text-gray-600">Loading history...</ThemedText>
-            </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
+          <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+            <ThemedText className="text-sm text-gray-600 mb-2">Total Activities</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              {totalActivities}
+            </ThemedText>
           </div>
-        ) : (
-          <>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
-              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Total Activities</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {totalActivities}
-                </ThemedText>
-              </div>
-              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Approved Requests</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {approvedCount}
-                </ThemedText>
-              </div>
-            </div>
+          <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+            <ThemedText className="text-sm text-gray-600 mb-2">Approved Requests</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              {approvedCount}
+            </ThemedText>
+          </div>
+        </div>
 
-            {/* Data Table */}
-            <DataTable
-              data={filteredActivities}
-              columns={columns}
-              onFilter={handleFilter}
-              searchPlaceholder="Search..."
-              onSearch={handleSearch}
-              enableSelection={true}
-              totalCount={filteredActivities.length}
-              rowsPerPageOptions={[5, 10, 25, 50, 100]}
-              idKey="id"
-            />
-          </>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        )}
+
+        {/* Data Table */}
+        {!isLoading && (
+          <DataTable
+            data={filteredActivities}
+            columns={columns}
+            onFilter={handleFilter}
+            searchPlaceholder="Search..."
+            onSearch={handleSearch}
+            enableSelection={true}
+            totalCount={filteredActivities.length}
+            rowsPerPageOptions={[5, 10, 25, 50, 100]}
+            idKey="id"
+          />
         )}
       </div>
 
@@ -425,23 +386,24 @@ export default function HistoryPage() {
             </button>
           </div>
 
-          {/* Activity Type Filter */}
+          {/* Action Type Filter */}
           <div className="mb-4">
             <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              Activity Type
+              Action Type
             </ThemedText>
             <select
-              value={filterActivityType}
+              value={filterActionType}
               onChange={(e) =>
-                handleActivityTypeChange(
-                  e.target.value as 'all' | 'Issued' | 'Revoked'
+                handleActionTypeChange(
+                  e.target.value as 'all' | 'PENDING' | 'APPROVED' | 'REJECTED'
                 )
               }
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             >
-              <option value="all">All Activities</option>
-              <option value="Issued">Issued</option>
-              <option value="Revoked">Revoked</option>
+              <option value="all">All Actions</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
             </select>
           </div>
 
