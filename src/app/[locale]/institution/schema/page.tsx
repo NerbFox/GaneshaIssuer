@@ -54,8 +54,10 @@ export default function SchemaPage() {
   const [schemas, setSchemas] = useState<Schema[]>([]);
   const [filteredSchemas, setFilteredSchemas] = useState<Schema[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'Active' | 'Inactive'>('all');
-  const [filterSchemaId, setFilterSchemaId] = useState('');
+  const [searchValue, setSearchValue] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [filterMinAttributes, setFilterMinAttributes] = useState('');
+  const [filterMaxAttributes, setFilterMaxAttributes] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [showCreateSchemaModal, setShowCreateSchemaModal] = useState(false);
   const [showUpdateSchemaModal, setShowUpdateSchemaModal] = useState(false);
@@ -70,6 +72,7 @@ export default function SchemaPage() {
   ); // Track which bulk action is in progress
 
   const filterModalRef = useRef<HTMLDivElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
 
   const activeCount = schemas.filter((s) => s.isActive === true).length;
 
@@ -106,24 +109,7 @@ export default function SchemaPage() {
 
       // Update schemas state
       setSchemas(transformedSchemas);
-
-      // Apply filters to the new data
-      const schemasToFilter = transformedSchemas;
-      let filtered = schemasToFilter;
-
-      if (filterStatus !== 'all') {
-        filtered = filtered.filter((schema) => schema.isActive === true || false);
-      }
-
-      if (filterSchemaId) {
-        filtered = filtered.filter((schema) =>
-          schema.id.toLowerCase().includes(filterSchemaId.toLowerCase())
-        );
-      }
-
-      // Update filtered schemas state
-      setFilteredSchemas(filtered);
-
+      // Don't apply filters here - let the useEffect handle it
       return transformedSchemas;
     } catch (error) {
       console.error('Error refreshing schemas:', error);
@@ -212,13 +198,31 @@ export default function SchemaPage() {
     };
   }, [showFilterModal]);
 
+  // Update filter modal position when scrolling
+  useEffect(() => {
+    const updateFilterPosition = () => {
+      if (showFilterModal && filterButtonRef.current) {
+        const rect = filterButtonRef.current.getBoundingClientRect();
+        setFilterButtonPosition({
+          top: rect.bottom + 8,
+          left: rect.left,
+        });
+      }
+    };
+
+    if (showFilterModal) {
+      window.addEventListener('scroll', updateFilterPosition, true);
+      window.addEventListener('resize', updateFilterPosition);
+    }
+
+    return () => {
+      window.removeEventListener('scroll', updateFilterPosition, true);
+      window.removeEventListener('resize', updateFilterPosition);
+    };
+  }, [showFilterModal]);
+
   const handleSearch = (value: string) => {
-    const filtered = schemas.filter(
-      (schema) =>
-        schema.schemaName.toLowerCase().includes(value.toLowerCase()) ||
-        schema.id.toLowerCase().includes(value.toLowerCase())
-    );
-    setFilteredSchemas(filtered);
+    setSearchValue(value);
   };
 
   const handleFilter = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -230,35 +234,55 @@ export default function SchemaPage() {
     setShowFilterModal(true);
   };
 
-  const applyFilters = (
-    status: 'all' | 'Active' | 'Inactive',
-    schemaId: string,
-    sourceSchemas?: Schema[]
-  ) => {
-    const schemasToFilter = sourceSchemas || schemas;
-    let filtered = schemasToFilter;
+  const applyFilters = () => {
+    let filtered = schemas;
 
-    if (status !== 'all') {
-      filtered = filtered.filter((schema) => schema.isActive === true || false);
+    // Search filter (applies to schema name and ID)
+    if (searchValue.trim()) {
+      filtered = filtered.filter(
+        (schema) =>
+          schema.schemaName.toLowerCase().includes(searchValue.toLowerCase()) ||
+          schema.id.toLowerCase().includes(searchValue.toLowerCase())
+      );
     }
 
-    if (schemaId) {
-      filtered = filtered.filter((schema) =>
-        schema.id.toLowerCase().includes(schemaId.toLowerCase())
-      );
+    // Status filter
+    if (filterStatus === 'active') {
+      filtered = filtered.filter((schema) => schema.isActive === true);
+    } else if (filterStatus === 'inactive') {
+      filtered = filtered.filter((schema) => schema.isActive === false);
+    }
+
+    // Min attributes filter
+    if (filterMinAttributes) {
+      const minAttr = parseInt(filterMinAttributes);
+      if (!isNaN(minAttr)) {
+        filtered = filtered.filter((schema) => schema.attributes >= minAttr);
+      }
+    }
+
+    // Max attributes filter
+    if (filterMaxAttributes) {
+      const maxAttr = parseInt(filterMaxAttributes);
+      if (!isNaN(maxAttr)) {
+        filtered = filtered.filter((schema) => schema.attributes <= maxAttr);
+      }
     }
 
     setFilteredSchemas(filtered);
   };
 
-  const handleStatusChange = (status: 'all' | 'Active' | 'Inactive') => {
-    setFilterStatus(status);
-    applyFilters(status, filterSchemaId);
-  };
+  // Apply filters whenever filter values change
+  useEffect(() => {
+    applyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchValue, filterStatus, filterMinAttributes, filterMaxAttributes, schemas]);
 
-  const handleSchemaIdChange = (schemaId: string) => {
-    setFilterSchemaId(schemaId);
-    applyFilters(filterStatus, schemaId);
+  const clearFilters = () => {
+    setSearchValue('');
+    setFilterStatus('all');
+    setFilterMinAttributes('');
+    setFilterMaxAttributes('');
   };
 
   const handleUpdateSchema = async (schemaId: string, version: number) => {
@@ -757,6 +781,7 @@ export default function SchemaPage() {
               data={filteredSchemas}
               columns={columns}
               onFilter={handleFilter}
+              filterButtonRef={filterButtonRef}
               searchPlaceholder="Search..."
               onSearch={handleSearch}
               topRightButtons={
@@ -870,7 +895,7 @@ export default function SchemaPage() {
       {showFilterModal && (
         <div
           ref={filterModalRef}
-          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 p-6 w-80 z-50"
+          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 p-6 w-80 z-30"
           style={{
             top: `${filterButtonPosition.top}px`,
             left: `${filterButtonPosition.left}px`,
@@ -900,28 +925,47 @@ export default function SchemaPage() {
             <ThemedText className="block text-sm font-medium text-gray-900 mb-2">Status</ThemedText>
             <select
               value={filterStatus}
-              onChange={(e) => handleStatusChange(e.target.value as 'all' | 'Active' | 'Inactive')}
+              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
             >
               <option value="all">All</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
             </select>
           </div>
 
-          {/* Schema ID Filter */}
-          <div>
+          {/* Attribute Count Filter */}
+          <div className="mb-4">
             <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              Schema ID
+              Number of Attributes
             </ThemedText>
-            <input
-              type="text"
-              value={filterSchemaId}
-              onChange={(e) => handleSchemaIdChange(e.target.value)}
-              placeholder="Enter Schema ID"
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm placeholder:text-gray-500"
-            />
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={filterMinAttributes}
+                onChange={(e) => setFilterMinAttributes(e.target.value)}
+                placeholder="Min"
+                min="0"
+                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+              />
+              <input
+                type="number"
+                value={filterMaxAttributes}
+                onChange={(e) => setFilterMaxAttributes(e.target.value)}
+                placeholder="Max"
+                min="0"
+                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+              />
+            </div>
           </div>
+
+          {/* Clear Filters Button */}
+          <button
+            onClick={clearFilters}
+            className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium cursor-pointer"
+          >
+            Clear All Filters
+          </button>
         </div>
       )}
 

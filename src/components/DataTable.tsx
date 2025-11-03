@@ -15,6 +15,7 @@ export interface DataTableProps<T> {
   data: T[];
   columns: Column<T>[];
   onFilter?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  filterButtonRef?: React.RefObject<HTMLButtonElement | null>;
   searchPlaceholder?: string;
   onSearch?: (value: string) => void;
   topRightButton?: {
@@ -39,6 +40,7 @@ export function DataTable<T>({
   data,
   columns,
   onFilter,
+  filterButtonRef,
   searchPlaceholder = 'Search...',
   onSearch,
   topRightButton,
@@ -204,6 +206,7 @@ export function DataTable<T>({
           {/* Filter Button */}
           {onFilter && (
             <button
+              ref={filterButtonRef}
               onClick={(e) => onFilter(e)}
               className="p-2 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-colors cursor-pointer"
               title="Filter"
