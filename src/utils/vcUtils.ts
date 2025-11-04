@@ -1,8 +1,9 @@
 /**
  * Utility functions for Verifiable Credentials
+ * Following W3C VC Data Model standards
  */
 
-import { keccak_256 } from '@noble/hashes/sha3.js';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 export interface VerifiableCredential {
   '@context': string[];
@@ -49,8 +50,11 @@ export function createVC(params: {
 }
 
 /**
- * Hash a Verifiable Credential using Keccak256
+ * Hash a Verifiable Credential using SHA-256
  * Returns a 64-character hex string (without 0x prefix)
+ *
+ * Note: SHA-256 is the standard hash function for W3C Verifiable Credentials
+ * and is used in the Data Integrity proofs specification.
  */
 export function hashVC(vc: VerifiableCredential): string {
   // Convert VC to canonical JSON string (sorted keys for consistency)
@@ -60,8 +64,8 @@ export function hashVC(vc: VerifiableCredential): string {
   const encoder = new TextEncoder();
   const data = encoder.encode(vcString);
 
-  // Hash using Keccak256
-  const hashBytes = keccak_256(data);
+  // Hash using SHA-256 (W3C standard for VCs)
+  const hashBytes = sha256(data);
 
   // Convert Uint8Array to hex string
   let hashHex = '';
