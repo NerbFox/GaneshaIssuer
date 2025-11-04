@@ -286,14 +286,19 @@ export default function UpdateSchemaForm({
         <select
           value={row.type}
           onChange={(e) => handleAttributeChange(row.id, 'type', e.target.value)}
-          className="w-full px-2 py-1 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded text-sm"
+          className="w-full px-2 py-1 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded text-sm cursor-pointer"
         >
-          <option value="string">String</option>
-          <option value="number">Number</option>
-          <option value="boolean">Boolean</option>
-          <option value="date">Date</option>
-          <option value="array">Array</option>
-          <option value="object">Object</option>
+          <option value="string">string</option>
+          <option value="number">number</option>
+          <option value="integer">integer</option>
+          <option value="boolean">boolean</option>
+          <option value="date">date</option>
+          <option value="datetime">datetime</option>
+          <option value="time">time</option>
+          <option value="email">email</option>
+          <option value="url">url</option>
+          <option value="uri">uri</option>
+          <option value="phone">phone</option>
         </select>
       ),
     },
