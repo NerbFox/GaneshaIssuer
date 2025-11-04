@@ -12,6 +12,7 @@ import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey, stringifySignedVC } from '@/utils/vcSigner';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
 import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
+import { decryptWithPrivateKey } from '@/utils/encryptUtils';
 
 interface IssueRequest {
   id: string;
@@ -95,23 +96,42 @@ export default function IssueRequestPage() {
   const [requestAttributes, setRequestAttributes] = useState<
     Record<string, string | number | boolean>
   >({});
+  const [schemaNames, setSchemaNames] = useState<Map<string, string>>(new Map());
+  const [parsedBodies, setParsedBodies] = useState<
+    Map<string, { schema_id: string; schema_version: number } | null>
+  >(new Map());
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
-  // Helper function to parse encrypted_body
-  const parseEncryptedBody = (
+  // Helper function to parse encrypted_body - attempts decryption with private key
+  const parseEncryptedBody = async (
+    encryptedBody: string
+  ): Promise<{ schema_id: string; schema_version: number } | null> => {
+    // Only decrypt if we have a private key available
+    if (typeof window !== 'undefined') {
+      const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
+      if (privateKeyHex) {
+        try {
+          const decryptedBody = await decryptWithPrivateKey(encryptedBody, privateKeyHex);
+          return {
+            schema_id: String(decryptedBody.schema_id || ''),
+            schema_version: Number(decryptedBody.schema_version || 1),
+          };
+        } catch {
+          // Silently handle decryption error - do nothing
+        }
+      }
+    }
+
+    // If no private key available or not in browser, silently return null
+    return null;
+  };
+
+  // Synchronous helper to get cached parsed body
+  const getCachedParsedBody = (
     encryptedBody: string
   ): { schema_id: string; schema_version: number } | null => {
-    try {
-      const parsed = JSON.parse(encryptedBody);
-      return {
-        schema_id: parsed.schema_id || '',
-        schema_version: parsed.schema_version || 1,
-      };
-    } catch (error) {
-      console.error('Failed to parse encrypted_body:', error);
-      return null;
-    }
+    return parsedBodies.get(encryptedBody) || null;
   };
 
   // Check authentication on component mount
@@ -154,6 +174,54 @@ export default function IssueRequestPage() {
         console.log('Fetched requests:', requestsData);
         console.log('Total count:', apiResponse.data.count);
 
+        // Parse and cache all encrypted bodies
+        const parsedBodiesMap = new Map<
+          string,
+          { schema_id: string; schema_version: number } | null
+        >();
+        for (const request of requestsData) {
+          const parsedBody = await parseEncryptedBody(request.encrypted_body);
+          parsedBodiesMap.set(request.encrypted_body, parsedBody);
+        }
+        setParsedBodies(parsedBodiesMap);
+
+        // Extract unique schema IDs from parsed bodies
+        const schemaIds = new Set<string>();
+        for (const [, parsedBody] of parsedBodiesMap.entries()) {
+          if (parsedBody?.schema_id) {
+            schemaIds.add(parsedBody.schema_id);
+          }
+        }
+
+        // Fetch schema names for all unique schema IDs
+        const schemaNameMap = new Map<string, string>();
+        const schemaFetchPromises = Array.from(schemaIds).map(async (schemaId) => {
+          try {
+            // Get schema version from cached parsed bodies or default to version 1
+            const request = requestsData.find((r) => {
+              const parsed = parsedBodiesMap.get(r.encrypted_body);
+              return parsed?.schema_id === schemaId;
+            });
+
+            const parsedBody = parsedBodiesMap.get(request?.encrypted_body || '');
+            const schemaVersion = parsedBody?.schema_version || 1;
+
+            const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, schemaVersion));
+            const schemaResponse = await authenticatedGet(schemaUrl);
+
+            if (schemaResponse.ok) {
+              const schemaData: SchemaApiResponse = await schemaResponse.json();
+              schemaNameMap.set(schemaId, schemaData.data.name);
+            }
+          } catch (err) {
+            console.error(`Failed to fetch schema ${schemaId}:`, err);
+            schemaNameMap.set(schemaId, 'Unknown Schema');
+          }
+        });
+
+        await Promise.all(schemaFetchPromises);
+        setSchemaNames(schemaNameMap);
+
         // Filter to show only PENDING requests
         const pendingRequests = requestsData.filter((r) => r.status === 'PENDING');
         setRequests(pendingRequests);
@@ -170,7 +238,18 @@ export default function IssueRequestPage() {
   }, [isAuthenticated]);
 
   const activeCount = requests.filter((r) => r.status === 'PENDING').length;
-  const expiringCount = 0; // Implement expiring logic based on your requirements
+
+  // Calculate credentials expiring within 24 hours
+  const expiringCount = requests.filter((request) => {
+    const activeUntilDate = new Date(request.createdAt);
+    activeUntilDate.setFullYear(activeUntilDate.getFullYear() + 5); // 5 years from request date
+
+    const now = new Date();
+    const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    // Check if activeUntil is between now and 24 hours from now
+    return activeUntilDate <= twentyFourHoursFromNow && activeUntilDate > now;
+  }).length;
 
   // Close filter modal when clicking outside
   useEffect(() => {
@@ -197,8 +276,8 @@ export default function IssueRequestPage() {
     const filtered = requests.filter((request) => {
       const searchLower = value.toLowerCase();
 
-      // Parse encrypted_body to get schema_id for searching
-      const parsedBody = parseEncryptedBody(request.encrypted_body);
+      // Get cached parsed body to get schema_id for searching
+      const parsedBody = getCachedParsedBody(request.encrypted_body);
       const schemaId = parsedBody?.schema_id || '';
 
       return (
@@ -224,7 +303,7 @@ export default function IssueRequestPage() {
 
     if (schema) {
       filtered = filtered.filter((request) => {
-        const parsedBody = parseEncryptedBody(request.encrypted_body);
+        const parsedBody = getCachedParsedBody(request.encrypted_body);
         const schemaId = parsedBody?.schema_id || '';
         return schemaId.toLowerCase().includes(schema.toLowerCase());
       });
@@ -249,7 +328,7 @@ export default function IssueRequestPage() {
       setIsLoadingSchema(true);
       try {
         // Parse encrypted_body to get schema_id and schema_version
-        const parsedBody = parseEncryptedBody(request.encrypted_body);
+        const parsedBody = await parseEncryptedBody(request.encrypted_body);
 
         if (!parsedBody) {
           throw new Error('Failed to parse encrypted_body');
@@ -299,28 +378,6 @@ export default function IssueRequestPage() {
         }
       } catch (err) {
         console.error('Error fetching schema details:', err);
-        // Use mock data as fallback
-        setSchemaData({
-          id: request.encrypted_body,
-          name: 'KTP Indonesia',
-          version: '1',
-          status: 'Active',
-          expired_in: 0, // Default lifetime
-          attributes: [
-            {
-              name: 'nik',
-              type: 'string',
-              required: true,
-              description: 'Nomor Induk Kependudukan',
-            },
-            { name: 'fullName', type: 'string', required: true, description: 'Full name' },
-            { name: 'placeOfBirth', type: 'string', required: true, description: 'Place of birth' },
-            { name: 'dateOfBirth', type: 'string', required: true, description: 'Date of birth' },
-            { name: 'gender', type: 'string', required: true, description: 'Gender' },
-            { name: 'address', type: 'string', required: true, description: 'Address' },
-            { name: 'citizenship', type: 'string', required: true, description: 'Citizenship' },
-          ],
-        });
         setRequestAttributes({});
       } finally {
         setIsLoadingSchema(false);
@@ -397,8 +454,7 @@ export default function IssueRequestPage() {
 
       // Generate unique vc_id with timestamp and random component
       const timestamp = Date.now();
-      const randomComponent = Math.random().toString(36).substring(2, 10);
-      const vcId = `${schemaData.id}:${selectedRequest.holder_did}:${timestamp}:${randomComponent}`;
+      const vcId = `${schemaData.id}:${selectedRequest.holder_did}:${timestamp}`;
       console.log('Generated unique VC ID:', vcId);
 
       // Prepare request body
@@ -506,7 +562,7 @@ export default function IssueRequestPage() {
       // Generate unique vc_id for rejection tracking
       const timestamp = Date.now();
       const randomComponent = Math.random().toString(36).substring(2, 10);
-      const parsedBody = parseEncryptedBody(request.encrypted_body);
+      const parsedBody = await parseEncryptedBody(request.encrypted_body);
       const schemaId = parsedBody?.schema_id || 'unknown';
       const schemaVersion = parsedBody?.schema_version || 1;
       const vcId = `${schemaId}:${request.holder_did}:${timestamp}:${randomComponent}`;
@@ -594,9 +650,12 @@ export default function IssueRequestPage() {
       .replace(/\//g, '/');
   };
 
-  const calculateActiveUntil = (requestedOn: string): string => {
+  const calculateActiveUntil = (requestedOn: string, expiredIn: number): string => {
     const date = new Date(requestedOn);
-    date.setFullYear(date.getFullYear() + 5);
+    date.setFullYear(date.getFullYear() + 5); // check expiredIn from schema if available
+    if (expiredIn) {
+      date.setSeconds(date.getSeconds() + expiredIn);
+    }
     return formatDate(date.toISOString());
   };
 
@@ -625,14 +684,14 @@ export default function IssueRequestPage() {
   const columns: Column<IssueRequest>[] = [
     {
       id: 'holder_did',
-      label: 'USER DID',
+      label: 'HOLDER DID',
       sortKey: 'holder_did',
       render: (row) => (
         <div className="flex items-center gap-2">
           <ThemedText className="text-sm text-gray-900">{truncateDid(row.holder_did)}</ThemedText>
           <button
             onClick={() => handleCopyDid(row.holder_did, row.id)}
-            className={`relative transition-all duration-200 ${
+            className={`relative transition-all duration-200 cursor-pointer ${
               copiedId === row.id
                 ? 'text-green-500 scale-110'
                 : 'text-blue-500 hover:text-blue-600 hover:scale-110'
@@ -677,9 +736,10 @@ export default function IssueRequestPage() {
       label: 'SCHEMA NAME',
       sortKey: 'encrypted_body',
       render: (row) => {
-        const parsedBody = parseEncryptedBody(row.encrypted_body);
-        const schemaId = parsedBody?.schema_id || row.encrypted_body;
-        return <ThemedText className="text-sm text-gray-900">{schemaId}</ThemedText>;
+        const parsedBody = getCachedParsedBody(row.encrypted_body);
+        const schemaId = parsedBody?.schema_id || '';
+        const schemaName = schemaNames.get(schemaId) || schemaId || 'Unknown Schema';
+        return <ThemedText className="text-sm text-gray-900">{schemaName}</ThemedText>;
       },
     },
     {
@@ -705,11 +765,15 @@ export default function IssueRequestPage() {
       id: 'activeUntil',
       label: 'ACTIVE UNTIL',
       sortKey: 'createdAt',
-      render: (row) => (
-        <ThemedText className="text-sm text-gray-900">
-          {calculateActiveUntil(row.createdAt)}
-        </ThemedText>
-      ),
+      render: (row) => {
+        // Default to 5 years (157680000 seconds) if no schema data available
+        const expiredIn = schemaData?.expired_in || 157680000;
+        return (
+          <ThemedText className="text-sm text-gray-900">
+            {calculateActiveUntil(row.createdAt, expiredIn)}
+          </ThemedText>
+        );
+      },
     },
     {
       id: 'action',
@@ -718,14 +782,14 @@ export default function IssueRequestPage() {
         <div className="flex gap-2">
           <button
             onClick={() => handleReview(row.id)}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
             disabled={row.status !== 'PENDING'}
           >
             REVIEW
           </button>
           <button
             onClick={() => handleReject(row.id)}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
             disabled={row.status !== 'PENDING'}
           >
             REJECT
@@ -816,7 +880,7 @@ export default function IssueRequestPage() {
             </ThemedText>
             <button
               onClick={() => setShowFilterModal(false)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 cursor-pointer"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
