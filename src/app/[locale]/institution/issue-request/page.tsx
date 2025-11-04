@@ -44,6 +44,7 @@ interface SchemaDefinition {
   type: string;
   required: string[];
   properties: Record<string, SchemaProperty>;
+  expired_in: number;
 }
 
 interface SchemaApiResponse {
@@ -73,6 +74,7 @@ interface Schema {
   version: string;
   status: string;
   attributes: SchemaAttribute[];
+  expired_in: number;
 }
 
 export default function IssueRequestPage() {
@@ -284,6 +286,7 @@ export default function IssueRequestPage() {
               version: version.toString(),
               status: isActive ? 'Active' : 'Inactive',
               attributes: attributes,
+              expired_in: schema.expired_in,
             });
 
             // Set empty attributes for now - you can fetch actual values from another endpoint
@@ -302,6 +305,7 @@ export default function IssueRequestPage() {
           name: 'KTP Indonesia',
           version: '1',
           status: 'Active',
+          expired_in: 0, // Default lifetime
           attributes: [
             {
               name: 'nik',
@@ -410,6 +414,7 @@ export default function IssueRequestPage() {
         schema_version: parseInt(schemaData.version),
         vc_hash: vcHash,
         encrypted_body: encryptedBody, // Send signed VC as stringified JSON
+        expired_in: schemaData.expired_in,
       };
 
       // Validate request body
@@ -503,9 +508,27 @@ export default function IssueRequestPage() {
       const randomComponent = Math.random().toString(36).substring(2, 10);
       const parsedBody = parseEncryptedBody(request.encrypted_body);
       const schemaId = parsedBody?.schema_id || 'unknown';
+      const schemaVersion = parsedBody?.schema_version || 1;
       const vcId = `${schemaId}:${request.holder_did}:${timestamp}:${randomComponent}`;
 
       console.log('Generated unique VC ID for rejection:', vcId);
+
+      // Fetch schema details to get expired_in
+      let expiredIn = 0; // Default lifetime
+      try {
+        const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, schemaVersion));
+        const schemaResponse = await authenticatedGet(schemaUrl);
+
+        if (schemaResponse.ok) {
+          const schemaApiData: SchemaApiResponse = await schemaResponse.json();
+          if (schemaApiData.success && schemaApiData.data) {
+            expiredIn = schemaApiData.data.schema.expired_in;
+            console.log('Fetched expired_in from schema:', expiredIn);
+          }
+        }
+      } catch (schemaError) {
+        console.warn('Failed to fetch schema for expired_in, using default:', schemaError);
+      }
 
       // Prepare rejection request body
       const requestBody = {
@@ -515,6 +538,7 @@ export default function IssueRequestPage() {
         action: 'REJECTED',
         request_type: 'ISSUANCE',
         vc_id: vcId,
+        expired_in: expiredIn,
       };
 
       console.log('Rejection request body:', requestBody);
@@ -661,7 +685,7 @@ export default function IssueRequestPage() {
     {
       id: 'request_type',
       label: 'TYPE',
-      render: (row) => (
+      render: () => (
         <span
           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRequestTypeColor('ISSUANCE')}`}
         >
