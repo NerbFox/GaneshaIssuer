@@ -72,6 +72,7 @@ export default function SchemaPage() {
   const [selectedSchema, setSelectedSchema] = useState<Schema | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [togglingSchemas, setTogglingSchemas] = useState<Set<string>>(new Set()); // Track multiple schemas being toggled
   const [selectedSchemaKeys, setSelectedSchemaKeys] = useState<Set<string>>(new Set()); // Track selected schemas by uniqueKey
   const [isBulkToggling, setIsBulkToggling] = useState(false); // Track bulk toggle operation
@@ -146,6 +147,7 @@ export default function SchemaPage() {
     const fetchSchemas = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         const issuerDid = localStorage.getItem('institutionDID');
         if (!issuerDid) {
           throw new Error('Institution DID not found. Please log in again.');
@@ -178,8 +180,9 @@ export default function SchemaPage() {
 
         setSchemas(transformedSchemas);
         setFilteredSchemas(transformedSchemas);
-      } catch (error) {
-        console.error('Error fetching schemas:', error);
+      } catch (err) {
+        console.error('Error fetching schemas:', err);
+        setError(err instanceof Error ? err.message : 'An error occurred');
         // Keep empty array on error
       } finally {
         setIsLoading(false);
@@ -952,8 +955,15 @@ export default function SchemaPage() {
           </div>
         )}
 
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <ThemedText className="text-red-800">Error: {error}</ThemedText>
+          </div>
+        )}
+
         {/* Data Table */}
-        {!isLoading && (
+        {!isLoading && !error && (
           <DataTable
             data={filteredSchemas}
             columns={columns}
