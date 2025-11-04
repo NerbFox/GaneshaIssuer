@@ -26,6 +26,7 @@ export interface DataTableProps<T> {
   topRightButtons?: ReactNode; // New prop for custom buttons
   enableSelection?: boolean;
   onSelectionChange?: (selectedIds: number[], selectedIdValues?: (string | number)[]) => void;
+  onRowClick?: (row: T) => void; // Add row click handler
   totalCount?: number;
   rowsPerPageOptions?: number[];
   idKey?: keyof T; // Key to use for the ID column (e.g., 'id')
@@ -53,6 +54,7 @@ export function DataTable<T>({
   topRightButtons,
   enableSelection = true,
   onSelectionChange,
+  onRowClick,
   totalCount,
   rowsPerPageOptions = [5, 10, 25, 50, 100],
   idKey,
@@ -388,13 +390,14 @@ export function DataTable<T>({
                     onDragStart={() => enableDragDrop && onDragStart?.(actualIndex)}
                     onDragOver={(e) => enableDragDrop && onDragOver?.(e, actualIndex)}
                     onDragEnd={() => enableDragDrop && onDragEnd?.()}
+                    onClick={() => onRowClick?.(row)}
                     className={`hover:bg-gray-50 transition-colors ${
                       isSelected ? 'bg-blue-50' : ''
-                    } ${isDragging ? 'opacity-50' : ''} ${enableDragDrop ? 'cursor-move' : ''}`}
+                    } ${isDragging ? 'opacity-50' : ''} ${enableDragDrop ? 'cursor-move' : onRowClick ? 'cursor-pointer' : ''}`}
                   >
                     {/* Checkbox Cell */}
                     {enableSelection && (
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={isSelected}

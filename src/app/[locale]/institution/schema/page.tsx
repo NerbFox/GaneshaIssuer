@@ -10,6 +10,7 @@ import CreateSchemaForm, { SchemaFormData } from '@/components/CreateSchemaForm'
 import UpdateSchemaForm, {
   SchemaFormData as UpdateSchemaFormData,
 } from '@/components/UpdateSchemaForm';
+import ViewSchemaForm from '@/components/ViewSchemaForm';
 import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { authenticatedFetch, authenticatedGet, authenticatedPost } from '@/utils/api-client';
@@ -67,6 +68,7 @@ export default function SchemaPage() {
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [showCreateSchemaModal, setShowCreateSchemaModal] = useState(false);
   const [showUpdateSchemaModal, setShowUpdateSchemaModal] = useState(false);
+  const [showViewSchemaModal, setShowViewSchemaModal] = useState(false);
   const [selectedSchema, setSelectedSchema] = useState<Schema | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -349,6 +351,41 @@ export default function SchemaPage() {
         };
         setSelectedSchema(schemaWithDetails);
         setShowUpdateSchemaModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching schema details:', error);
+      alert('Failed to load schema details. Please try again.');
+    }
+  };
+
+  const handleViewSchema = async (schemaId: string, version: number) => {
+    try {
+      // Fetch the full schema details from API
+      const response = await authenticatedGet(
+        buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, version))
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch schema details');
+      }
+
+      const result = await response.json();
+      const schemaData = result.data;
+
+      // Find the schema in our list for basic info
+      const schema = schemas.find((s) => s.id === schemaId);
+      if (schema && schemaData) {
+        // Add schema details to the schema object
+        const schemaWithDetails: Schema = {
+          ...schema,
+          schemaDetails: {
+            properties: schemaData.schema.properties,
+            required: schemaData.schema.required,
+          },
+          image_link: schemaData.image_link, // Include image link from API
+        };
+        setSelectedSchema(schemaWithDetails);
+        setShowViewSchemaModal(true);
       }
     } catch (error) {
       console.error('Error fetching schema details:', error);
@@ -828,7 +865,7 @@ export default function SchemaPage() {
         const schemaKey = `${row.id}-${row.version}`;
         const isToggling = togglingSchemas.has(schemaKey);
         return (
-          <div className="flex gap-2">
+          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => handleUpdateSchema(row.id, row.version)}
               disabled={isToggling}
@@ -1023,6 +1060,7 @@ export default function SchemaPage() {
             }
             enableSelection={true}
             onSelectionChange={handleSelectionChange}
+            onRowClick={(row) => handleViewSchema(row.id, row.version)}
             totalCount={filteredSchemas.length}
             rowsPerPageOptions={[5, 10, 25, 50, 100]}
             idKey="uniqueKey"
@@ -1170,6 +1208,43 @@ export default function SchemaPage() {
           }
           imageUrl={selectedSchema?.image_link}
         />
+      </Modal>
+
+      {/* View Schema Modal */}
+      <Modal
+        isOpen={showViewSchemaModal}
+        onClose={() => {
+          setShowViewSchemaModal(false);
+          setSelectedSchema(null);
+        }}
+        title="View Schema"
+      >
+        {selectedSchema && selectedSchema.schemaDetails && (
+          <ViewSchemaForm
+            onClose={() => {
+              setShowViewSchemaModal(false);
+              setSelectedSchema(null);
+            }}
+            schemaData={{
+              id: selectedSchema.id,
+              schemaName: selectedSchema.schemaName.split(' v')[0],
+              version: selectedSchema.version.toString(),
+              expiredIn: selectedSchema.expiredIn,
+              isActive: selectedSchema.isActive ? 'Active' : 'Inactive',
+              lastUpdated: selectedSchema.lastUpdated,
+              attributes: Object.entries(selectedSchema.schemaDetails.properties).map(
+                ([name, config], index) => ({
+                  id: index + 1,
+                  name,
+                  type: (config as { type: string }).type,
+                  description: '',
+                  required: selectedSchema.schemaDetails!.required.includes(name),
+                })
+              ),
+              imageUrl: selectedSchema.image_link,
+            }}
+          />
+        )}
       </Modal>
     </InstitutionLayout>
   );

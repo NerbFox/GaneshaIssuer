@@ -1,0 +1,196 @@
+'use client';
+
+import { ThemedText } from './ThemedText';
+import { DataTable, Column } from './DataTable';
+
+interface Attribute {
+  id: number;
+  name: string;
+  type: string;
+  description: string;
+  required: boolean;
+}
+
+interface ViewSchemaFormProps {
+  onClose: () => void;
+  schemaData: {
+    id: string;
+    schemaName: string;
+    version: string;
+    expiredIn: number;
+    isActive: string;
+    lastUpdated: string;
+    attributes: Attribute[];
+    imageUrl?: string;
+  };
+}
+
+export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormProps) {
+  const columns: Column<Attribute>[] = [
+    {
+      id: 'name',
+      label: 'NAME',
+      sortKey: 'name',
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
+    },
+    {
+      id: 'type',
+      label: 'TYPE',
+      sortKey: 'type',
+      render: (row) => (
+        <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
+          {row.type}
+        </span>
+      ),
+    },
+    {
+      id: 'description',
+      label: 'DESCRIPTION',
+      sortKey: 'description',
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-600">
+          {row.description || <span className="text-gray-400 italic">No description</span>}
+        </ThemedText>
+      ),
+    },
+    {
+      id: 'required',
+      label: 'REQUIRED',
+      sortKey: 'required',
+      render: (row) => (
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+            row.required ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+          }`}
+        >
+          {row.required ? 'Yes' : 'No'}
+        </span>
+      ),
+    },
+  ];
+
+  return (
+    <div className="px-8 py-6">
+      {/* Schema Information Grid */}
+      <div className="grid grid-cols-2 gap-6 mb-6">
+        {/* Schema ID */}
+        <div>
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Schema ID</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+            {schemaData.id}
+          </div>
+        </div>
+
+        {/* Schema Name */}
+        <div>
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Schema Name</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+            {schemaData.schemaName}
+          </div>
+        </div>
+
+        {/* Version */}
+        <div>
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Version</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+            {schemaData.version}
+          </div>
+        </div>
+
+        {/* Expired In */}
+        <div>
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">
+              Expired In (Years)
+            </ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+            {schemaData.expiredIn === 0 ? 'Lifetime' : schemaData.expiredIn}
+          </div>
+        </div>
+
+        {/* Status */}
+        <div>
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+            <span
+              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                schemaData.isActive === 'Active'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-red-100 text-red-700'
+              }`}
+            >
+              {schemaData.isActive}
+            </span>
+          </div>
+        </div>
+
+        {/* Last Updated */}
+        <div>
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Last Updated</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+            {schemaData.lastUpdated}
+          </div>
+        </div>
+      </div>
+
+      {/* VC Background Image */}
+      {schemaData.imageUrl && (
+        <div className="mb-6">
+          <label className="block mb-3">
+            <ThemedText className="text-sm font-semibold text-gray-900">
+              VC Background Image
+            </ThemedText>
+          </label>
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={schemaData.imageUrl}
+              alt="VC Background"
+              className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 shadow-md block bg-gray-50"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Attributes Section */}
+      <div className="mb-6">
+        <div className="mb-4">
+          <ThemedText className="text-sm font-medium text-gray-900">
+            Attributes ({schemaData.attributes.length})
+          </ThemedText>
+        </div>
+
+        <DataTable
+          data={schemaData.attributes}
+          columns={columns}
+          searchPlaceholder="Search attributes..."
+          enableSelection={false}
+          totalCount={schemaData.attributes.length}
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          idKey="id"
+        />
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
+        <button
+          onClick={onClose}
+          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
+        >
+          CLOSE
+        </button>
+      </div>
+    </div>
+  );
+}
