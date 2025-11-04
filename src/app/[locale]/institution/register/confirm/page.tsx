@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import AuthContainer from '@/components/AuthContainer';
