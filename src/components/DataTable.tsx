@@ -373,92 +373,128 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {paginatedData.map((row, paginatedIndex) => {
-              const actualIndex = (currentPage - 1) * rowsPerPage + paginatedIndex;
-              const isDragging = draggedIndex === actualIndex;
-              // Use idKey if available, otherwise use index
-              const rowKey = idKey ? String(row[idKey]) : `row-${actualIndex}`;
-              const rowId = idKey ? (row[idKey] as string | number) : actualIndex;
-              const isSelected = selectedRows.has(rowId);
-              const isExpanded = expandableRows && expandableRows.expandedRowId === rowId;
+            {paginatedData.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={
+                    columns.length + 1 + (enableSelection ? 1 : 0) + (enableDragDrop ? 1 : 0)
+                  }
+                  className="px-6 py-12 text-center"
+                >
+                  <div className="flex flex-col items-center justify-center">
+                    <svg
+                      className="w-16 h-16 text-gray-300 mb-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                      />
+                    </svg>
+                    <ThemedText fontSize={16} fontWeight={600} className="text-gray-500 mb-2">
+                      No data available
+                    </ThemedText>
+                    <ThemedText fontSize={14} className="text-gray-400">
+                      There are currently no items to display
+                    </ThemedText>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              paginatedData.map((row, paginatedIndex) => {
+                const actualIndex = (currentPage - 1) * rowsPerPage + paginatedIndex;
+                const isDragging = draggedIndex === actualIndex;
+                // Use idKey if available, otherwise use index
+                const rowKey = idKey ? String(row[idKey]) : `row-${actualIndex}`;
+                const rowId = idKey ? (row[idKey] as string | number) : actualIndex;
+                const isSelected = selectedRows.has(rowId);
+                const isExpanded = expandableRows && expandableRows.expandedRowId === rowId;
 
-              return (
-                <Fragment key={rowKey}>
-                  <tr
-                    key={rowKey}
-                    draggable={enableDragDrop}
-                    onDragStart={() => enableDragDrop && onDragStart?.(actualIndex)}
-                    onDragOver={(e) => enableDragDrop && onDragOver?.(e, actualIndex)}
-                    onDragEnd={() => enableDragDrop && onDragEnd?.()}
-                    onClick={() => onRowClick?.(row)}
-                    className={`hover:bg-gray-50 transition-colors ${
-                      isSelected ? 'bg-blue-50' : ''
-                    } ${isDragging ? 'opacity-50' : ''} ${enableDragDrop ? 'cursor-move' : onRowClick ? 'cursor-pointer' : ''}`}
-                  >
-                    {/* Checkbox Cell */}
-                    {enableSelection && (
-                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleSelectRow(paginatedIndex)}
-                          className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
-                        />
-                      </td>
-                    )}
-
-                    {/* Drag Handle Cell */}
-                    {enableDragDrop && (
-                      <td className="px-6 py-4">
-                        <svg
-                          className="w-5 h-5 text-gray-400 cursor-move"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 8h16M4 16h16"
+                return (
+                  <Fragment key={rowKey}>
+                    <tr
+                      key={rowKey}
+                      draggable={enableDragDrop}
+                      onDragStart={() => enableDragDrop && onDragStart?.(actualIndex)}
+                      onDragOver={(e) => enableDragDrop && onDragOver?.(e, actualIndex)}
+                      onDragEnd={() => enableDragDrop && onDragEnd?.()}
+                      onClick={() => onRowClick?.(row)}
+                      className={`hover:bg-gray-50 transition-colors ${
+                        isSelected ? 'bg-blue-50' : ''
+                      } ${isDragging ? 'opacity-50' : ''} ${enableDragDrop ? 'cursor-move' : onRowClick ? 'cursor-pointer' : ''}`}
+                    >
+                      {/* Checkbox Cell */}
+                      {enableSelection && (
+                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleSelectRow(paginatedIndex)}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
                           />
-                        </svg>
-                      </td>
-                    )}
+                        </td>
+                      )}
 
-                    {/* # Cell */}
-                    <td className="px-6 py-4">
-                      <ThemedText className="text-sm text-gray-900">{actualIndex + 1}</ThemedText>
-                    </td>
+                      {/* Drag Handle Cell */}
+                      {enableDragDrop && (
+                        <td className="px-6 py-4">
+                          <svg
+                            className="w-5 h-5 text-gray-400 cursor-move"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 8h16M4 16h16"
+                            />
+                          </svg>
+                        </td>
+                      )}
 
-                    {/* Dynamic Cells */}
-                    {columns.map((column) => (
-                      <td key={column.id} className="px-6 py-4">
-                        <ThemedText className="text-sm text-gray-900">
-                          {column.render(row, paginatedIndex)}
-                        </ThemedText>
+                      {/* # Cell */}
+                      <td className="px-6 py-4">
+                        <ThemedText className="text-sm text-gray-900">{actualIndex + 1}</ThemedText>
                       </td>
-                    ))}
-                  </tr>
 
-                  {/* Expandable Row Content */}
-                  {isExpanded && expandableRows && (
-                    <tr key={`${rowKey}-expanded`} className="bg-gray-50">
-                      <td
-                        colSpan={
-                          columns.length + 1 + (enableSelection ? 1 : 0) + (enableDragDrop ? 1 : 0)
-                        }
-                        className="px-6 py-0 overflow-hidden"
-                      >
-                        <div className="animate-slideDown">
-                          <div className="py-6">{expandableRows.renderExpandedContent(row)}</div>
-                        </div>
-                      </td>
+                      {/* Dynamic Cells */}
+                      {columns.map((column) => (
+                        <td key={column.id} className="px-6 py-4">
+                          <ThemedText className="text-sm text-gray-900">
+                            {column.render(row, paginatedIndex)}
+                          </ThemedText>
+                        </td>
+                      ))}
                     </tr>
-                  )}
-                </Fragment>
-              );
-            })}
+
+                    {/* Expandable Row Content */}
+                    {isExpanded && expandableRows && (
+                      <tr key={`${rowKey}-expanded`} className="bg-gray-50">
+                        <td
+                          colSpan={
+                            columns.length +
+                            1 +
+                            (enableSelection ? 1 : 0) +
+                            (enableDragDrop ? 1 : 0)
+                          }
+                          className="px-6 py-0 overflow-hidden"
+                        >
+                          <div className="animate-slideDown">
+                            <div className="py-6">{expandableRows.renderExpandedContent(row)}</div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
