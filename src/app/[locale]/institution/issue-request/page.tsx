@@ -470,7 +470,7 @@ export default function IssueRequestPage() {
         schema_version: parseInt(schemaData.version),
         vc_hash: vcHash,
         encrypted_body: encryptedBody, // Send signed VC as stringified JSON
-        expired_in: schemaData.expired_in,
+        expired_in: schemaData.expired_in || 0, // Default to 0 (lifetime) if null or empty
       };
 
       // Validate request body
