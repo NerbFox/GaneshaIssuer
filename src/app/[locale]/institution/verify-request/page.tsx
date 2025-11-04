@@ -31,7 +31,6 @@ export default function VerifyRequestPage() {
   const filterModalRef = useRef<HTMLDivElement>(null);
 
   const pendingCount = requests.filter((r) => r.status === 'Pending').length;
-  const verifiedCount = requests.filter((r) => r.status === 'Verified').length;
 
   // Check authentication with JWT verification on component mount
   useEffect(() => {
