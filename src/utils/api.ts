@@ -56,8 +56,9 @@ export const API_ENDPOINTS = {
     BASE: '/api/v1/credentials',
     DETAIL: (id: string) => `/api/v1/credentials/${id}`,
     GET_REQUESTS: '/api/v1/credentials/get-requests',
+    REQUESTS: '/api/v1/credentials/requests',
     ISSUE_VC: '/api/v1/credentials/issue-vc',
-    ISSUER_HISTORY: '/api/v1/credentials/issuer-history', 
+    ISSUER_HISTORY: '/api/v1/credentials/issuer-history',
   },
 };
 
@@ -75,9 +76,9 @@ export const buildApiUrlWithParams = (
   endpoint: string,
   params?: Record<string, string | number | boolean>
 ): string => {
-  const url = buildApiUrl(endpoint);
+  const baseUrl = `${getApiUrl()}${endpoint}`;
   if (!params || Object.keys(params).length === 0) {
-    return url;
+    return baseUrl;
   }
 
   const searchParams = new URLSearchParams();
@@ -85,5 +86,5 @@ export const buildApiUrlWithParams = (
     searchParams.append(key, String(value));
   });
 
-  return `${url}?${searchParams.toString()}`;
+  return `${baseUrl}?${searchParams.toString()}`;
 };

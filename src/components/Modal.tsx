@@ -8,6 +8,7 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   maxWidth?: string;
+  minHeight?: string;
 }
 
 export default function Modal({
@@ -16,6 +17,7 @@ export default function Modal({
   title,
   children,
   maxWidth = '900px',
+  minHeight = '600px',
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -43,7 +45,7 @@ export default function Modal({
       <div
         ref={modalRef}
         className="relative bg-white rounded-2xl shadow-2xl overflow-hidden"
-        style={{ maxWidth, width: '90%', maxHeight: '90vh' }}
+        style={{ maxWidth, width: '90%', maxHeight: '90vh', minHeight }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-6 border-b border-gray-200">

@@ -34,6 +34,12 @@ export interface DataTableProps<T> {
   onDragOver?: (e: React.DragEvent, index: number) => void;
   onDragEnd?: () => void;
   draggedIndex?: number | null;
+  expandableRows?: {
+    expandedRowId: string | number | null;
+    renderExpandedContent: (row: T) => ReactNode;
+  };
+  hideTopControls?: boolean; // Hide search, filter, and top buttons
+  hideBottomControls?: boolean; // Hide pagination and rows per page
 }
 
 export function DataTable<T>({
@@ -55,6 +61,9 @@ export function DataTable<T>({
   onDragOver,
   onDragEnd,
   draggedIndex,
+  expandableRows,
+  hideTopControls = false,
+  hideBottomControls = false,
 }: DataTableProps<T>) {
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
@@ -201,19 +210,38 @@ export function DataTable<T>({
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Top Controls */}
-      <div className="flex items-center justify-between px-4 pt-4 bg-gray-50">
-        <div className="flex items-center gap-3">
-          {/* Filter Button */}
-          {onFilter && (
-            <button
-              ref={filterButtonRef}
-              onClick={(e) => onFilter(e)}
-              className="p-2 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-colors cursor-pointer"
-              title="Filter"
-            >
+      {!hideTopControls && (
+        <div className="flex items-center justify-between px-4 pt-4 bg-gray-50">
+          <div className="flex items-center gap-3">
+            {/* Filter Button */}
+            {onFilter && (
+              <button
+                ref={filterButtonRef}
+                onClick={(e) => onFilter(e)}
+                className="p-2 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-colors cursor-pointer"
+                title="Filter"
+              >
+                <svg
+                  className="w-5 h-5 text-gray-600"
+                  fill="white"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                  />
+                </svg>
+              </button>
+            )}
+
+            {/* Search Bar */}
+            <div className="relative bg-white">
               <svg
-                className="w-5 h-5 text-gray-600"
-                fill="white"
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+                fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
@@ -221,50 +249,33 @@ export function DataTable<T>({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                 />
               </svg>
-            </button>
-          )}
-
-          {/* Search Bar */}
-          <div className="relative bg-white">
-            <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                value={searchValue}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
               />
-            </svg>
-            <input
-              type="text"
-              placeholder={searchPlaceholder}
-              value={searchValue}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
-            />
+            </div>
           </div>
-        </div>
 
-        {/* Top Right Buttons */}
-        {topRightButtons
-          ? topRightButtons
-          : topRightButton && (
-              <button
-                onClick={topRightButton.onClick}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
-              >
-                {topRightButton.icon}
-                {topRightButton.label}
-              </button>
-            )}
-      </div>
+          {/* Top Right Buttons */}
+          {topRightButtons
+            ? topRightButtons
+            : topRightButton && (
+                <button
+                  onClick={topRightButton.onClick}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
+                >
+                  {topRightButton.icon}
+                  {topRightButton.label}
+                </button>
+              )}
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto">
@@ -360,47 +371,17 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {paginatedData.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={
-                    columns.length + (enableSelection ? 1 : 0) + (enableDragDrop ? 1 : 0) + 1
-                  }
-                  className="px-6 py-12 text-center"
-                >
-                  <div className="flex flex-col items-center justify-center text-gray-400">
-                    <svg
-                      className="w-16 h-16 mb-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                      />
-                    </svg>
-                    <ThemedText className="text-lg font-medium text-gray-500 mb-1">
-                      No data available
-                    </ThemedText>
-                    <ThemedText className="text-sm text-gray-400">
-                      There are no items to display
-                    </ThemedText>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              paginatedData.map((row, paginatedIndex) => {
-                const actualIndex = (currentPage - 1) * rowsPerPage + paginatedIndex;
-                const isDragging = draggedIndex === actualIndex;
-                // Use idKey if available, otherwise use index
-                const rowKey = idKey ? String(row[idKey]) : `row-${actualIndex}`;
-                const rowId = idKey ? (row[idKey] as string | number) : actualIndex;
-                const isSelected = selectedRows.has(rowId);
+            {paginatedData.map((row, paginatedIndex) => {
+              const actualIndex = (currentPage - 1) * rowsPerPage + paginatedIndex;
+              const isDragging = draggedIndex === actualIndex;
+              // Use idKey if available, otherwise use index
+              const rowKey = idKey ? String(row[idKey]) : `row-${actualIndex}`;
+              const rowId = idKey ? (row[idKey] as string | number) : actualIndex;
+              const isSelected = selectedRows.has(rowId);
+              const isExpanded = expandableRows && expandableRows.expandedRowId === rowId;
 
-                return (
+              return (
+                <>
                   <tr
                     key={rowKey}
                     draggable={enableDragDrop}
@@ -456,86 +437,104 @@ export function DataTable<T>({
                       </td>
                     ))}
                   </tr>
-                );
-              })
-            )}
+
+                  {/* Expandable Row Content */}
+                  {isExpanded && expandableRows && (
+                    <tr key={`${rowKey}-expanded`} className="bg-gray-50">
+                      <td
+                        colSpan={
+                          columns.length + 1 + (enableSelection ? 1 : 0) + (enableDragDrop ? 1 : 0)
+                        }
+                        className="px-6 py-0 overflow-hidden"
+                      >
+                        <div className="animate-slideDown">
+                          <div className="py-6">{expandableRows.renderExpandedContent(row)}</div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* Bottom Controls */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50/50 backdrop-blur-sm">
-        {/* Items Count */}
-        <div className="text-sm text-gray-600">
-          {startIndex}-{endIndex} of {total}
-        </div>
-
-        {/* Pagination Controls */}
-        <div className="flex items-center gap-4">
-          {/* Rows Per Page */}
-          <div className="flex items-center gap-2">
-            <ThemedText className="text-sm text-gray-600">Rows per page:</ThemedText>
-            <select
-              value={rowsPerPage}
-              onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
-              className="px-3 py-1 text-gray-600 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
-            >
-              {rowsPerPageOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+      {!hideBottomControls && (
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50/50 backdrop-blur-sm">
+          {/* Items Count */}
+          <div className="text-sm text-gray-600">
+            {startIndex}-{endIndex} of {total}
           </div>
 
-          {/* Pagination */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1 || total === 0}
-              className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <svg
-                className="w-5 h-5 text-gray-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-4">
+            {/* Rows Per Page */}
+            <div className="flex items-center gap-2">
+              <ThemedText className="text-sm text-gray-600">Rows per page:</ThemedText>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
+                className="px-3 py-1 text-gray-600 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
+                {rowsPerPageOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            <ThemedText className="text-sm text-gray-600">
-              {currentPage}/{totalPages}
-            </ThemedText>
-
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages || total === 0}
-              className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <svg
-                className="w-5 h-5 text-gray-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {/* Pagination */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1 || total === 0}
+                className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
+                <svg
+                  className="w-5 h-5 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+
+              <ThemedText className="text-sm text-gray-600">
+                {currentPage}/{totalPages}
+              </ThemedText>
+
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages || total === 0}
+                className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg
+                  className="w-5 h-5 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

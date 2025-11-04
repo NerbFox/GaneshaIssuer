@@ -6,6 +6,8 @@ import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
+import Modal from '@/components/Modal';
+import { buildApiUrlWithParams, buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 
 interface Credential {
   id: string;
@@ -14,6 +16,40 @@ interface Credential {
   issuedDate: string;
   expiryDate: string;
   status: 'Active' | 'Expired' | 'Revoked';
+}
+
+interface Schema {
+  id: string;
+  version: number;
+  name: string;
+  schema: {
+    type: string;
+    required: string[];
+    expired_in: number;
+    properties: {
+      [key: string]: {
+        type: string;
+        description: string;
+      };
+    };
+  };
+  issuer_did: string;
+  issuer_name: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface VCInfoItem {
+  id: string;
+  name: string;
+  value: string;
+}
+
+interface AttributeItem {
+  id: string;
+  name: string;
+  type: string;
 }
 
 export default function MyCredentialPage() {
@@ -26,6 +62,13 @@ export default function MyCredentialPage() {
   const [filterType, setFilterType] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [isLoading, setIsLoading] = useState(true);
+
+  // Request New Credential Modal
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [schemas, setSchemas] = useState<Schema[]>([]);
+  const [filteredSchemas, setFilteredSchemas] = useState<Schema[]>([]);
+  const [isSchemasLoading, setIsSchemasLoading] = useState(false);
+  const [expandedSchemaId, setExpandedSchemaId] = useState<string | null>(null);
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -126,6 +169,142 @@ export default function MyCredentialPage() {
     // TODO: Implement share credential
   };
 
+  const fetchSchemas = async () => {
+    setIsSchemasLoading(true);
+    try {
+      const token = localStorage.getItem('institutionToken');
+
+      const headers: HeadersInit = {
+        accept: 'application/json',
+      };
+
+      // Add authorization if token exists
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.BASE, { isActive: true });
+
+      const response = await fetch(url, {
+        headers,
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        const errorMessage = result.message || result.error || 'Failed to fetch schemas';
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('Schemas fetched:', result);
+
+      if (result.success && result.data) {
+        setSchemas(result.data.data);
+        setFilteredSchemas(result.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching schemas:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to fetch schemas: ${errorMessage}`);
+    } finally {
+      setIsSchemasLoading(false);
+    }
+  };
+
+  const handleRequestCredential = async (schemaId: string, issuerDid: string) => {
+    try {
+      const holderDid = localStorage.getItem('institutionDID');
+      const token = localStorage.getItem('institutionToken');
+
+      if (!holderDid) {
+        alert('Holder DID not found. Please login again.');
+        return;
+      }
+
+      if (!token) {
+        alert('Authentication token not found. Please login again.');
+        return;
+      }
+
+      // Find the schema to get its version
+      const schema = schemas.find((s) => s.id === schemaId);
+      if (!schema) {
+        alert('Schema not found');
+        return;
+      }
+
+      // Create the encrypted body object and stringify it
+      const encryptedBodyData = {
+        schema_id: schemaId,
+        schema_version: schema.version,
+      };
+
+      const requestBody = {
+        holder_did: holderDid,
+        issuer_did: issuerDid,
+        encrypted_body: JSON.stringify(encryptedBodyData),
+      };
+
+      console.log('Requesting credential with:', requestBody);
+
+      const url = buildApiUrl(API_ENDPOINTS.CREDENTIAL.REQUESTS);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('Response status:', response.status);
+      const result = await response.json();
+      console.log('Response data:', result);
+
+      if (!response.ok) {
+        const errorMessage = result.message || result.error || 'Failed to request credential';
+        throw new Error(errorMessage);
+      }
+
+      if (result.success) {
+        alert(
+          `Credential request successful! Request ID: ${result.data.request_id}\nStatus: ${result.data.status}`
+        );
+        setShowRequestModal(false);
+      } else {
+        throw new Error(result.message || 'Request failed');
+      }
+    } catch (error) {
+      console.error('Error requesting credential:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(
+        `Failed to request credential: ${errorMessage}\n\nPlease check the console for more details.`
+      );
+    }
+  };
+
+  const handleOpenRequestModal = () => {
+    setShowRequestModal(true);
+    fetchSchemas();
+  };
+
+  const handleSchemaSearch = (value: string) => {
+    const filtered = schemas.filter((schema) => {
+      const searchLower = value.toLowerCase();
+      return (
+        schema.name.toLowerCase().includes(searchLower) ||
+        schema.issuer_name.toLowerCase().includes(searchLower)
+      );
+    });
+    setFilteredSchemas(filtered);
+  };
+
+  const toggleExpandSchema = (schemaId: string) => {
+    setExpandedSchemaId(expandedSchemaId === schemaId ? null : schemaId);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active':
@@ -221,6 +400,96 @@ export default function MyCredentialPage() {
     },
   ];
 
+  // Helper functions to prepare data for DataTables
+  const getVCInfoData = (schema: Schema): VCInfoItem[] => {
+    return [
+      {
+        id: '1',
+        name: 'Schema ID',
+        value: schema.id,
+      },
+      {
+        id: '2',
+        name: 'VC Duration',
+        value: `${schema.schema.expired_in} Years`,
+      },
+    ];
+  };
+
+  const getAttributesData = (schema: Schema): AttributeItem[] => {
+    return Object.entries(schema.schema.properties).map(([key, value], index) => ({
+      id: `${index + 1}`,
+      name: key,
+      type: value.type,
+    }));
+  };
+
+  // Schema columns for Request Modal
+  const schemaColumns: Column<Schema>[] = [
+    {
+      id: 'name',
+      label: 'SCHEMA NAME',
+      sortKey: 'name',
+      render: (row) => (
+        <ThemedText className="text-sm font-medium text-gray-900">{row.name}</ThemedText>
+      ),
+    },
+    {
+      id: 'issuer_name',
+      label: 'ISSUER',
+      sortKey: 'issuer_name',
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.issuer_name}</ThemedText>,
+    },
+    {
+      id: 'action',
+      label: 'ACTION',
+      render: (row) => (
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleRequestCredential(row.id, row.issuer_did)}
+            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
+          >
+            REQUEST
+          </button>
+          <button
+            onClick={() => toggleExpandSchema(row.id)}
+            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium"
+          >
+            VIEW
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  // VC Info columns
+  const vcInfoColumns: Column<VCInfoItem>[] = [
+    {
+      id: 'name',
+      label: 'NAME',
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
+    },
+    {
+      id: 'value',
+      label: 'VALUE',
+      render: (row) => <ThemedText className="text-sm text-gray-600">{row.value}</ThemedText>,
+    },
+  ];
+
+  // Attributes columns
+  const attributesColumns: Column<AttributeItem>[] = [
+    {
+      id: 'name',
+      label: 'NAME',
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
+    },
+    {
+      id: 'type',
+      label: 'TYPE',
+      render: (row) => <ThemedText className="text-sm text-blue-600">{row.type}</ThemedText>,
+    },
+  ];
+
   // Show loading screen while checking authentication
   if (!isAuthenticated) {
     return (
@@ -276,6 +545,10 @@ export default function MyCredentialPage() {
               totalCount={filteredCredentials.length}
               rowsPerPageOptions={[5, 10, 25, 50, 100]}
               idKey="id"
+              topRightButton={{
+                label: 'Request New Credential',
+                onClick: handleOpenRequestModal,
+              }}
             />
           </>
         )}
@@ -342,6 +615,85 @@ export default function MyCredentialPage() {
           </div>
         </div>
       )}
+
+      {/* Request New Credential Modal */}
+      <Modal
+        isOpen={showRequestModal}
+        onClose={() => setShowRequestModal(false)}
+        title="Request New Credential"
+        minHeight="700px"
+      >
+        <div className="px-8 py-6">
+          {isSchemasLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <ThemedText className="text-gray-600">Loading schemas...</ThemedText>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Schema List with Expandable Rows */}
+              <DataTable
+                data={filteredSchemas}
+                columns={schemaColumns}
+                searchPlaceholder="Search schemas..."
+                onSearch={handleSchemaSearch}
+                enableSelection={true}
+                totalCount={filteredSchemas.length}
+                rowsPerPageOptions={[5, 10, 25]}
+                idKey="id"
+                expandableRows={{
+                  expandedRowId: expandedSchemaId,
+                  renderExpandedContent: (schema: Schema) => (
+                    <div className="space-y-6 bg-white p-4 rounded-lg">
+                      {/* VC Info */}
+                      <div>
+                        <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-3">
+                          VC Info
+                        </ThemedText>
+                        <DataTable
+                          data={getVCInfoData(schema)}
+                          columns={vcInfoColumns}
+                          enableSelection={false}
+                          totalCount={getVCInfoData(schema).length}
+                          idKey="id"
+                          hideTopControls={true}
+                          hideBottomControls={true}
+                        />
+                      </div>
+
+                      {/* Attributes */}
+                      <div>
+                        <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-3">
+                          Attributes
+                        </ThemedText>
+                        <DataTable
+                          data={getAttributesData(schema)}
+                          columns={attributesColumns}
+                          enableSelection={false}
+                          totalCount={getAttributesData(schema).length}
+                          idKey="id"
+                          hideTopControls={true}
+                          hideBottomControls={true}
+                        />
+                      </div>
+                    </div>
+                  ),
+                }}
+              />
+
+              {filteredSchemas.length === 0 && (
+                <div className="text-center py-12">
+                  <ThemedText className="text-gray-500">No schemas available</ThemedText>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </Modal>
+
+      {/* Filter Popup */}
     </InstitutionLayout>
   );
 }

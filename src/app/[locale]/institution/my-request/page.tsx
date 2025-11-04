@@ -6,11 +6,14 @@ import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
+import { authenticatedGet } from '@/utils/api-client';
+import { buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 
 interface CredentialRequest {
   id: string;
   credentialType: string;
   issuerDid: string;
+  requestType: 'ISSUANCE' | 'RENEWAL' | 'UPDATE' | 'REVOCATION';
   requestedDate: string;
   status: 'Pending' | 'Approved' | 'Rejected';
 }
@@ -24,6 +27,9 @@ export default function MyRequestPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'Pending' | 'Approved' | 'Rejected'>(
     'all'
   );
+  const [filterRequestType, setFilterRequestType] = useState<
+    'all' | 'ISSUANCE' | 'RENEWAL' | 'UPDATE' | 'REVOCATION'
+  >('all');
   const [filterType, setFilterType] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [isLoading, setIsLoading] = useState(true);
@@ -31,7 +37,6 @@ export default function MyRequestPage() {
   const filterModalRef = useRef<HTMLDivElement>(null);
 
   const pendingCount = requests.filter((r) => r.status === 'Pending').length;
-  const approvedCount = requests.filter((r) => r.status === 'Approved').length;
 
   // Check authentication with JWT verification on component mount
   useEffect(() => {
@@ -39,16 +44,117 @@ export default function MyRequestPage() {
       const redirected = await redirectIfJWTInvalid(router);
       if (!redirected) {
         setIsAuthenticated(true);
-        setIsLoading(false);
-        // TODO: Fetch requests from API
-        // For now, using empty array
-        setRequests([]);
-        setFilteredRequests([]);
+        await fetchRequests();
       }
     };
 
     checkAuth();
   }, [router]);
+
+  // Fetch requests from API
+  const fetchRequests = async () => {
+    setIsLoading(true);
+    try {
+      const institutionDID = localStorage.getItem('institutionDID');
+
+      if (!institutionDID) {
+        console.error('No institution DID found in localStorage');
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch all request types
+      const requestTypes = ['ISSUANCE', 'RENEWAL', 'UPDATE'];
+      const allRequests: CredentialRequest[] = [];
+
+      for (const type of requestTypes) {
+        try {
+          const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIAL.GET_REQUESTS, {
+            type: type,
+            holder_did: institutionDID,
+          });
+
+          console.log(`Fetching ${type} requests from:`, url);
+          const response = await authenticatedGet(url);
+
+          if (response.ok) {
+            const responseData = await response.json();
+            console.log(`${type} FULL RESPONSE:`, JSON.stringify(responseData, null, 2));
+
+            // Handle the nested structure: response.data.data
+            if (responseData.success && responseData.data && responseData.data.data) {
+              const items = responseData.data.data;
+              console.log(`${type} - Found ${items.length} items in data.data`);
+
+              if (items.length > 0) {
+                console.log(`${type} - First item:`, JSON.stringify(items[0], null, 2));
+              }
+
+              const mappedData = items.map((item: Record<string, unknown>, index: number) => {
+                // Try to parse encrypted_body to get schema info
+                let schemaName = 'Unknown';
+                try {
+                  if (item.encrypted_body && typeof item.encrypted_body === 'string') {
+                    const parsedBody = JSON.parse(item.encrypted_body);
+                    schemaName = parsedBody.vc_type || parsedBody.schema_id || 'Unknown';
+                  }
+                } catch {
+                  // If parsing fails, encrypted_body might just be the schema_id
+                  schemaName = (item.encrypted_body as string) || 'Unknown';
+                }
+
+                return {
+                  id: item.id || `${type}-${index}-${Date.now()}`,
+                  credentialType: schemaName,
+                  issuerDid: (item.issuer_did as string) || 'Unknown',
+                  requestType: type as 'ISSUANCE' | 'RENEWAL' | 'UPDATE' | 'REVOCATION',
+                  requestedAt:
+                    (item.createdAt as string) ||
+                    (item.created_at as string) ||
+                    new Date().toISOString(),
+                  status: (((item.status as string) || 'PENDING').charAt(0) +
+                    ((item.status as string) || 'PENDING').slice(1).toLowerCase()) as
+                    | 'Pending'
+                    | 'Approved'
+                    | 'Rejected',
+                };
+              });
+
+              console.log(`${type} - Mapped ${mappedData.length} items:`, mappedData);
+              allRequests.push(...mappedData);
+            } else {
+              console.warn(`${type} - Unexpected response structure`);
+            }
+          } else if (response.status === 422) {
+            // 422 might mean this request type is not supported or has validation issues
+            console.warn(
+              `Request type ${type} returned 422 - might not be supported or have no data`
+            );
+          } else {
+            const errorData = await response.json().catch(() => null);
+            console.error(`Error fetching ${type} requests:`, response.status, errorData);
+          }
+        } catch (error) {
+          console.error(`Error fetching ${type} requests:`, error);
+        }
+      }
+
+      // Sort by requested date (latest first)
+      allRequests.sort((a, b) => {
+        return new Date(b.requestedDate).getTime() - new Date(a.requestedDate).getTime();
+      });
+
+      console.log('FINAL allRequests array:', allRequests);
+      console.log('Total requests found:', allRequests.length);
+
+      setRequests(allRequests);
+      setFilteredRequests(allRequests);
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Close filter modal when clicking outside
   useEffect(() => {
@@ -77,6 +183,7 @@ export default function MyRequestPage() {
       return (
         request.credentialType.toLowerCase().includes(searchLower) ||
         request.issuerDid.toLowerCase().includes(searchLower) ||
+        request.requestType.toLowerCase().includes(searchLower) ||
         request.status.toLowerCase().includes(searchLower)
       );
     });
@@ -92,11 +199,19 @@ export default function MyRequestPage() {
     setShowFilterModal(true);
   };
 
-  const applyFilters = (status: 'all' | 'Pending' | 'Approved' | 'Rejected', type: string) => {
+  const applyFilters = (
+    status: 'all' | 'Pending' | 'Approved' | 'Rejected',
+    requestType: 'all' | 'ISSUANCE' | 'RENEWAL' | 'UPDATE' | 'REVOCATION',
+    type: string
+  ) => {
     let filtered = requests;
 
     if (status !== 'all') {
       filtered = filtered.filter((request) => request.status === status);
+    }
+
+    if (requestType !== 'all') {
+      filtered = filtered.filter((request) => request.requestType === requestType);
     }
 
     if (type) {
@@ -110,22 +225,19 @@ export default function MyRequestPage() {
 
   const handleStatusChange = (status: 'all' | 'Pending' | 'Approved' | 'Rejected') => {
     setFilterStatus(status);
-    applyFilters(status, filterType);
+    applyFilters(status, filterRequestType, filterType);
+  };
+
+  const handleRequestTypeChange = (
+    requestType: 'all' | 'ISSUANCE' | 'RENEWAL' | 'UPDATE' | 'REVOCATION'
+  ) => {
+    setFilterRequestType(requestType);
+    applyFilters(filterStatus, requestType, filterType);
   };
 
   const handleTypeChange = (type: string) => {
     setFilterType(type);
-    applyFilters(filterStatus, type);
-  };
-
-  const handleView = (id: string) => {
-    console.log('View request:', id);
-    // TODO: Implement view request details
-  };
-
-  const handleCancel = (id: string) => {
-    console.log('Cancel request:', id);
-    // TODO: Implement cancel request
+    applyFilters(filterStatus, filterRequestType, type);
   };
 
   const getStatusColor = (status: string) => {
@@ -135,6 +247,21 @@ export default function MyRequestPage() {
       case 'Approved':
         return 'bg-green-100 text-green-700';
       case 'Rejected':
+        return 'bg-red-100 text-red-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getRequestTypeColor = (type: string) => {
+    switch (type) {
+      case 'ISSUANCE':
+        return 'bg-blue-100 text-blue-700';
+      case 'RENEWAL':
+        return 'bg-purple-100 text-purple-700';
+      case 'UPDATE':
+        return 'bg-orange-100 text-orange-700';
+      case 'REVOCATION':
         return 'bg-red-100 text-red-700';
       default:
         return 'bg-gray-100 text-gray-700';
@@ -155,7 +282,7 @@ export default function MyRequestPage() {
   const columns: Column<CredentialRequest>[] = [
     {
       id: 'credentialType',
-      label: 'CREDENTIAL TYPE',
+      label: 'SCHEMA',
       sortKey: 'credentialType',
       render: (row) => (
         <ThemedText className="text-sm font-medium text-gray-900">{row.credentialType}</ThemedText>
@@ -180,6 +307,18 @@ export default function MyRequestPage() {
       ),
     },
     {
+      id: 'requestType',
+      label: 'REQUEST TYPE',
+      sortKey: 'requestType',
+      render: (row) => (
+        <span
+          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRequestTypeColor(row.requestType)}`}
+        >
+          {row.requestType}
+        </span>
+      ),
+    },
+    {
       id: 'status',
       label: 'STATUS',
       sortKey: 'status',
@@ -189,28 +328,6 @@ export default function MyRequestPage() {
         >
           {row.status}
         </span>
-      ),
-    },
-    {
-      id: 'action',
-      label: 'ACTION',
-      render: (row) => (
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleView(row.id)}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-          >
-            VIEW
-          </button>
-          {row.status === 'Pending' && (
-            <button
-              onClick={() => handleCancel(row.id)}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
-            >
-              CANCEL
-            </button>
-          )}
-        </div>
       ),
     },
   ];
@@ -318,6 +435,28 @@ export default function MyRequestPage() {
               <option value="Pending">Pending</option>
               <option value="Approved">Approved</option>
               <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+
+          {/* Request Type Filter */}
+          <div className="mb-4">
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
+              Request Type
+            </ThemedText>
+            <select
+              value={filterRequestType}
+              onChange={(e) =>
+                handleRequestTypeChange(
+                  e.target.value as 'all' | 'ISSUANCE' | 'RENEWAL' | 'UPDATE' | 'REVOCATION'
+                )
+              }
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            >
+              <option value="all">All</option>
+              <option value="ISSUANCE">Issuance</option>
+              <option value="RENEWAL">Renewal</option>
+              <option value="UPDATE">Update</option>
+              <option value="REVOCATION">Revocation</option>
             </select>
           </div>
 
