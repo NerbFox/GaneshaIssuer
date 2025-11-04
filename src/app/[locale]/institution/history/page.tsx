@@ -8,6 +8,7 @@ import { DataTable, Column } from '@/components/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { authenticatedGet } from '@/utils/api-client';
+import { decryptWithPrivateKey } from '@/utils/encryptUtils';
 
 interface HistoryRequest {
   id: string;
@@ -17,6 +18,16 @@ interface HistoryRequest {
   status: string;
   encrypted_body: string;
   createdAt: string;
+}
+
+interface SchemaApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    id: string;
+    name: string;
+    version: number;
+  };
 }
 
 interface ApiResponse {
@@ -31,10 +42,11 @@ interface ApiResponse {
 interface HistoryActivity {
   id: string;
   date: string;
-  requesterDid: string;
+  holderDid: string;
   requestType: string;
   actionType: string;
   status: string;
+  schemaName: string;
 }
 
 export default function HistoryPage() {
@@ -50,6 +62,7 @@ export default function HistoryPage() {
   const [filterDateTo, setFilterDateTo] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -74,6 +87,7 @@ export default function HistoryPage() {
 
     const fetchHistory = async () => {
       setIsLoading(true);
+      setError(null);
       try {
         const issuerDid = localStorage.getItem('institutionDID');
         if (!issuerDid) {
@@ -95,23 +109,93 @@ export default function HistoryPage() {
         // Extract the requests array
         const requestsData = apiResponse.data.requests;
 
-        // Transform to HistoryActivity format
-        const transformedActivities: HistoryActivity[] = requestsData.map((request) => {
-          return {
-            id: request.id,
-            date: request.createdAt,
-            requesterDid: request.holder_did,
-            requestType: request.request_type,
-            actionType: request.status,
-            status: request.status,
-          };
+        // Helper function to parse encrypted_body - attempts decryption with private key
+        const parseEncryptedBody = async (
+          encryptedBody: string
+        ): Promise<{ schema_id: string; schema_version: number } | null> => {
+          // Only decrypt if we have a private key available
+          if (typeof window !== 'undefined') {
+            const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
+            if (privateKeyHex) {
+              try {
+                const decryptedBody = await decryptWithPrivateKey(encryptedBody, privateKeyHex);
+                return {
+                  schema_id: String(decryptedBody.schema_id || ''),
+                  schema_version: Number(decryptedBody.schema_version || 1),
+                };
+              } catch {
+                // Silently handle decryption error - do nothing
+              }
+            }
+          }
+
+          // If no private key available or not in browser, silently return null
+          return null;
+        };
+
+        // Extract unique schema IDs for batch fetching
+        const schemaIds = new Set<string>();
+        for (const request of requestsData) {
+          const parsedBody = await parseEncryptedBody(request.encrypted_body);
+          if (parsedBody?.schema_id) {
+            schemaIds.add(parsedBody.schema_id);
+          }
+        }
+
+        // Fetch all schemas in parallel
+        const schemaNameMap = new Map<string, string>();
+        const schemaFetchPromises = Array.from(schemaIds).map(async (schemaId) => {
+          try {
+            // Get schema version from encrypted_body or default to version 1
+            const request = await Promise.all(
+              requestsData.map(async (r) => {
+                const parsed = await parseEncryptedBody(r.encrypted_body);
+                return parsed?.schema_id === schemaId ? r : null;
+              })
+            ).then((results) => results.find((r) => r !== null));
+
+            const parsedBody = await parseEncryptedBody(request?.encrypted_body || '');
+            const schemaVersion = parsedBody?.schema_version || 1;
+
+            const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, schemaVersion));
+            const schemaResponse = await authenticatedGet(schemaUrl);
+            if (schemaResponse.ok) {
+              const schemaData: SchemaApiResponse = await schemaResponse.json();
+              schemaNameMap.set(schemaId, schemaData.data.name);
+            }
+          } catch (err) {
+            console.error(`Error fetching schema ${schemaId}:`, err);
+          }
         });
+        await Promise.all(schemaFetchPromises);
+
+        // Transform to HistoryActivity format
+        const transformedActivities: HistoryActivity[] = await Promise.all(
+          requestsData.map(async (request) => {
+            const parsedBody = await parseEncryptedBody(request.encrypted_body);
+            const schemaId = parsedBody?.schema_id || '';
+            const schemaName = schemaNameMap.get(schemaId) || 'Unknown Schema';
+
+            return {
+              id: request.id,
+              date: request.createdAt,
+              holderDid: request.holder_did,
+              requestType: request.request_type,
+              actionType: request.status,
+              status: request.status,
+              schemaName: schemaName,
+            };
+          })
+        );
 
         console.log('Fetched history:', transformedActivities);
         setActivities(transformedActivities);
         setFilteredActivities(transformedActivities);
       } catch (err) {
         console.error('Error fetching history:', err);
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        setActivities([]);
+        setFilteredActivities([]);
       } finally {
         setIsLoading(false);
       }
@@ -147,7 +231,8 @@ export default function HistoryPage() {
       return (
         activity.requestType.toLowerCase().includes(searchLower) ||
         activity.actionType.toLowerCase().includes(searchLower) ||
-        activity.requesterDid.toLowerCase().includes(searchLower)
+        activity.holderDid.toLowerCase().includes(searchLower) ||
+        activity.schemaName.toLowerCase().includes(searchLower)
       );
     });
     setFilteredActivities(filtered);
@@ -184,9 +269,7 @@ export default function HistoryPage() {
     setFilteredActivities(filtered);
   };
 
-  const handleActionTypeChange = (
-    actionType: 'all' | 'PENDING' | 'APPROVED' | 'REJECTED'
-  ) => {
+  const handleActionTypeChange = (actionType: 'all' | 'PENDING' | 'APPROVED' | 'REJECTED') => {
     setFilterActionType(actionType);
     applyFilters(actionType, filterDateFrom, filterDateTo);
   };
@@ -199,11 +282,6 @@ export default function HistoryPage() {
   const handleDateToChange = (dateTo: string) => {
     setFilterDateTo(dateTo);
     applyFilters(filterActionType, filterDateFrom, dateTo);
-  };
-
-  const handleView = (id: string) => {
-    console.log('View activity:', id);
-    // TODO: Implement view activity details
   };
 
   const getActionTypeColor = (type: string) => {
@@ -234,13 +312,20 @@ export default function HistoryPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    const datePart = date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
     });
+    const timePart = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    return `${datePart} ${timePart}`;
   };
 
   const truncateDid = (did: string, maxLength: number = 25): string => {
@@ -257,21 +342,25 @@ export default function HistoryPage() {
   const columns: Column<HistoryActivity>[] = [
     {
       id: 'date',
-      label: 'DATE',
+      label: 'DATETIME',
       sortKey: 'date',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{formatDate(row.date)}</ThemedText>
+        <ThemedText className="text-sm text-gray-900">{formatDateTime(row.date)}</ThemedText>
       ),
     },
     {
-      id: 'requesterDid',
-      label: 'REQUESTER DID',
-      sortKey: 'requesterDid',
+      id: 'holderDid',
+      label: 'HOLDER DID',
+      sortKey: 'holderDid',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">
-          {truncateDid(row.requesterDid)}
-        </ThemedText>
+        <ThemedText className="text-sm text-gray-900">{truncateDid(row.holderDid)}</ThemedText>
       ),
+    },
+    {
+      id: 'schemaName',
+      label: 'SCHEMA NAME',
+      sortKey: 'schemaName',
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.schemaName}</ThemedText>,
     },
     {
       id: 'requestType',
@@ -341,8 +430,15 @@ export default function HistoryPage() {
           </div>
         )}
 
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <ThemedText className="text-red-800">Error: {error}</ThemedText>
+          </div>
+        )}
+
         {/* Data Table */}
-        {!isLoading && (
+        {!isLoading && !error && (
           <DataTable
             data={filteredActivities}
             columns={columns}
@@ -373,7 +469,7 @@ export default function HistoryPage() {
             </ThemedText>
             <button
               onClick={() => setShowFilterModal(false)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 cursor-pointer"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
