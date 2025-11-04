@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, Fragment } from 'react';
 import { ThemedText } from './ThemedText';
 
 export interface Column<T> {
@@ -383,7 +383,7 @@ export function DataTable<T>({
               const isExpanded = expandableRows && expandableRows.expandedRowId === rowId;
 
               return (
-                <>
+                <Fragment key={rowKey}>
                   <tr
                     key={rowKey}
                     draggable={enableDragDrop}
@@ -456,7 +456,7 @@ export function DataTable<T>({
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               );
             })}
           </tbody>
