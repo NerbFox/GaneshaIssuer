@@ -33,14 +33,20 @@ jobs:
             git remote set-url origin git@github.com-ganeshaissuer:NerbFox/GaneshaIssuer.git
 
             echo "📦 Pulling latest code from dev branch..."
+            # Configure git to use rebase strategy for pulls
+            git config pull.rebase false
+
             # Reset package-lock.json jika ada konflik
             git checkout HEAD -- package-lock.json 2>/dev/null || true
 
             # Stash any local changes
             git stash
 
-            # Ambil source code terbaru dari branch dev
-            git pull origin dev
+            # Fetch latest changes
+            git fetch origin dev
+
+            # Hard reset to match remote (force sync)
+            git reset --hard origin/dev
 
             # Pop stashed changes jika ada (tapi abaikan error)
             git stash pop 2>/dev/null || true
