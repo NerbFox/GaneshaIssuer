@@ -27,6 +27,7 @@ interface Schema {
   };
   version: number;
   uniqueKey: string; // Composite key: id-version
+  image_link?: string; // Optional image URL from API
 }
 
 interface ApiSchemaResponse {
@@ -47,6 +48,7 @@ interface ApiSchemaResponse {
       isActive: boolean;
       createdAt: string;
       updatedAt: string;
+      image_link?: string; // Optional image URL
     }[];
   };
 }
@@ -107,9 +109,10 @@ export default function SchemaPage() {
         attributes: Object.keys(schema.schema.properties).length,
         isActive: schema.isActive,
         version: schema.version,
-        expiredIn: schema.schema.expired_in || 1,
+        expiredIn: schema.schema.expired_in ?? 0,
         lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
         uniqueKey: `${schema.id}-${schema.version}`, // Composite unique key
+        image_link: schema.image_link, // Include image link from API
       }));
 
       // Update schemas state
@@ -165,9 +168,10 @@ export default function SchemaPage() {
           attributes: Object.keys(schema.schema.properties).length,
           isActive: schema.isActive,
           version: schema.version,
-          expiredIn: schema.schema.expired_in || 1,
+          expiredIn: schema.schema.expired_in ?? 0,
           lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'), // Format as YYYY/MM/DD
           uniqueKey: `${schema.id}-${schema.version}`, // Composite unique key
+          image_link: schema.image_link, // Include image link from API
         }));
 
         setSchemas(transformedSchemas);
@@ -341,6 +345,7 @@ export default function SchemaPage() {
             properties: schemaData.schema.properties,
             required: schemaData.schema.required,
           },
+          image_link: schemaData.image_link, // Include image link from API
         };
         setSelectedSchema(schemaWithDetails);
         setShowUpdateSchemaModal(true);
@@ -366,7 +371,7 @@ export default function SchemaPage() {
         }
       });
 
-      // API expects only the schema object (type, properties, required, expired_in)
+      // API expects the schema object (type, properties, required, expired_in) and optional image field
       const payload = {
         schema: {
           type: 'object',
@@ -376,16 +381,60 @@ export default function SchemaPage() {
         },
       };
 
-      const response = await authenticatedFetch(
-        buildApiUrl(API_ENDPOINTS.SCHEMA.UPDATE(data.schemaId)),
-        {
-          method: 'PUT',
-          body: JSON.stringify(payload),
+      let response: Response;
+
+      // Use FormData if image is provided, otherwise use JSON
+      if (data.image) {
+        const formData = new FormData();
+        // Append schema fields separately, not as stringified JSON
+        formData.append('schema[type]', payload.schema.type);
+        formData.append('schema[expired_in]', String(payload.schema.expired_in));
+        formData.append('schema[required]', JSON.stringify(payload.schema.required));
+        formData.append('schema[properties]', JSON.stringify(payload.schema.properties));
+        formData.append('image', data.image, data.image.name); // Add filename
+
+        console.log('Updating schema with image:', {
+          schemaId: data.schemaId,
+          imageSize: data.image.size,
+          imageType: data.image.type,
+          imageName: data.image.name,
+          schema: payload.schema,
+        });
+
+        const token = localStorage.getItem('institutionToken');
+        if (!token) {
+          throw new Error('No authentication token found. Please log in.');
         }
-      );
+
+        response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.UPDATE(data.schemaId)), {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // Don't set Content-Type - browser will set it with boundary for multipart/form-data
+          },
+          body: formData,
+        });
+      } else {
+        console.log('Updating schema without image:', payload);
+        response = await authenticatedFetch(
+          buildApiUrl(API_ENDPOINTS.SCHEMA.UPDATE(data.schemaId)),
+          {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+          }
+        );
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Schema update failed:', errorData);
+
+        // Handle validation errors
+        if (response.status === 422) {
+          const validationErrors = errorData.errors || errorData.message || 'Validation failed';
+          throw new Error(`Validation error: ${JSON.stringify(validationErrors)}`);
+        }
+
         throw new Error(errorData.message || `Failed to update schema: ${response.statusText}`);
       }
 
@@ -643,7 +692,7 @@ export default function SchemaPage() {
       });
 
       // Note: schemaId, version, and status from the form are not sent to the API
-      // Only name, schema structure, expired_in, and issuer_did are sent
+      // Only name, schema structure, expired_in, issuer_did, and optional image are sent
       const payload = {
         name: data.schemaName,
         schema: {
@@ -655,10 +704,58 @@ export default function SchemaPage() {
         issuer_did: issuerDid,
       };
 
-      const response = await authenticatedPost(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), payload);
+      let response: Response;
+
+      // Use FormData if image is provided, otherwise use JSON
+      if (data.image) {
+        const formData = new FormData();
+        formData.append('name', data.schemaName);
+        // Append schema fields separately, not as stringified JSON
+        formData.append('schema[type]', payload.schema.type);
+        formData.append('schema[expired_in]', String(payload.schema.expired_in));
+        formData.append('schema[required]', JSON.stringify(payload.schema.required));
+        formData.append('schema[properties]', JSON.stringify(payload.schema.properties));
+        formData.append('issuer_did', issuerDid);
+        formData.append('image', data.image, data.image.name); // Add filename
+
+        console.log('Creating schema with image:', {
+          name: data.schemaName,
+          issuerDid: issuerDid,
+          imageSize: data.image.size,
+          imageType: data.image.type,
+          imageName: data.image.name,
+          schema: payload.schema,
+        });
+
+        const token = localStorage.getItem('institutionToken');
+        if (!token) {
+          throw new Error('No authentication token found. Please log in.');
+        }
+
+        response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // Don't set Content-Type - browser will set it with boundary for multipart/form-data
+          },
+          body: formData,
+        });
+      } else {
+        // Send JSON without image field
+        console.log('Creating schema without image:', payload);
+        response = await authenticatedPost(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), payload);
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('Schema creation failed:', errorData);
+
+        // Handle validation errors
+        if (response.status === 422) {
+          const validationErrors = errorData.errors || errorData.message || 'Validation failed';
+          throw new Error(`Validation error: ${JSON.stringify(validationErrors)}`);
+        }
+
         throw new Error(errorData.message || 'Failed to create schema');
       }
 
@@ -1071,6 +1168,7 @@ export default function SchemaPage() {
                 }
               : undefined
           }
+          imageUrl={selectedSchema?.image_link}
         />
       </Modal>
     </InstitutionLayout>

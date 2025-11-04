@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ThemedText } from './ThemedText';
 import { DataTable, Column } from './DataTable';
 
@@ -27,29 +27,37 @@ interface UpdateSchemaFormProps {
       required: string[];
     };
   };
+  imageUrl?: string; // Optional existing image URL from API
 }
 
 export interface SchemaFormData {
   schemaId: string;
   expiredIn: number;
   attributes: Attribute[];
+  image?: File;
 }
 
 export default function UpdateSchemaForm({
   onSubmit,
   onCancel,
   initialData,
+  imageUrl,
 }: UpdateSchemaFormProps) {
   const [schemaId, setSchemaId] = useState('');
   const [schemaName, setSchemaName] = useState('');
   const [version, setVersion] = useState('1');
-  const [expiredIn, setExpiredIn] = useState<number>(1);
-  const [expiredInInput, setExpiredInInput] = useState<string>('1');
+  const [expiredIn, setExpiredIn] = useState<number>(0);
+  const [expiredInInput, setExpiredInInput] = useState<string>('0');
+  const [vcBackgroundImage, setVcBackgroundImage] = useState<File | null>(null);
+  const [previewSrc, setPreviewSrc] = useState<string>('');
+  const [imageError, setImageError] = useState<string>('');
+  const [imageLoading, setImageLoading] = useState<boolean>(false);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [selectedAttributeIds, setSelectedAttributeIds] = useState<(string | number)[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pre-fill form with initial data
   useEffect(() => {
@@ -88,6 +96,13 @@ export default function UpdateSchemaForm({
     }
   }, [initialData]);
 
+  // Set preview from existing image URL
+  useEffect(() => {
+    if (imageUrl && !vcBackgroundImage) {
+      setPreviewSrc(imageUrl);
+    }
+  }, [imageUrl, vcBackgroundImage]);
+
   const handleAddAttribute = () => {
     const newId = attributes.length > 0 ? Math.max(...attributes.map((a) => a.id)) + 1 : 1;
     setAttributes([
@@ -110,6 +125,71 @@ export default function UpdateSchemaForm({
 
   const handleSelectionChange = (_indices: number[], idValues?: (string | number)[]) => {
     setSelectedAttributeIds(idValues || []);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      setVcBackgroundImage(null);
+      setPreviewSrc('');
+      setImageLoading(false);
+      return;
+    }
+
+    // Validate file size (5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setImageError(`Image too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max 5MB.`);
+      setVcBackgroundImage(null);
+      setPreviewSrc('');
+      setImageLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.match(/^image\/(jpeg|jpg|png|gif|webp)$/i)) {
+      setImageError('Only JPG, PNG, GIF, and WebP images are allowed.');
+      setVcBackgroundImage(null);
+      setPreviewSrc('');
+      setImageLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Clear previous error and set loading
+    setImageError('');
+    setImageLoading(true);
+
+    // Set the file
+    setVcBackgroundImage(file);
+
+    // Use FileReader to create a data URL for preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      setPreviewSrc(result);
+      setImageLoading(false);
+    };
+    reader.onerror = () => {
+      setImageError('Failed to read image file');
+      setVcBackgroundImage(null);
+      setPreviewSrc('');
+      setImageLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setVcBackgroundImage(null);
+    setPreviewSrc('');
+    setImageError('');
+    setImageLoading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleAttributeChange = (
@@ -156,10 +236,27 @@ export default function UpdateSchemaForm({
         schemaId,
         expiredIn,
         attributes: reorderedAttributes,
+        image: vcBackgroundImage || undefined,
       });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Validation function
+  const isFormValid = () => {
+    // Check if there's at least one attribute
+    if (attributes.length === 0) {
+      return false;
+    }
+
+    // Check if all attributes have names
+    const allAttributesHaveNames = attributes.every((attr) => attr.name.trim() !== '');
+    if (!allAttributesHaveNames) {
+      return false;
+    }
+
+    return true;
   };
 
   const handleSearch = (value: string) => {
@@ -341,6 +438,128 @@ export default function UpdateSchemaForm({
         </ThemedText>
       </div>
 
+      {/* VC Background Image */}
+      <div className="mb-6">
+        <label className="block mb-3">
+          <ThemedText className="text-sm font-semibold text-gray-900">
+            VC Background Image (Optional)
+          </ThemedText>
+        </label>
+
+        {imageLoading ? (
+          <div className="w-full h-56 rounded-xl border-2 border-blue-200 shadow-md bg-gray-100 flex items-center justify-center">
+            <div className="text-center">
+              <svg
+                className="animate-spin h-10 w-10 text-blue-500 mx-auto mb-2"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              <p className="text-sm text-gray-600">Loading image...</p>
+            </div>
+          </div>
+        ) : previewSrc ? (
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewSrc}
+              alt="VC Background Preview"
+              className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-blue-200 shadow-md block bg-gray-50"
+              onError={() => {
+                setImageError('Failed to display image preview');
+                setPreviewSrc('');
+              }}
+            />
+            {/* Uploaded Badge */}
+            <div className="absolute top-3 left-3 bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md flex items-center space-x-1">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span>Uploaded</span>
+            </div>
+            {/* Remove Button */}
+            <button
+              type="button"
+              onClick={handleRemoveImage}
+              className="absolute top-3 right-3 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow-lg font-medium text-sm flex items-center space-x-2 cursor-pointer"
+              title="Remove image"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+              <span>Remove</span>
+            </button>
+          </div>
+        ) : (
+          <div className="relative">
+            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-blue-300 rounded-xl cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors duration-200">
+              <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                <svg
+                  className="w-10 h-10 mb-3 text-blue-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  />
+                </svg>
+                <p className="mb-2 text-sm text-blue-600 font-medium">
+                  <span className="font-semibold">Click to upload</span> or drag and drop
+                </p>
+                <p className="text-xs text-blue-500">PNG, JPG, GIF, WebP up to 5MB</p>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+            </label>
+          </div>
+        )}
+
+        {imageError && (
+          <div className="mt-2 flex items-center text-red-500">
+            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="text-sm">{imageError}</span>
+          </div>
+        )}
+      </div>
+
       {/* Attributes Section */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
@@ -411,8 +630,9 @@ export default function UpdateSchemaForm({
         </button>
         <button
           onClick={handleSubmit}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !isFormValid()}
           className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+          title={!isFormValid() ? 'Please add at least one attribute with a name' : ''}
         >
           {isSubmitting && (
             <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

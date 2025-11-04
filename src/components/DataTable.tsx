@@ -360,72 +360,105 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {paginatedData.map((row, paginatedIndex) => {
-              const actualIndex = (currentPage - 1) * rowsPerPage + paginatedIndex;
-              const isDragging = draggedIndex === actualIndex;
-              // Use idKey if available, otherwise use index
-              const rowKey = idKey ? String(row[idKey]) : `row-${actualIndex}`;
-              const rowId = idKey ? (row[idKey] as string | number) : actualIndex;
-              const isSelected = selectedRows.has(rowId);
-
-              return (
-                <tr
-                  key={rowKey}
-                  draggable={enableDragDrop}
-                  onDragStart={() => enableDragDrop && onDragStart?.(actualIndex)}
-                  onDragOver={(e) => enableDragDrop && onDragOver?.(e, actualIndex)}
-                  onDragEnd={() => enableDragDrop && onDragEnd?.()}
-                  className={`hover:bg-gray-50 transition-colors ${
-                    isSelected ? 'bg-blue-50' : ''
-                  } ${isDragging ? 'opacity-50' : ''} ${enableDragDrop ? 'cursor-move' : ''}`}
+            {paginatedData.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={
+                    columns.length + (enableSelection ? 1 : 0) + (enableDragDrop ? 1 : 0) + 1
+                  }
+                  className="px-6 py-12 text-center"
                 >
-                  {/* Checkbox Cell */}
-                  {enableSelection && (
-                    <td className="px-6 py-4">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleSelectRow(paginatedIndex)}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
+                  <div className="flex flex-col items-center justify-center text-gray-400">
+                    <svg
+                      className="w-16 h-16 mb-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
                       />
-                    </td>
-                  )}
+                    </svg>
+                    <ThemedText className="text-lg font-medium text-gray-500 mb-1">
+                      No data available
+                    </ThemedText>
+                    <ThemedText className="text-sm text-gray-400">
+                      There are no items to display
+                    </ThemedText>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              paginatedData.map((row, paginatedIndex) => {
+                const actualIndex = (currentPage - 1) * rowsPerPage + paginatedIndex;
+                const isDragging = draggedIndex === actualIndex;
+                // Use idKey if available, otherwise use index
+                const rowKey = idKey ? String(row[idKey]) : `row-${actualIndex}`;
+                const rowId = idKey ? (row[idKey] as string | number) : actualIndex;
+                const isSelected = selectedRows.has(rowId);
 
-                  {/* Drag Handle Cell */}
-                  {enableDragDrop && (
-                    <td className="px-6 py-4">
-                      <svg
-                        className="w-5 h-5 text-gray-400 cursor-move"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 8h16M4 16h16"
+                return (
+                  <tr
+                    key={rowKey}
+                    draggable={enableDragDrop}
+                    onDragStart={() => enableDragDrop && onDragStart?.(actualIndex)}
+                    onDragOver={(e) => enableDragDrop && onDragOver?.(e, actualIndex)}
+                    onDragEnd={() => enableDragDrop && onDragEnd?.()}
+                    className={`hover:bg-gray-50 transition-colors ${
+                      isSelected ? 'bg-blue-50' : ''
+                    } ${isDragging ? 'opacity-50' : ''} ${enableDragDrop ? 'cursor-move' : ''}`}
+                  >
+                    {/* Checkbox Cell */}
+                    {enableSelection && (
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleSelectRow(paginatedIndex)}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
                         />
-                      </svg>
-                    </td>
-                  )}
+                      </td>
+                    )}
 
-                  {/* # Cell */}
-                  <td className="px-6 py-4">
-                    <ThemedText className="text-sm text-gray-900">{actualIndex + 1}</ThemedText>
-                  </td>
+                    {/* Drag Handle Cell */}
+                    {enableDragDrop && (
+                      <td className="px-6 py-4">
+                        <svg
+                          className="w-5 h-5 text-gray-400 cursor-move"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 8h16M4 16h16"
+                          />
+                        </svg>
+                      </td>
+                    )}
 
-                  {/* Dynamic Cells */}
-                  {columns.map((column) => (
-                    <td key={column.id} className="px-6 py-4">
-                      <ThemedText className="text-sm text-gray-900">
-                        {column.render(row, paginatedIndex)}
-                      </ThemedText>
+                    {/* # Cell */}
+                    <td className="px-6 py-4">
+                      <ThemedText className="text-sm text-gray-900">{actualIndex + 1}</ThemedText>
                     </td>
-                  ))}
-                </tr>
-              );
-            })}
+
+                    {/* Dynamic Cells */}
+                    {columns.map((column) => (
+                      <td key={column.id} className="px-6 py-4">
+                        <ThemedText className="text-sm text-gray-900">
+                          {column.render(row, paginatedIndex)}
+                        </ThemedText>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
