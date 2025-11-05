@@ -11,8 +11,8 @@
  * - Works with hex-encoded keys from localStorage
  */
 
-import { p256 } from '@noble/curves/nist.js';
-import { sha256 } from '@noble/hashes/sha2.js';
+import { p256 } from '@noble/curves/p256';
+import { sha256 } from '@noble/hashes/sha2';
 import { hexToBytes, bytesToHex } from './seedphrase-p256';
 import { VerifiableCredential } from './vcUtils';
 
@@ -116,9 +116,10 @@ async function signWithP256(data: Uint8Array, privateKeyHex: string): Promise<Ui
   // Hash the data with SHA-256
   const messageHash = sha256(data);
 
-  // Sign with P-256 - returns Uint8Array (64 bytes: r || s)
-  // @noble/curves@2.0+ returns raw bytes directly
-  const signatureBytes = p256.sign(messageHash, privateKeyBytes);
+  // Sign with P-256 - returns signature object
+  // Convert to raw bytes format (64 bytes: r || s)
+  const signature = p256.sign(messageHash, privateKeyBytes);
+  const signatureBytes = signature.toCompactRawBytes();
 
   return signatureBytes;
 }
