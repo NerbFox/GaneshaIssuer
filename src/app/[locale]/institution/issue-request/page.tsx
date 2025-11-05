@@ -481,17 +481,25 @@ export default function IssueRequestPage() {
       const vcId = `${schemaData.id}:${schemaData.version}:${selectedRequest.holder_did}:${timestamp}`;
       console.log('Generated unique VC ID:', vcId);
 
-      // Calculate expired_at based on schemaData.expired_in
+      // Calculate expired_at based on schemaData.expired_in (in years)
       const now = new Date();
       let expiredAt: string | null = null;
 
-      if (schemaData.expired_in !== null && schemaData.expired_in !== undefined) {
-        // expired_in is in seconds, add it to current datetime
-        const expirationDate = new Date(now.getTime() + schemaData.expired_in * 1000);
+      if (schemaData.expired_in > 0) {
+        // expired_in is in years, convert to milliseconds and add to current datetime
+        const millisecondsPerYear = 365.25 * 24 * 60 * 60 * 1000; // Account for leap years
+        const expirationDate = new Date(
+          now.getTime() + schemaData.expired_in * millisecondsPerYear
+        );
         expiredAt = expirationDate.toISOString();
-        console.log('Calculated expired_at:', expiredAt);
+        console.log(
+          `Calculated expired_at: ${expiredAt} (${schemaData.expired_in} years from now)`
+        );
       } else {
-        console.log('expired_in is null, setting expired_at to null (lifetime credential)');
+        // expired_in is 0 or null, set far future date for lifetime credential (100 years)
+        const lifetimeDate = new Date(now.getTime() + 100 * 365.25 * 24 * 60 * 60 * 1000);
+        expiredAt = lifetimeDate.toISOString();
+        console.log('expired_in is 0 (lifetime), setting expired_at to far future:', expiredAt);
       }
 
       // Create Verifiable Credential
