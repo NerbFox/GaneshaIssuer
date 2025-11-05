@@ -12,8 +12,8 @@
  * - DER-encoded signatures for backend compatibility
  */
 
-import { p256 } from '@noble/curves/nist.js';
-import { sha256 } from '@noble/hashes/sha2.js';
+import { p256 } from '@noble/curves/p256';
+import { sha256 } from '@noble/hashes/sha2';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -53,7 +53,7 @@ export interface DecodedJWT {
  * Base64url encode (URL-safe base64 without padding)
  */
 function base64UrlEncode(buffer: Uint8Array): string {
-  const base64 = btoa(String.fromCharCode(...buffer));
+  const base64 = btoa(String.fromCharCode(...Array.from(buffer)));
   return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
