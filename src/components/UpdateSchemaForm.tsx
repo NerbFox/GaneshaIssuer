@@ -20,7 +20,6 @@ interface UpdateSchemaFormProps {
     schemaName: string;
     attributes: number;
     isActive: string;
-    lastUpdated: string;
     expiredIn?: number;
     schemaDetails?: {
       properties: Record<string, { type: string }>;
@@ -50,6 +49,8 @@ export default function UpdateSchemaForm({
   const [expiredInInput, setExpiredInInput] = useState<string>('0');
   const [vcBackgroundImage, setVcBackgroundImage] = useState<File | null>(null);
   const [previewSrc, setPreviewSrc] = useState<string>('');
+  const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
+  const [hasImageChanged, setHasImageChanged] = useState<boolean>(false);
   const [imageError, setImageError] = useState<string>('');
   const [imageLoading, setImageLoading] = useState<boolean>(false);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
@@ -59,7 +60,9 @@ export default function UpdateSchemaForm({
   const [selectedAttributeIds, setSelectedAttributeIds] = useState<(string | number)[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Pre-fill form with initial data
+  const [initialExpiredIn, setInitialExpiredIn] = useState<number>(0);
+  const [initialAttributes, setInitialAttributes] = useState<Attribute[]>([]);
+
   useEffect(() => {
     if (initialData) {
       setSchemaId(initialData.id);
@@ -76,9 +79,9 @@ export default function UpdateSchemaForm({
       if (initialData.expiredIn !== undefined) {
         setExpiredIn(initialData.expiredIn);
         setExpiredInInput(String(initialData.expiredIn));
+        setInitialExpiredIn(initialData.expiredIn);
       }
 
-      // Load existing attributes from schema details
       if (initialData.schemaDetails) {
         const loadedAttributes: Attribute[] = Object.entries(
           initialData.schemaDetails.properties
@@ -89,9 +92,12 @@ export default function UpdateSchemaForm({
           description: '',
           required: initialData.schemaDetails!.required.includes(name),
         }));
+
         setAttributes(loadedAttributes);
+        setInitialAttributes(JSON.parse(JSON.stringify(loadedAttributes)));
       } else {
         setAttributes([]);
+        setInitialAttributes([]);
       }
     }
   }, [initialData]);
@@ -100,6 +106,8 @@ export default function UpdateSchemaForm({
   useEffect(() => {
     if (imageUrl && !vcBackgroundImage) {
       setPreviewSrc(imageUrl);
+      setOriginalImageUrl(imageUrl);
+      setHasImageChanged(false);
     }
   }, [imageUrl, vcBackgroundImage]);
 
@@ -162,10 +170,9 @@ export default function UpdateSchemaForm({
     setImageError('');
     setImageLoading(true);
 
-    // Set the file
     setVcBackgroundImage(file);
+    setHasImageChanged(true);
 
-    // Use FileReader to create a data URL for preview
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
@@ -187,8 +194,22 @@ export default function UpdateSchemaForm({
     setPreviewSrc('');
     setImageError('');
     setImageLoading(false);
+    setHasImageChanged(true);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRevertImage = () => {
+    if (originalImageUrl) {
+      setPreviewSrc(originalImageUrl);
+      setVcBackgroundImage(null);
+      setHasImageChanged(false);
+      setImageError('');
+      setImageLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -222,22 +243,23 @@ export default function UpdateSchemaForm({
   };
 
   const handleSubmit = async () => {
-    if (isSubmitting) return; // Prevent double submission
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
     try {
-      // Reassign IDs based on current order before submitting
       const reorderedAttributes = attributes.map((attr, index) => ({
         ...attr,
         id: index + 1,
       }));
 
-      await onSubmit({
+      const submitData = {
         schemaId,
         expiredIn,
         attributes: reorderedAttributes,
         image: vcBackgroundImage || undefined,
-      });
+      };
+
+      await onSubmit(submitData);
     } finally {
       setIsSubmitting(false);
     }
@@ -245,18 +267,50 @@ export default function UpdateSchemaForm({
 
   // Validation function
   const isFormValid = () => {
-    // Check if there's at least one attribute
     if (attributes.length === 0) {
       return false;
     }
 
-    // Check if all attributes have names
     const allAttributesHaveNames = attributes.every((attr) => attr.name.trim() !== '');
     if (!allAttributesHaveNames) {
       return false;
     }
 
     return true;
+  };
+
+  const hasDataChanged = () => {
+    if (expiredIn !== initialExpiredIn) {
+      return true;
+    }
+
+    if (hasImageChanged) {
+      return true;
+    }
+
+    if (attributes.length !== initialAttributes.length) {
+      return true;
+    }
+
+    const orderChanged = attributes.some((attr, index) => {
+      const initialAttr = initialAttributes[index];
+      return attr.name !== initialAttr.name;
+    });
+
+    if (orderChanged) {
+      return true;
+    }
+
+    const attributesChanged = attributes.some((attr, index) => {
+      const initialAttr = initialAttributes[index];
+      return (
+        attr.type !== initialAttr.type ||
+        attr.description !== initialAttr.description ||
+        attr.required !== initialAttr.required
+      );
+    });
+
+    return attributesChanged;
   };
 
   const handleSearch = (value: string) => {
@@ -489,34 +543,72 @@ export default function UpdateSchemaForm({
                 setPreviewSrc('');
               }}
             />
-            {/* Uploaded Badge */}
-            <div className="absolute top-3 left-3 bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md flex items-center space-x-1">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span>Uploaded</span>
+            {hasImageChanged ? (
+              <div className="absolute top-3 left-3 bg-blue-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md flex items-center space-x-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  />
+                </svg>
+                <span>Preview</span>
+              </div>
+            ) : (
+              <div className="absolute top-3 left-3 bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md flex items-center space-x-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span>Uploaded</span>
+              </div>
+            )}
+            <div className="absolute top-3 right-3 flex items-center space-x-2">
+              {hasImageChanged && originalImageUrl && (
+                <button
+                  type="button"
+                  onClick={handleRevertImage}
+                  className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 shadow-lg font-medium text-sm flex items-center space-x-2 cursor-pointer"
+                  title="Revert to original image"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                    />
+                  </svg>
+                  <span>Revert</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow-lg font-medium text-sm flex items-center space-x-2 cursor-pointer"
+                title="Remove image"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+                <span>Remove</span>
+              </button>
             </div>
-            {/* Remove Button */}
-            <button
-              type="button"
-              onClick={handleRemoveImage}
-              className="absolute top-3 right-3 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow-lg font-medium text-sm flex items-center space-x-2 cursor-pointer"
-              title="Remove image"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-              <span>Remove</span>
-            </button>
           </div>
         ) : (
           <div className="relative">
@@ -548,6 +640,24 @@ export default function UpdateSchemaForm({
                 className="hidden"
               />
             </label>
+            {hasImageChanged && originalImageUrl && (
+              <button
+                type="button"
+                onClick={handleRevertImage}
+                className="absolute top-3 right-3 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 shadow-lg font-medium text-sm flex items-center space-x-2 cursor-pointer"
+                title="Revert to original image"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                  />
+                </svg>
+                <span>Revert</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -635,9 +745,15 @@ export default function UpdateSchemaForm({
         </button>
         <button
           onClick={handleSubmit}
-          disabled={isSubmitting || !isFormValid()}
+          disabled={isSubmitting || !isFormValid() || !hasDataChanged()}
           className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
-          title={!isFormValid() ? 'Please add at least one attribute with a name' : ''}
+          title={
+            !isFormValid()
+              ? 'Please add at least one attribute with a name'
+              : !hasDataChanged()
+                ? 'No changes detected'
+                : ''
+          }
         >
           {isSubmitting && (
             <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

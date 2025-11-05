@@ -19,7 +19,7 @@ interface ViewSchemaFormProps {
     version: string;
     expiredIn: number;
     isActive: string;
-    lastUpdated: string;
+    updatedAt: string;
     attributes: Attribute[];
     imageUrl?: string;
   };
@@ -133,13 +133,21 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
           </div>
         </div>
 
-        {/* Last Updated */}
+        {/* Updated At */}
         <div>
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Last Updated</ThemedText>
+            <ThemedText className="text-sm font-medium text-gray-700">Updated At</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-            {schemaData.lastUpdated}
+            {new Date(schemaData.updatedAt).toLocaleString('en-US', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false,
+            })}
           </div>
         </div>
       </div>

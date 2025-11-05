@@ -20,7 +20,6 @@ interface Schema {
   schemaName: string;
   attributes: number;
   isActive: boolean;
-  lastUpdated: string;
   expiredIn: number;
   schemaDetails?: {
     properties: Record<string, { type: string }>;
@@ -29,6 +28,8 @@ interface Schema {
   version: number;
   uniqueKey: string; // Composite key: id-version
   image_link?: string; // Optional image URL from API
+  createdAt: string; // Creation timestamp
+  updatedAt: string; // Last update timestamp
 }
 
 interface ApiSchemaResponse {
@@ -79,6 +80,7 @@ export default function SchemaPage() {
   const [bulkTogglingAction, setBulkTogglingAction] = useState<'reactivate' | 'deactivate' | null>(
     null
   ); // Track which bulk action is in progress
+  const [bulkRemainingCount, setBulkRemainingCount] = useState(0); // Track remaining schemas in bulk operation
 
   const filterModalRef = useRef<HTMLDivElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
@@ -113,9 +115,10 @@ export default function SchemaPage() {
         isActive: schema.isActive,
         version: schema.version,
         expiredIn: schema.schema.expired_in ?? 0,
-        lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
         uniqueKey: `${schema.id}-${schema.version}`, // Composite unique key
         image_link: schema.image_link, // Include image link from API
+        createdAt: schema.createdAt,
+        updatedAt: schema.updatedAt,
       }));
 
       // Update schemas state
@@ -173,9 +176,10 @@ export default function SchemaPage() {
           isActive: schema.isActive,
           version: schema.version,
           expiredIn: schema.schema.expired_in ?? 0,
-          lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'), // Format as YYYY/MM/DD
           uniqueKey: `${schema.id}-${schema.version}`, // Composite unique key
           image_link: schema.image_link, // Include image link from API
+          createdAt: schema.createdAt,
+          updatedAt: schema.updatedAt,
         }));
 
         setSchemas(transformedSchemas);
@@ -431,15 +435,7 @@ export default function SchemaPage() {
         formData.append('schema[expired_in]', String(payload.schema.expired_in));
         formData.append('schema[required]', JSON.stringify(payload.schema.required));
         formData.append('schema[properties]', JSON.stringify(payload.schema.properties));
-        formData.append('image', data.image, data.image.name); // Add filename
-
-        console.log('Updating schema with image:', {
-          schemaId: data.schemaId,
-          imageSize: data.image.size,
-          imageType: data.image.type,
-          imageName: data.image.name,
-          schema: payload.schema,
-        });
+        formData.append('image', data.image, data.image.name);
 
         const token = localStorage.getItem('institutionToken');
         if (!token) {
@@ -455,7 +451,6 @@ export default function SchemaPage() {
           body: formData,
         });
       } else {
-        console.log('Updating schema without image:', payload);
         response = await authenticatedFetch(
           buildApiUrl(API_ENDPOINTS.SCHEMA.UPDATE(data.schemaId)),
           {
@@ -577,16 +572,18 @@ export default function SchemaPage() {
     selectedIndices: number[],
     selectedIdValues?: (string | number)[]
   ) => {
-    // Use the ID values directly if provided, otherwise fall back to index mapping
     if (selectedIdValues && selectedIdValues.length > 0) {
       setSelectedSchemaKeys(new Set(selectedIdValues as string[]));
     } else {
-      // Fallback: Convert indices to schema uniqueKeys
       const selectedKeys = new Set(
         selectedIndices.map((index) => filteredSchemas[index]?.uniqueKey).filter(Boolean)
       );
       setSelectedSchemaKeys(selectedKeys);
     }
+  };
+
+  const handleUnselectAll = () => {
+    setSelectedSchemaKeys(new Set());
   };
 
   const handleBulkToggle = async (action: 'reactivate' | 'deactivate') => {
@@ -607,8 +604,15 @@ export default function SchemaPage() {
       return;
     }
 
+    // Clear selection first before processing
+    setSelectedSchemaKeys(new Set());
+
     setIsBulkToggling(true);
     setBulkTogglingAction(action);
+
+    // Add all schemas to the toggling set immediately to show they're queued
+    const allSchemaKeys = selectedSchemas.map((s) => `${s.id}-${s.version}`);
+    setTogglingSchemas(new Set(allSchemaKeys));
 
     const results: {
       success: boolean;
@@ -618,10 +622,15 @@ export default function SchemaPage() {
       reason?: string;
     }[] = [];
 
-    // Process each schema
+    let remainingCount = selectedSchemas.length;
+
+    // Process each schema one by one
     for (const schema of selectedSchemas) {
       const schemaKey = `${schema.id}-${schema.version}`;
       const targetIsActive = action === 'reactivate';
+
+      // Update remaining count
+      setBulkRemainingCount(remainingCount);
 
       // Check if schema is already in the desired state
       if (schema.isActive === targetIsActive) {
@@ -631,13 +640,17 @@ export default function SchemaPage() {
           schema,
           reason: `Already ${targetIsActive ? 'active' : 'inactive'}`,
         });
+        remainingCount--;
+        // Remove from toggling set
+        setTogglingSchemas((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(schemaKey);
+          return newSet;
+        });
         continue;
       }
 
       try {
-        // Add to toggling set
-        setTogglingSchemas((prev) => new Set(prev).add(schemaKey));
-
         // Call the appropriate API endpoint
         const endpoint =
           action === 'deactivate'
@@ -654,6 +667,9 @@ export default function SchemaPage() {
         }
 
         results.push({ success: true, skipped: false, schema });
+
+        // Refresh schemas after each successful toggle to update status immediately
+        await refreshSchemas();
       } catch (error) {
         results.push({
           success: false,
@@ -662,6 +678,7 @@ export default function SchemaPage() {
           error: error instanceof Error ? error.message : 'Unknown error',
         });
       } finally {
+        remainingCount--;
         // Remove from toggling set
         setTogglingSchemas((prev) => {
           const newSet = new Set(prev);
@@ -670,12 +687,6 @@ export default function SchemaPage() {
         });
       }
     }
-
-    // Refresh schemas to get latest state
-    await refreshSchemas();
-
-    // Clear selection
-    setSelectedSchemaKeys(new Set());
 
     // Show results
     const successCount = results.filter((r) => r.success).length;
@@ -704,6 +715,7 @@ export default function SchemaPage() {
 
     setIsBulkToggling(false);
     setBulkTogglingAction(null);
+    setBulkRemainingCount(0);
   };
 
   const handleNewSchema = () => {
@@ -756,16 +768,7 @@ export default function SchemaPage() {
         formData.append('schema[required]', JSON.stringify(payload.schema.required));
         formData.append('schema[properties]', JSON.stringify(payload.schema.properties));
         formData.append('issuer_did', issuerDid);
-        formData.append('image', data.image, data.image.name); // Add filename
-
-        console.log('Creating schema with image:', {
-          name: data.schemaName,
-          issuerDid: issuerDid,
-          imageSize: data.image.size,
-          imageType: data.image.type,
-          imageName: data.image.name,
-          schema: payload.schema,
-        });
+        formData.append('image', data.image, data.image.name);
 
         const token = localStorage.getItem('institutionToken');
         if (!token) {
@@ -781,8 +784,6 @@ export default function SchemaPage() {
           body: formData,
         });
       } else {
-        // Send JSON without image field
-        console.log('Creating schema without image:', payload);
         response = await authenticatedPost(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), payload);
       }
 
@@ -798,9 +799,6 @@ export default function SchemaPage() {
 
         throw new Error(errorData.message || 'Failed to create schema');
       }
-
-      const result = await response.json();
-      console.log('Schema created successfully:', result);
 
       // Refresh the schemas list
       await refreshSchemas();
@@ -845,6 +843,7 @@ export default function SchemaPage() {
     {
       id: 'status',
       label: 'STATUS',
+      sortKey: 'isActive',
       render: (row) => (
         <span
           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
@@ -856,10 +855,40 @@ export default function SchemaPage() {
       ),
     },
     {
-      id: 'lastUpdated',
-      label: 'LAST UPDATED',
-      sortKey: 'lastUpdated',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{row.lastUpdated}</ThemedText>,
+      id: 'createdAt',
+      label: 'CREATED AT',
+      sortKey: 'createdAt',
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">
+          {new Date(row.createdAt).toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+          })}
+        </ThemedText>
+      ),
+    },
+    {
+      id: 'updatedAt',
+      label: 'UPDATED AT',
+      sortKey: 'updatedAt',
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">
+          {new Date(row.updatedAt).toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+          })}
+        </ThemedText>
+      ),
     },
     {
       id: 'action',
@@ -971,16 +1000,30 @@ export default function SchemaPage() {
             filterButtonRef={filterButtonRef}
             searchPlaceholder="Search..."
             onSearch={handleSearch}
+            defaultSortColumn="createdAt"
+            defaultSortDirection="desc"
             topRightButtons={
-              <div className="flex items-center gap-3">
-                {/* Selection indicator */}
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                {/* Show bulk operation status indicator only when no schemas are selected */}
+                {isBulkToggling && selectedSchemaKeys.size === 0 && (
+                  <>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                      <span className="text-gray-700">
+                        {bulkTogglingAction === 'reactivate' ? 'Reactivating' : 'Deactivating'}{' '}
+                        {bulkRemainingCount} schema(s)...
+                      </span>
+                    </div>
+                    <div className="h-8 w-px bg-gray-300"></div>
+                  </>
+                )}
+
                 {selectedSchemaKeys.size > 0 && (
                   <ThemedText className="text-sm text-gray-700">
                     {selectedSchemaKeys.size} schema(s) selected
                   </ThemedText>
                 )}
 
-                {/* Bulk Action Buttons */}
                 {selectedSchemaKeys.size > 0 && (
                   <>
                     <button
@@ -991,7 +1034,7 @@ export default function SchemaPage() {
                       {isBulkToggling && bulkTogglingAction === 'reactivate' ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                          <span>Reactivating all...</span>
+                          <span>Reactivating {bulkRemainingCount} schema(s)...</span>
                         </>
                       ) : (
                         <>
@@ -1024,7 +1067,7 @@ export default function SchemaPage() {
                       {isBulkToggling && bulkTogglingAction === 'deactivate' ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                          <span>Deactivating all...</span>
+                          <span>Deactivating {bulkRemainingCount} schema(s)...</span>
                         </>
                       ) : (
                         <>
@@ -1046,12 +1089,32 @@ export default function SchemaPage() {
                       )}
                     </button>
 
-                    {/* Separator */}
+                    <div className="h-8 w-px bg-gray-300"></div>
+
+                    <button
+                      onClick={handleUnselectAll}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium cursor-pointer"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                      <span>Unselect All</span>
+                    </button>
+
                     <div className="h-8 w-px bg-gray-300"></div>
                   </>
                 )}
 
-                {/* New Schema Button */}
                 <button
                   onClick={handleNewSchema}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
@@ -1070,6 +1133,7 @@ export default function SchemaPage() {
             }
             enableSelection={true}
             onSelectionChange={handleSelectionChange}
+            selectedIds={selectedSchemaKeys}
             onRowClick={(row) => handleViewSchema(row.id, row.version)}
             totalCount={filteredSchemas.length}
             rowsPerPageOptions={[5, 10, 25, 50, 100]}
@@ -1241,7 +1305,7 @@ export default function SchemaPage() {
               version: selectedSchema.version.toString(),
               expiredIn: selectedSchema.expiredIn,
               isActive: selectedSchema.isActive ? 'Active' : 'Inactive',
-              lastUpdated: selectedSchema.lastUpdated,
+              updatedAt: selectedSchema.updatedAt,
               attributes: Object.entries(selectedSchema.schemaDetails.properties).map(
                 ([name, config], index) => ({
                   id: index + 1,
