@@ -1,15 +1,19 @@
 /**
- * JWT (JSON Web Token) Signing and Verification with ES256
+ * JWT (JSON Web Token) Signing and Verification with ES256 (Expo-compatible)
  *
- * This module provides JWT operations using ECDSA P-256 (ES256) with SubtleCrypto.
- * Private keys are non-extractable CryptoKeys, making them secure from XSS attacks.
+ * This module provides JWT operations using ECDSA P-256 (ES256) with @noble/curves.
+ * Compatible with Expo/React Native environments.
  *
  * Features:
  * - ES256 algorithm (ECDSA with P-256 and SHA-256)
- * - Non-extractable private keys (secure storage)
+ * - Expo/React Native compatible (no Web Crypto API)
  * - Standard JWT format: header.payload.signature
  * - Base64url encoding (RFC 4648)
+ * - DER-encoded signatures for backend compatibility
  */
+
+import { p256 } from '@noble/curves/nist.js';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -180,12 +184,15 @@ function rawToDerSignature(rawSignature: Uint8Array): Uint8Array {
   }
 
   // Build DER sequence
-  const totalLength = 2 + r.length + 2 + s.length;
-  const derSignature = new Uint8Array(2 + totalLength);
+  // Total content length = 2 bytes (r header) + r + 2 bytes (s header) + s
+  const contentLength = 2 + r.length + 2 + s.length;
+
+  // Total DER size = 2 bytes (sequence header) + content
+  const derSignature = new Uint8Array(2 + contentLength);
 
   let offset = 0;
   derSignature[offset++] = 0x30; // SEQUENCE tag
-  derSignature[offset++] = totalLength; // Total length
+  derSignature[offset++] = contentLength; // Content length (not including sequence header)
   derSignature[offset++] = 0x02; // INTEGER tag for r
   derSignature[offset++] = r.length; // r length
   derSignature.set(r, offset); // r value
@@ -200,7 +207,7 @@ function rawToDerSignature(rawSignature: Uint8Array): Uint8Array {
 /**
  * Encode object to base64url JSON
  */
-function encodeJsonToBase64Url(obj: object): string {
+function encodeJsonToBase64Url(obj: unknown): string {
   const json = JSON.stringify(obj);
   const bytes = new TextEncoder().encode(json);
   return base64UrlEncode(bytes);
@@ -209,10 +216,28 @@ function encodeJsonToBase64Url(obj: object): string {
 /**
  * Decode base64url to JSON object
  */
-function decodeBase64UrlToJson<T = Record<string, unknown>>(base64url: string): T {
+function decodeBase64UrlToJson<T = unknown>(base64url: string): T {
   const bytes = base64UrlDecode(base64url);
   const json = new TextDecoder().decode(bytes);
   return JSON.parse(json);
+}
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+/**
+ * Convert hexadecimal string to Uint8Array
+ */
+function hexToBytes(hex: string): Uint8Array {
+  if (hex.length % 2 !== 0) {
+    throw new Error('Hex string must have even length');
+  }
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
 }
 
 // =============================================================================
@@ -220,16 +245,16 @@ function decodeBase64UrlToJson<T = Record<string, unknown>>(base64url: string): 
 // =============================================================================
 
 /**
- * Sign a JWT using ES256 with CryptoKey or raw private key
+ * Sign a JWT using ES256 with P-256 private key (Expo-compatible)
  *
  * @param payload - JWT payload (claims)
- * @param privateKey - CryptoKey or raw private key bytes (Uint8Array) or hex string
+ * @param privateKey - Private key (Uint8Array or hex string)
  * @param kid - Optional Key ID for header
  * @returns Signed JWT string (header.payload.signature)
  */
 export async function signJWT(
   payload: JWTPayload,
-  privateKey: CryptoKey | Uint8Array | string,
+  privateKey: Uint8Array | string,
   kid?: string
 ): Promise<string> {
   // Create JWT header
@@ -250,58 +275,42 @@ export async function signJWT(
   const signingInput = `${encodedHeader}.${encodedPayload}`;
   const signingInputBytes = new TextEncoder().encode(signingInput);
 
-  let signatureBuffer: ArrayBuffer;
-
-  // Handle different private key types
-  if (privateKey instanceof CryptoKey) {
-    // CryptoKey (non-extractable) - use SubtleCrypto
-    if (!privateKey.usages.includes('sign')) {
-      throw new Error('CryptoKey does not have sign usage');
-    }
-
-    signatureBuffer = await window.crypto.subtle.sign(
-      {
-        name: 'ECDSA',
-        hash: { name: 'SHA-256' },
-      },
-      privateKey,
-      signingInputBytes
-    );
+  // Convert private key to bytes if needed
+  let privateKeyBytes: Uint8Array;
+  if (typeof privateKey === 'string') {
+    privateKeyBytes = hexToBytes(privateKey);
   } else {
-    // Raw private key (Uint8Array or hex string) - import then sign
-    let privateKeyBytes: Uint8Array;
-
-    if (typeof privateKey === 'string') {
-      // Convert hex string to Uint8Array
-      privateKeyBytes = hexToBytes(privateKey);
-    } else {
-      privateKeyBytes = privateKey;
-    }
-
-    // Import private key to SubtleCrypto (extractable for development)
-    const { importPrivateKeyToSubtleCrypto } = await import('@/utils/seedphrase-p256');
-    const cryptoKey = await importPrivateKeyToSubtleCrypto(privateKeyBytes);
-
-    signatureBuffer = await window.crypto.subtle.sign(
-      {
-        name: 'ECDSA',
-        hash: { name: 'SHA-256' },
-      },
-      cryptoKey,
-      signingInputBytes
-    );
+    privateKeyBytes = privateKey;
   }
 
-  // Convert signature to Uint8Array
-  const signatureBytes = new Uint8Array(signatureBuffer);
+  // Sign with P-256 (ECDSA) using @noble/curves
+  // IMPORTANT: p256.sign() expects a 32-byte message hash (NOT raw message)
+  // Backend uses crypto.verify('sha256', ...) which hashes the message
+  // So we must hash here too for signature compatibility
+  console.log('[JWT Sign] Signing input length:', signingInput.length, 'characters');
+  console.log('[JWT Sign] Signing input preview:', signingInput.substring(0, 100) + '...');
 
-  // IMPORTANT: SubtleCrypto.sign() returns raw signature (r||s) for ECDSA
-  // For P-256, this should be exactly 64 bytes
-  if (signatureBytes.length !== 64) {
-    console.warn(`⚠️ Unexpected signature length: ${signatureBytes.length} bytes (expected 64)`);
+  const messageHash = sha256(signingInputBytes); // Hash to 32 bytes
+  console.log('[JWT Sign] ✓ Message hashed with SHA-256');
+
+  const signature = p256.sign(messageHash, privateKeyBytes);
+  console.log('[JWT Sign] ✓ Signature created with P-256 ECDSA');
+
+  // Convert to raw bytes format (64 bytes: r + s)
+  let rawSignature: Uint8Array;
+  if (signature instanceof Uint8Array) {
+    rawSignature = signature;
+  } else {
+    // If it's a Signature object, call toCompactRawBytes()
+    rawSignature = (signature as { toCompactRawBytes(): Uint8Array }).toCompactRawBytes();
+  }
+
+  // IMPORTANT: Raw signature should be exactly 64 bytes
+  if (rawSignature.length !== 64) {
+    console.warn(`⚠️ Unexpected signature length: ${rawSignature.length} bytes (expected 64)`);
     console.warn(
       'Signature (hex):',
-      Array.from(signatureBytes)
+      Array.from(rawSignature)
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('')
     );
@@ -309,44 +318,51 @@ export async function signJWT(
 
   // CRITICAL: Convert raw signature to DER format for backend compatibility
   // Backend (Node.js crypto) expects DER-encoded signatures
-  const derSignature = rawToDerSignature(signatureBytes);
+  const derSignature = rawToDerSignature(rawSignature);
 
-  console.log('[JWT Sign] Raw signature:', signatureBytes.length, 'bytes');
+  console.log('[JWT Sign] Message hash (SHA-256):', messageHash.length, 'bytes');
+  console.log(
+    '[JWT Sign] Message hash (hex):',
+    Array.from(messageHash)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+  );
+  console.log('[JWT Sign] Raw signature:', rawSignature.length, 'bytes');
+  console.log(
+    '[JWT Sign] Raw signature (hex):',
+    Array.from(rawSignature)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+  );
   console.log('[JWT Sign] DER signature:', derSignature.length, 'bytes');
+  console.log(
+    '[JWT Sign] DER signature (hex):',
+    Array.from(derSignature)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+  );
 
   // Encode DER signature to base64url
-  const signature = base64UrlEncode(derSignature);
+  const signatureEncoded = base64UrlEncode(derSignature);
+  console.log('[JWT Sign] ✓ Signature encoded to base64url, length:', signatureEncoded.length);
 
   // Return complete JWT
-  return `${signingInput}.${signature}`;
+  const jwt = `${signingInput}.${signatureEncoded}`;
+  console.log('[JWT Sign] ✅ JWT created successfully! Total length:', jwt.length, 'characters');
+  return jwt;
 }
 
 /**
- * Convert hexadecimal string to Uint8Array
- * Helper function for JWT signing with hex private keys
- */
-function hexToBytes(hex: string): Uint8Array {
-  if (hex.length % 2 !== 0) {
-    throw new Error('Hex string must have even length');
-  }
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
-}
-
-/**
- * Create a JWT with automatic timestamps
+ * Create a JWT with automatic timestamps (Expo-compatible)
  *
  * @param payload - JWT payload
- * @param privateKey - CryptoKey or raw private key (Uint8Array or hex string)
+ * @param privateKey - Private key (Uint8Array or hex string)
  * @param options - JWT options
  * @returns Signed JWT string
  */
 export async function createJWT(
   payload: JWTPayload,
-  privateKey: CryptoKey | Uint8Array | string,
+  privateKey: Uint8Array | string,
   options: {
     issuer?: string; // DID of issuer
     subject?: string; // DID of subject
@@ -418,13 +434,13 @@ export function decodeJWT(jwt: string): DecodedJWT {
 }
 
 /**
- * Verify JWT signature using public key
+ * Verify JWT signature using public key (Expo-compatible)
  *
  * @param jwt - JWT string to verify
- * @param publicKey - CryptoKey (public key) or raw public key bytes
+ * @param publicKey - Public key (Uint8Array or hex string)
  * @returns True if signature is valid
  */
-export async function verifyJWT(jwt: string, publicKey: CryptoKey | Uint8Array): Promise<boolean> {
+export async function verifyJWT(jwt: string, publicKey: Uint8Array | string): Promise<boolean> {
   const parts = jwt.split('.');
 
   if (parts.length !== 3) {
@@ -446,6 +462,9 @@ export async function verifyJWT(jwt: string, publicKey: CryptoKey | Uint8Array):
     const signingInput = `${encodedHeader}.${encodedPayload}`;
     const signingInputBytes = new TextEncoder().encode(signingInput);
 
+    // Hash the message with SHA-256 (same as during signing)
+    const messageHash = sha256(signingInputBytes);
+
     // Decode signature from base64url
     const signatureBytes = base64UrlDecode(encodedSignature);
 
@@ -458,12 +477,12 @@ export async function verifyJWT(jwt: string, publicKey: CryptoKey | Uint8Array):
     );
 
     // CRITICAL: Signatures are DER-encoded for backend compatibility
-    // SubtleCrypto expects raw format, so convert DER → raw
+    // @noble/curves p256.verify expects raw format, so convert DER → raw
     let rawSignature: Uint8Array;
 
     if (signatureBytes.length > 64 && signatureBytes[0] === 0x30) {
-      // DER-encoded signature (expected format), convert to raw for SubtleCrypto
-      console.log('[JWT Verify] Converting DER signature to raw format for SubtleCrypto');
+      // DER-encoded signature (expected format), convert to raw for verification
+      console.log('[JWT Verify] Converting DER signature to raw format for @noble/curves');
       rawSignature = derToRawSignature(signatureBytes);
       console.log('[JWT Verify] Raw signature length:', rawSignature.length, 'bytes');
     } else if (signatureBytes.length === 64) {
@@ -479,36 +498,35 @@ export async function verifyJWT(jwt: string, publicKey: CryptoKey | Uint8Array):
       return false;
     }
 
-    // Import public key if it's raw bytes
-    let cryptoPublicKey: CryptoKey;
-
-    if (publicKey instanceof Uint8Array) {
-      console.log('[JWT Verify] Public key length:', publicKey.length, 'bytes');
-      console.log(
-        '[JWT Verify] Public key (first 33 bytes):',
-        Array.from(publicKey.slice(0, 33))
-          .map((b) => b.toString(16).padStart(2, '0'))
-          .join('')
-      );
-      cryptoPublicKey = await importPublicKey(publicKey);
+    // Convert public key to bytes if needed
+    let publicKeyBytes: Uint8Array;
+    if (typeof publicKey === 'string') {
+      publicKeyBytes = hexToBytes(publicKey);
     } else {
-      cryptoPublicKey = publicKey;
+      publicKeyBytes = publicKey;
     }
 
+    console.log('[JWT Verify] Public key length:', publicKeyBytes.length, 'bytes');
+    console.log(
+      '[JWT Verify] Public key (first 33 bytes):',
+      Array.from(publicKeyBytes.slice(0, 33))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+    );
     console.log('[JWT Verify] Signing input length:', signingInput.length, 'chars');
     console.log('[JWT Verify] Signing input (first 50):', signingInput.substring(0, 50));
-
-    // Verify signature using SubtleCrypto
-    // SubtleCrypto expects raw signature format (r||s) for ECDSA
-    const isValid = await window.crypto.subtle.verify(
-      {
-        name: 'ECDSA',
-        hash: { name: 'SHA-256' },
-      },
-      cryptoPublicKey,
-      rawSignature as BufferSource,
-      signingInputBytes as BufferSource
+    console.log('[JWT Verify] Message hash length:', messageHash.length, 'bytes');
+    console.log(
+      '[JWT Verify] Message hash (hex):',
+      Array.from(messageHash)
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
     );
+
+    // Verify signature using P-256 with message hash
+    // IMPORTANT: p256.verify() expects the same hash that was signed
+    // We hashed during signing, so verify the hash (not raw message)
+    const isValid = p256.verify(rawSignature, messageHash, publicKeyBytes);
 
     console.log('[JWT Verify] Verification result:', isValid);
 
@@ -520,15 +538,15 @@ export async function verifyJWT(jwt: string, publicKey: CryptoKey | Uint8Array):
 }
 
 /**
- * Verify JWT and decode payload (if valid)
+ * Verify JWT and decode payload (if valid) - Expo-compatible
  *
  * @param jwt - JWT string
- * @param publicKey - CryptoKey or raw public key bytes
+ * @param publicKey - Public key (Uint8Array or hex string)
  * @returns Decoded payload if valid, null if invalid
  */
 export async function verifyAndDecodeJWT(
   jwt: string,
-  publicKey: CryptoKey | Uint8Array
+  publicKey: Uint8Array | string
 ): Promise<JWTPayload | null> {
   const isValid = await verifyJWT(jwt, publicKey);
 
@@ -579,121 +597,6 @@ export function validateJWTClaims(payload: JWTPayload): {
     valid: errors.length === 0,
     errors,
   };
-}
-
-// =============================================================================
-// PUBLIC KEY UTILITIES
-// =============================================================================
-
-/**
- * Import raw P-256 public key bytes to CryptoKey for verification
- *
- * @param publicKeyBytes - Raw public key (33 or 65 bytes)
- * @returns CryptoKey for verification
- */
-export async function importPublicKey(publicKeyBytes: Uint8Array): Promise<CryptoKey> {
-  // Ensure public key is in uncompressed format (65 bytes)
-  const uncompressedKey = publicKeyBytes;
-
-  if (publicKeyBytes.length === 33) {
-    // Compressed format - need to convert to uncompressed
-    // For now, throw error - SubtleCrypto expects uncompressed or SPKI format
-    throw new Error(
-      'Compressed public keys not supported yet. Please use uncompressed (65 bytes) or provide CryptoKey directly.'
-    );
-  }
-
-  if (publicKeyBytes.length !== 65) {
-    throw new Error('Public key must be 65 bytes (uncompressed) or 33 bytes (compressed)');
-  }
-
-  // Create SPKI format for import
-  const spkiHeader = new Uint8Array([
-    0x30,
-    0x59, // SEQUENCE
-    0x30,
-    0x13, // SEQUENCE
-    0x06,
-    0x07,
-    0x2a,
-    0x86,
-    0x48,
-    0xce,
-    0x3d,
-    0x02,
-    0x01, // OID: ecPublicKey
-    0x06,
-    0x08,
-    0x2a,
-    0x86,
-    0x48,
-    0xce,
-    0x3d,
-    0x03,
-    0x01,
-    0x07, // OID: P-256
-    0x03,
-    0x42,
-    0x00, // BIT STRING
-  ]);
-
-  const spkiKey = new Uint8Array(spkiHeader.length + uncompressedKey.length);
-  spkiKey.set(spkiHeader, 0);
-  spkiKey.set(uncompressedKey, spkiHeader.length);
-
-  try {
-    const cryptoKey = await window.crypto.subtle.importKey(
-      'spki',
-      spkiKey,
-      {
-        name: 'ECDSA',
-        namedCurve: 'P-256',
-      },
-      true, // Public keys can be extractable
-      ['verify']
-    );
-
-    return cryptoKey;
-  } catch (error) {
-    console.error('Failed to import public key:', error);
-    throw new Error('Public key import failed');
-  }
-}
-
-/**
- * Import public key from PEM format
- *
- * @param pem - PEM-encoded public key
- * @returns CryptoKey for verification
- */
-export async function importPublicKeyFromPem(pem: string): Promise<CryptoKey> {
-  // Remove PEM headers and whitespace
-  const pemContents = pem
-    .replace(/-----BEGIN PUBLIC KEY-----/, '')
-    .replace(/-----END PUBLIC KEY-----/, '')
-    .replace(/\s/g, '');
-
-  // Decode base64
-  const binaryString = atob(pemContents);
-  const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0));
-
-  try {
-    const cryptoKey = await window.crypto.subtle.importKey(
-      'spki',
-      bytes,
-      {
-        name: 'ECDSA',
-        namedCurve: 'P-256',
-      },
-      true,
-      ['verify']
-    );
-
-    return cryptoKey;
-  } catch (error) {
-    console.error('Failed to import PEM public key:', error);
-    throw new Error('PEM public key import failed');
-  }
 }
 
 // =============================================================================
