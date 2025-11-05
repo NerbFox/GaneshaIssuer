@@ -12,6 +12,8 @@ export interface VerifiableCredential {
   issuer: string;
   issuerName: string;
   validFrom: string;
+  expiredAt: string | null;
+  imageLink: string | null;
   credentialSubject: {
     id: string;
     [key: string]: string | number | boolean;
@@ -29,19 +31,33 @@ export function createVC(params: {
   holderDid: string;
   credentialData: Record<string, string | number | boolean>;
   validFrom?: string;
+  imageLink: string | null;
+  expiredAt: string | null;
 }): VerifiableCredential {
-  const { id, vcType, issuerDid, holderDid, credentialData, validFrom, issuerName } = params;
+  const {
+    id,
+    vcType,
+    issuerDid,
+    holderDid,
+    credentialData,
+    validFrom,
+    expiredAt,
+    imageLink,
+    issuerName,
+  } = params;
 
   return {
     '@context': [
       'https://www.w3.org/ns/credentials/v2',
       'https://www.w3.org/ns/credentials/examples/v2',
     ],
-    id: `http://credentials.example/${id}`,
+    id: id,
     type: ['VerifiableCredential', vcType],
     issuer: issuerDid,
     issuerName: issuerName,
     validFrom: validFrom || new Date().toISOString(),
+    expiredAt: expiredAt || null,
+    imageLink: imageLink || null,
     credentialSubject: {
       id: holderDid,
       ...credentialData,

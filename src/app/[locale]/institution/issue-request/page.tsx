@@ -57,6 +57,7 @@ interface SchemaApiResponse {
     issuer_did: string;
     version: number;
     isActive: boolean;
+    image_link: string | null;
     createdAt: string;
     updatedAt: string;
   };
@@ -75,6 +76,7 @@ interface Schema {
   version: string;
   status: string;
   attributes: SchemaAttribute[];
+  image_link: string | null;
   expired_in: number;
 }
 
@@ -365,6 +367,7 @@ export default function IssueRequestPage() {
               version: version.toString(),
               status: isActive ? 'Active' : 'Inactive',
               attributes: attributes,
+              image_link: schemaApiData.data.image_link,
               expired_in: schema.expired_in,
             });
 
@@ -427,26 +430,6 @@ export default function IssueRequestPage() {
         console.warn('Using default issuer name');
       }
 
-      // Create Verifiable Credential
-      const vc = createVC({
-        id: selectedRequest.id,
-        vcType: schemaData.name.replace(/\s+/g, ''), // Remove spaces for type name
-        issuerDid: selectedRequest.issuer_did,
-        issuerName: issuerName,
-        holderDid: selectedRequest.holder_did,
-        credentialData: credentialData,
-      });
-
-      console.log('Created VC (unsigned):', vc);
-
-      // Sign the VC with stored private key
-      const signedVC = await signVCWithStoredKey(vc);
-      console.log('Signed VC with proof:', signedVC);
-
-      // Hash the original VC (before signing)
-      const vcHash = hashVC(vc);
-      console.log('VC Hash:', vcHash);
-
       // Fetch holder's DID Document to get public key for encryption
       let holderPublicKeyHex: string;
       try {
@@ -490,17 +473,52 @@ export default function IssueRequestPage() {
         );
       }
 
+      // Generate unique vc_id with timestamp and random component
+      const timestamp = Date.now();
+      const vcId = `${schemaData.id}:${schemaData.version}:${selectedRequest.holder_did}:${timestamp}`;
+      console.log('Generated unique VC ID:', vcId);
+
+      // Calculate expired_at based on schemaData.expired_in
+      const now = new Date();
+      let expiredAt: string | null = null;
+
+      if (schemaData.expired_in !== null && schemaData.expired_in !== undefined) {
+        // expired_in is in seconds, add it to current datetime
+        const expirationDate = new Date(now.getTime() + schemaData.expired_in * 1000);
+        expiredAt = expirationDate.toISOString();
+        console.log('Calculated expired_at:', expiredAt);
+      } else {
+        console.log('expired_in is null, setting expired_at to null (lifetime credential)');
+      }
+
+      // Create Verifiable Credential
+      const vc = createVC({
+        id: vcId,
+        vcType: schemaData.name.replace(/\s+/g, ''), // Remove spaces for type name
+        issuerDid: selectedRequest.issuer_did,
+        expiredAt: expiredAt,
+        imageLink: schemaData.image_link,
+        issuerName: issuerName,
+        holderDid: selectedRequest.holder_did,
+        credentialData: credentialData,
+      });
+
+      console.log('Created VC (unsigned):', vc);
+
+      // Sign the VC with stored private key
+      const signedVC = await signVCWithStoredKey(vc);
+      console.log('Signed VC with proof:', signedVC);
+
+      // Hash the original VC (before signing)
+      const vcHash = hashVC(vc);
+      console.log('VC Hash:', vcHash);
+
       // Encrypt the signed VC with holder's public key
       // SignedVC is JSON-serializable, so we can safely cast it
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const encryptedBody = await encryptWithPublicKey(signedVC as any, holderPublicKeyHex);
       console.log('Encrypted body (encrypted signed VC):', encryptedBody);
       console.log('Encrypted body length:', encryptedBody.length);
-
-      // Generate unique vc_id with timestamp and random component
-      const timestamp = Date.now();
-      const vcId = `${schemaData.id}:${schemaData.version}:${selectedRequest.holder_did}:${timestamp}`;
-      console.log('Generated unique VC ID:', vcId);
 
       // Prepare request body
       const requestBody = {
@@ -513,6 +531,7 @@ export default function IssueRequestPage() {
         vc_hash: vcHash,
         encrypted_body: encryptedBody, // Encrypted signed VC using holder's public key (ECIES)
         expired_in: schemaData.expired_in || 0, // Default to 0 (lifetime) if null or empty
+        expired_at: expiredAt, // ISO datetime string or null for lifetime credentials
       };
 
       // Validate request body
@@ -524,6 +543,8 @@ export default function IssueRequestPage() {
       console.log('- schema_id:', requestBody.schema_id);
       console.log('- schema_version:', requestBody.schema_version);
       console.log('- vc_hash:', requestBody.vc_hash);
+      console.log('- expired_in:', requestBody.expired_in);
+      console.log('- expired_at:', requestBody.expired_at);
       console.log('- encrypted_body type:', typeof requestBody.encrypted_body);
       console.log(
         '- encrypted_body preview:',
