@@ -56,7 +56,6 @@ export default function UpdateSchemaForm({
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [selectedAttributeIds, setSelectedAttributeIds] = useState<(string | number)[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -221,41 +220,15 @@ export default function UpdateSchemaForm({
     setAttributes(attributes.map((attr) => (attr.id === id ? { ...attr, [field]: value } : attr)));
   };
 
-  const handleDragStart = (index: number) => {
-    setDraggedIndex(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
-
-    const newAttributes = [...attributes];
-    const draggedItem = newAttributes[draggedIndex];
-    newAttributes.splice(draggedIndex, 1);
-    newAttributes.splice(index, 0, draggedItem);
-
-    setAttributes(newAttributes);
-    setDraggedIndex(index);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-  };
-
   const handleSubmit = async () => {
     if (isSubmitting) return;
 
     setIsSubmitting(true);
     try {
-      const reorderedAttributes = attributes.map((attr, index) => ({
-        ...attr,
-        id: index + 1,
-      }));
-
       const submitData = {
         schemaId,
         expiredIn,
-        attributes: reorderedAttributes,
+        attributes,
         image: vcBackgroundImage || undefined,
       };
 
@@ -292,17 +265,9 @@ export default function UpdateSchemaForm({
       return true;
     }
 
-    const orderChanged = attributes.some((attr, index) => {
-      const initialAttr = initialAttributes[index];
-      return attr.name !== initialAttr.name;
-    });
-
-    if (orderChanged) {
-      return true;
-    }
-
-    const attributesChanged = attributes.some((attr, index) => {
-      const initialAttr = initialAttributes[index];
+    const attributesChanged = attributes.some((attr) => {
+      const initialAttr = initialAttributes.find((initial) => initial.name === attr.name);
+      if (!initialAttr) return true;
       return (
         attr.type !== initialAttr.type ||
         attr.description !== initialAttr.description ||
@@ -726,11 +691,6 @@ export default function UpdateSchemaForm({
           totalCount={displayAttributes.length}
           rowsPerPageOptions={[5, 10, 25, 50]}
           idKey="id"
-          enableDragDrop={true}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-          draggedIndex={draggedIndex}
         />
       </div>
 

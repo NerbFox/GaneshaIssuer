@@ -35,7 +35,6 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [selectedAttributeIds, setSelectedAttributeIds] = useState<(string | number)[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -136,42 +135,15 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
     setAttributes(attributes.map((attr) => (attr.id === id ? { ...attr, [field]: value } : attr)));
   };
 
-  const handleDragStart = (index: number) => {
-    setDraggedIndex(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
-
-    const newAttributes = [...attributes];
-    const draggedItem = newAttributes[draggedIndex];
-    newAttributes.splice(draggedIndex, 1);
-    newAttributes.splice(index, 0, draggedItem);
-
-    setAttributes(newAttributes);
-    setDraggedIndex(index);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-  };
-
   const handleSubmit = async () => {
-    if (isSubmitting) return; // Prevent double submission
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
     try {
-      // Reassign IDs based on current order before submitting
-      const reorderedAttributes = attributes.map((attr, index) => ({
-        ...attr,
-        id: index + 1,
-      }));
-
       await onSubmit({
         schemaName,
         expiredIn,
-        attributes: reorderedAttributes,
+        attributes,
         image: vcBackgroundImage || undefined,
       });
     } finally {
@@ -525,11 +497,6 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
           totalCount={displayAttributes.length}
           rowsPerPageOptions={[5, 10, 25, 50]}
           idKey="id"
-          enableDragDrop={true}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-          draggedIndex={draggedIndex}
         />
       </div>
 
