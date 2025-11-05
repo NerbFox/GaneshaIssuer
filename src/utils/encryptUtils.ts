@@ -175,8 +175,8 @@ export async function encryptWithPublicKey(
       console.log('[Encryption] Detected compressed public key, converting to uncompressed...');
       try {
         const compressedHex = uint8ArrayToHex(publicKeyBytes);
-        // Use P-256 Point to parse compressed key, then export as uncompressed
-        const point = p256.Point.fromHex(compressedHex);
+        // Use P-256 ProjectivePoint to parse compressed key, then export as uncompressed
+        const point = p256.ProjectivePoint.fromHex(compressedHex);
         const uncompressedHex = point.toHex(false); // false = uncompressed
         // Convert back to Uint8Array
         publicKeyBytes = hexToUint8Array(uncompressedHex);
