@@ -15,10 +15,10 @@
 
 import BIP39_WORDLIST from '@/data/wordlist.json';
 
-import { hmac } from '@noble/hashes/hmac.js';
-import { pbkdf2Async } from '@noble/hashes/pbkdf2.js';
-import { sha512 } from '@noble/hashes/sha2.js';
-import { p256 } from '@noble/curves/nist.js'; // P-256 (NIST) instead of secp256k1
+import { hmac } from '@noble/hashes/hmac';
+import { pbkdf2Async } from '@noble/hashes/pbkdf2';
+import { sha512 } from '@noble/hashes/sha2';
+import { p256 } from '@noble/curves/p256'; // P-256 (NIST) instead of secp256k1
 
 // =============================================================================
 // CONSTANTS
