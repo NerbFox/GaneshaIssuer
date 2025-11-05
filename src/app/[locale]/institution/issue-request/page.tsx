@@ -9,10 +9,10 @@ import Modal from '@/components/Modal';
 import FillIssueRequestForm, { IssueRequestFormData } from '@/components/FillIssueRequestForm';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { createVC, hashVC } from '@/utils/vcUtils';
-import { signVCWithStoredKey, stringifySignedVC } from '@/utils/vcSigner';
+import { signVCWithStoredKey } from '@/utils/vcSigner';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
 import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
-import { decryptWithPrivateKey } from '@/utils/encryptUtils';
+import { decryptWithPrivateKey, encryptWithPublicKey } from '@/utils/encryptUtils';
 
 interface IssueRequest {
   id: string;
@@ -447,39 +447,78 @@ export default function IssueRequestPage() {
       const vcHash = hashVC(vc);
       console.log('VC Hash:', vcHash);
 
-      // Convert signed VC to JSON string for encrypted_body
-      const encryptedBody = stringifySignedVC(signedVC);
-      console.log('Encrypted body (signed VC as JSON):', encryptedBody);
+      // Fetch holder's DID Document to get public key for encryption
+      let holderPublicKeyHex: string;
+      try {
+        const holderDidDocumentUrl = buildApiUrl(
+          API_ENDPOINTS.DID.DOCUMENT(selectedRequest.holder_did)
+        );
+        console.log('Fetching holder DID Document from:', holderDidDocumentUrl);
+
+        const holderDidDocResponse = await authenticatedGet(holderDidDocumentUrl);
+
+        if (!holderDidDocResponse.ok) {
+          throw new Error('Failed to fetch holder DID document');
+        }
+
+        const holderDidDocData = await holderDidDocResponse.json();
+        console.log('Holder DID Document response:', holderDidDocData);
+
+        // Extract public key from DID Document
+        // The keyId is typically the first verification method
+        const verificationMethods = holderDidDocData.data?.verificationMethod;
+        if (!verificationMethods || verificationMethods.length === 0) {
+          throw new Error('No verification methods found in holder DID document');
+        }
+
+        const keyId = verificationMethods[0].id;
+        const publicKeyHex = holderDidDocData.data[keyId];
+
+        if (!publicKeyHex) {
+          throw new Error(`Public key not found for keyId: ${keyId}`);
+        }
+
+        holderPublicKeyHex = publicKeyHex;
+        console.log(
+          'Extracted holder public key (first 20 chars):',
+          holderPublicKeyHex.substring(0, 20)
+        );
+      } catch (holderDidError) {
+        console.error('Error fetching holder DID document:', holderDidError);
+        throw new Error(
+          `Failed to get holder public key: ${holderDidError instanceof Error ? holderDidError.message : 'Unknown error'}`
+        );
+      }
+
+      // Encrypt the signed VC with holder's public key
+      // SignedVC is JSON-serializable, so we can safely cast it
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const encryptedBody = await encryptWithPublicKey(signedVC as any, holderPublicKeyHex);
+      console.log('Encrypted body (encrypted signed VC):', encryptedBody);
       console.log('Encrypted body length:', encryptedBody.length);
 
       // Generate unique vc_id with timestamp and random component
       const timestamp = Date.now();
-      const vcId = `${schemaData.id}:${selectedRequest.holder_did}:${timestamp}`;
+      const vcId = `${schemaData.id}:${schemaData.version}:${selectedRequest.holder_did}:${timestamp}`;
       console.log('Generated unique VC ID:', vcId);
 
       // Prepare request body
       const requestBody = {
         request_id: selectedRequest.id,
-        issuer_did: selectedRequest.issuer_did,
-        holder_did: selectedRequest.holder_did,
         action: 'APPROVED',
-        request_type: 'ISSUANCE',
         vc_id: vcId,
         vc_type: schemaData.name.replace(/\s+/g, ''),
         schema_id: schemaData.id,
         schema_version: parseInt(schemaData.version),
         vc_hash: vcHash,
-        encrypted_body: encryptedBody, // Send signed VC as stringified JSON
+        encrypted_body: encryptedBody, // Encrypted signed VC using holder's public key (ECIES)
         expired_in: schemaData.expired_in || 0, // Default to 0 (lifetime) if null or empty
       };
 
       // Validate request body
       console.log('Validating request body...');
       console.log('- request_id:', requestBody.request_id);
-      console.log('- issuer_did:', requestBody.issuer_did);
-      console.log('- holder_did:', requestBody.holder_did);
       console.log('- action:', requestBody.action);
-      console.log('- request_type:', requestBody.request_type);
       console.log('- vc_id:', requestBody.vc_id);
       console.log('- vc_type:', requestBody.vc_type);
       console.log('- schema_id:', requestBody.schema_id);
@@ -496,7 +535,7 @@ export default function IssueRequestPage() {
       // Send POST request to issue VC
       const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.ISSUE_VC);
       console.log('Sending request to:', issueUrl);
-      console.log('Request body:', JSON.stringify(requestBody, null, 2));
+      console.log('Request body:', requestBody);
 
       const response = await authenticatedPost(issueUrl, requestBody);
 
