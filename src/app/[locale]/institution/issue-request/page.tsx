@@ -433,29 +433,32 @@ export default function IssueRequestPage() {
       // Fetch holder's DID Document to get public key for encryption
       let holderPublicKeyHex: string;
       try {
-        const holderDidDocumentUrl = buildApiUrl(
-          API_ENDPOINTS.DID.DOCUMENT(selectedRequest.holder_did)
-        );
-        console.log('Fetching holder DID Document from:', holderDidDocumentUrl);
+        console.log('Fetching DID document for:', selectedRequest.holder_did);
+        const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DID.DOCUMENT(selectedRequest.holder_did));
 
-        const holderDidDocResponse = await authenticatedGet(holderDidDocumentUrl);
+        const didResponse = await fetch(didDocumentUrl, {
+          headers: {
+            accept: 'application/json',
+          },
+        });
 
-        if (!holderDidDocResponse.ok) {
-          throw new Error('Failed to fetch holder DID document');
+        if (!didResponse.ok) {
+          const didResult = await didResponse.json();
+          const errorMessage =
+            didResult.message || didResult.error || 'Failed to fetch DID document';
+          throw new Error(errorMessage);
         }
 
-        const holderDidDocData = await holderDidDocResponse.json();
-        console.log('Holder DID Document response:', holderDidDocData);
+        const didResult = await didResponse.json();
+        console.log('DID document fetched:', didResult);
 
-        // Extract public key from DID Document
-        // The keyId is typically the first verification method
-        const verificationMethods = holderDidDocData.data?.verificationMethod;
-        if (!verificationMethods || verificationMethods.length === 0) {
-          throw new Error('No verification methods found in holder DID document');
+        if (!didResult.success || !didResult.data) {
+          throw new Error('Invalid DID document response');
         }
 
-        const keyId = verificationMethods[0].id;
-        const publicKeyHex = holderDidDocData.data[keyId];
+        // Extract the public key from the DID document
+        const keyId = didResult.data.keyId; // e.g., "#key-1"
+        const publicKeyHex = didResult.data[keyId]; // Get the public key using keyId
 
         if (!publicKeyHex) {
           throw new Error(`Public key not found for keyId: ${keyId}`);
