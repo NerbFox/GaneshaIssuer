@@ -8,6 +8,7 @@ import { DataTable, Column } from '@/components/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import Modal from '@/components/Modal';
 import { buildApiUrlWithParams, buildApiUrl, API_ENDPOINTS } from '@/utils/api';
+import { encryptWithPublicKey } from '@/utils/encryptUtils';
 
 interface Credential {
   id: string;
@@ -233,19 +234,59 @@ export default function MyCredentialPage() {
         return;
       }
 
-      // Create the encrypted body object and stringify it
-      const encryptedBodyData = {
+      // Step 1: Fetch the DID document to get the public key
+      console.log('Fetching DID document for:', issuerDid);
+      const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DID.DOCUMENT(issuerDid));
+
+      const didResponse = await fetch(didDocumentUrl, {
+        headers: {
+          accept: 'application/json',
+        },
+      });
+
+      if (!didResponse.ok) {
+        const didResult = await didResponse.json();
+        const errorMessage = didResult.message || didResult.error || 'Failed to fetch DID document';
+        throw new Error(errorMessage);
+      }
+
+      const didResult = await didResponse.json();
+      console.log('DID document fetched:', didResult);
+
+      if (!didResult.success || !didResult.data) {
+        throw new Error('Invalid DID document response');
+      }
+
+      // Extract the public key from the DID document
+      const keyId = didResult.data.keyId; // e.g., "#key-1"
+      const publicKeyHex = didResult.data[keyId]; // Get the public key using keyId
+
+      if (!publicKeyHex) {
+        throw new Error(`Public key not found for keyId: ${keyId}`);
+      }
+
+      console.log('Public key extracted:', publicKeyHex.substring(0, 20) + '...');
+
+      // Step 2: Create the body data to encrypt
+      const bodyData = {
         schema_id: schemaId,
         schema_version: schema.version,
       };
 
+      console.log('Encrypting body data:', bodyData);
+
+      // Step 3: Encrypt the body data with the issuer's public key
+      const encryptedBody = await encryptWithPublicKey(bodyData, publicKeyHex);
+      console.log('Body data encrypted successfully');
+
+      // Step 4: Create the request body with encrypted data
       const requestBody = {
         holder_did: holderDid,
         issuer_did: issuerDid,
-        encrypted_body: JSON.stringify(encryptedBodyData),
+        encrypted_body: encryptedBody,
       };
 
-      console.log('Requesting credential with:', requestBody);
+      console.log('Requesting credential with: ', requestBody);
 
       const url = buildApiUrl(API_ENDPOINTS.CREDENTIAL.REQUESTS);
 
@@ -431,7 +472,9 @@ export default function MyCredentialPage() {
       label: 'SCHEMA NAME',
       sortKey: 'name',
       render: (row) => (
-        <ThemedText className="text-sm font-medium text-gray-900">{row.name}</ThemedText>
+        <ThemedText className="text-sm font-medium text-gray-900">
+          {row.name} v{row.version}
+        </ThemedText>
       ),
     },
     {
