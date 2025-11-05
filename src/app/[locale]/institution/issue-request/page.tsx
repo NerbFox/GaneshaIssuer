@@ -525,12 +525,10 @@ export default function IssueRequestPage() {
         request_id: selectedRequest.id,
         action: 'APPROVED',
         vc_id: vcId,
-        vc_type: schemaData.name.replace(/\s+/g, ''),
         schema_id: schemaData.id,
         schema_version: parseInt(schemaData.version),
         vc_hash: vcHash,
         encrypted_body: encryptedBody, // Encrypted signed VC using holder's public key (ECIES)
-        expired_in: schemaData.expired_in || 0, // Default to 0 (lifetime) if null or empty
         expired_at: expiredAt, // ISO datetime string or null for lifetime credentials
       };
 
@@ -539,11 +537,9 @@ export default function IssueRequestPage() {
       console.log('- request_id:', requestBody.request_id);
       console.log('- action:', requestBody.action);
       console.log('- vc_id:', requestBody.vc_id);
-      console.log('- vc_type:', requestBody.vc_type);
       console.log('- schema_id:', requestBody.schema_id);
       console.log('- schema_version:', requestBody.schema_version);
       console.log('- vc_hash:', requestBody.vc_hash);
-      console.log('- expired_in:', requestBody.expired_in);
       console.log('- expired_at:', requestBody.expired_at);
       console.log('- encrypted_body type:', typeof requestBody.encrypted_body);
       console.log(
