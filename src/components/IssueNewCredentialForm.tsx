@@ -50,12 +50,12 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableVersions, setAvailableVersions] = useState<number[]>([]);
 
-  const didPrefixes = ['did:dcert:', 'did:key:', 'did:web:'];
+  const didPrefixes = ['did:dcert:'];
 
   // Update schema name and attributes when schema ID changes
   useEffect(() => {
     if (schemaId) {
-      const selectedSchema = schemas.find((s) => s.id === schemaId && s.version === version);
+      const selectedSchema = schemas.find((s) => s.id === schemaId);
       if (selectedSchema) {
         setSchemaName(selectedSchema.name);
 
@@ -293,38 +293,27 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
         </div>
       </div>
 
-      {/* Version and Status in same row */}
-      <div className="grid grid-cols-2 gap-6 mb-6">
-        {/* Version */}
-        <div>
-          <ThemedText className="text-sm text-gray-600 mb-2">
-            Version<span className="text-red-500">*</span>
-          </ThemedText>
-          <select
-            value={version}
-            onChange={(e) => setVersion(Number(e.target.value))}
-            disabled={!schemaId || availableVersions.length === 0}
-            className={`w-full px-4 py-4 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm cursor-pointer bg-white disabled:bg-gray-50 disabled:cursor-not-allowed ${!schemaName ? 'text-gray-400' : 'text-gray-900'}`}
-          >
-            {availableVersions.length > 0 ? (
-              availableVersions.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))
-            ) : (
-              <option>{schemaName || 'Select a schema to see its version'}</option>
-            )}
-          </select>
-        </div>
-
-        {/* Status (immutable) */}
-        <div>
-          <ThemedText className="text-sm text-gray-600 mb-2">Status</ThemedText>
-          <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <ThemedText className="text-sm text-gray-900">Active</ThemedText>
-          </div>
-        </div>
+      {/* Version */}
+      <div className="mb-6">
+        <ThemedText className="text-sm text-gray-600 mb-2">
+          Version<span className="text-red-500">*</span>
+        </ThemedText>
+        <select
+          value={version}
+          onChange={(e) => setVersion(Number(e.target.value))}
+          disabled={!schemaId || availableVersions.length === 0}
+          className={`w-full px-4 py-4 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm cursor-pointer bg-white disabled:bg-gray-50 disabled:cursor-not-allowed ${!schemaName ? 'text-gray-400' : 'text-gray-900'}`}
+        >
+          {availableVersions.length > 0 ? (
+            availableVersions.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))
+          ) : (
+            <option>{schemaName || 'Select a schema to see its version'}</option>
+          )}
+        </select>
       </div>
 
       {/* Attributes Table */}

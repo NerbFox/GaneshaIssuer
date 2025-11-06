@@ -9,8 +9,11 @@ import Modal from '@/components/Modal';
 import IssueNewCredentialForm, {
   IssueNewCredentialFormData,
 } from '@/components/IssueNewCredentialForm';
+import UpdateCredentialForm, { UpdateCredentialFormData } from '@/components/UpdateCredentialForm';
+import ViewCredentialForm from '@/components/ViewCredentialForm';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import { redirectIfJWTInvalid } from '@/utils/auth';
-import { API_ENDPOINTS, buildApiUrlWithParams } from '@/utils/api';
+import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { authenticatedGet } from '@/utils/api-client';
 
 interface IssuedCredential {
@@ -22,6 +25,8 @@ interface IssuedCredential {
   activeUntil: string;
   schemaId: string;
   schemaVersion: number;
+  encryptedBody?: Record<string, unknown>;
+  createdAt: string;
 }
 
 interface ApiCredentialResponse {
@@ -78,11 +83,28 @@ export default function IssuedByMePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedCredential, setSelectedCredential] = useState<IssuedCredential | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationConfig, setConfirmationConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    confirmButtonColor?: 'blue' | 'green' | 'red' | 'yellow';
+  }>({
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
   const [schemas, setSchemas] = useState<
     {
       id: string;
       name: string;
       version: number;
+      isActive: boolean;
       attributes: {
         name: string;
         type: string;
@@ -138,7 +160,6 @@ export default function IssuedByMePage() {
         // Fetch schemas to get schema names
         const schemasUrl = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.BASE, {
           issuerDid: institutionDID,
-          isActive: 'true',
         });
 
         const schemasResponse = await authenticatedGet(schemasUrl);
@@ -163,6 +184,7 @@ export default function IssuedByMePage() {
           id: schema.id,
           name: schema.name,
           version: schema.version,
+          isActive: schema.isActive,
           attributes: Object.entries(schema.schema.properties).map(([key, prop]) => ({
             name: key,
             type: prop.type,
@@ -174,37 +196,64 @@ export default function IssuedByMePage() {
 
         // Transform API data to match IssuedCredential interface
         const transformedCredentials: IssuedCredential[] = credentialsResult.data.data
-          .filter((credential) => credential.status !== 'PENDING') // Filter out PENDING requests
+          .filter(
+            (credential) => credential.status !== 'PENDING' && credential.status !== 'REJECTED'
+          ) // Filter out PENDING and REJECTED requests
           .map((credential) => {
             // Parse encrypted_body to get schema_id and schema_version
             let schemaId = '';
             let schemaVersion = 1;
+            let encryptedBody: Record<string, unknown> | undefined = undefined;
             try {
-              const encryptedBody = JSON.parse(credential.encrypted_body);
-              schemaId = encryptedBody.schema_id || '';
-              schemaVersion = encryptedBody.schema_version || 1;
-            } catch (error) {
-              console.error('Failed to parse encrypted_body:', error);
+              encryptedBody = JSON.parse(credential.encrypted_body);
+              schemaId = (encryptedBody?.schema_id as string) || '';
+              schemaVersion = (encryptedBody?.schema_version as number) || 1;
+            } catch {
+              // Silently ignore JSON parse errors
             }
 
             // Get schema name from the map
             const schemaInfo = schemaMap.get(schemaId);
             const schemaName = schemaInfo?.name || 'Unknown Schema';
             const expiredIn = schemaInfo?.expiredIn || 5;
+            const isUnknownSchema = !schemaInfo || !schemaId;
 
-            // Calculate active until date
-            const activeUntilDate = new Date(credential.createdAt);
-            activeUntilDate.setFullYear(activeUntilDate.getFullYear() + expiredIn);
+            // Calculate active until date (only if schema is known)
+            let activeUntil: string;
+            let credentialStatus = credential.status;
+
+            if (isUnknownSchema) {
+              // For unknown schemas, set active until to '-'
+              activeUntil = '-';
+            } else {
+              const activeUntilDate = new Date(credential.createdAt);
+              activeUntilDate.setFullYear(activeUntilDate.getFullYear() + expiredIn);
+
+              // Check if credential is expired based on Active Until date
+              const now = new Date();
+              if (credential.status === 'APPROVED' && activeUntilDate < now) {
+                credentialStatus = 'EXPIRED';
+              }
+
+              activeUntil = activeUntilDate.toISOString();
+            }
 
             return {
               id: credential.id,
               holderDid: credential.holder_did,
-              schemaName: schemaName,
-              status: credential.status,
+              // Don't add version suffix for unknown schemas
+              schemaName: isUnknownSchema
+                ? schemaName
+                : schemaVersion > 0
+                  ? `${schemaName} v${schemaVersion}`
+                  : schemaName,
+              status: credentialStatus,
               lastUpdated: credential.updatedAt,
-              activeUntil: activeUntilDate.toISOString(),
+              activeUntil: activeUntil,
               schemaId: schemaId,
               schemaVersion: schemaVersion,
+              encryptedBody: encryptedBody,
+              createdAt: credential.createdAt,
             };
           });
 
@@ -300,17 +349,239 @@ export default function IssuedByMePage() {
   };
 
   const handleUpdate = (id: string) => {
-    console.log('Update credential:', id);
-    // TODO: Implement update credential
+    const credential = credentials.find((c) => c.id === id);
+    if (!credential) return;
+
+    setSelectedCredential(credential);
+    setShowUpdateModal(true);
+  };
+
+  const handleUpdateCredential = async (data: UpdateCredentialFormData) => {
+    try {
+      console.log('Updating credential:', data);
+
+      // Step 1: Revoke the old credential
+      console.log('Revoking old credential:', data.credentialId);
+      const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.REJECT(data.credentialId));
+      const revokeResponse = await fetch(revokeUrl, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+        },
+      });
+
+      if (!revokeResponse.ok) {
+        throw new Error('Failed to revoke old credential');
+      }
+
+      // Step 2: Issue a new credential with updated data
+      console.log('Issuing new credential with updated data:', data);
+      const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.ISSUE);
+
+      // Transform attributes into the format expected by the API
+      const attributesObject: Record<string, string | number | boolean> = {};
+      data.attributes.forEach((attr) => {
+        attributesObject[attr.name] = attr.value;
+      });
+
+      const issueResponse = await fetch(issueUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify({
+          holder_did: data.holderDid,
+          schema_id: data.schemaId,
+          schema_version: data.version,
+          ...attributesObject,
+        }),
+      });
+
+      if (!issueResponse.ok) {
+        throw new Error('Failed to issue new credential');
+      }
+
+      // Show success confirmation and close the modal
+      setShowUpdateModal(false);
+      setSelectedCredential(null);
+      setConfirmationConfig({
+        title: 'Update Credential',
+        message: `The old credential has been revoked and a new credential has been issued.\n\nThe holder will receive the updated credential.`,
+        confirmText: 'OK',
+        confirmButtonColor: 'green',
+        onConfirm: () => {
+          setShowConfirmation(false);
+          // Refresh the credentials list to show updated data
+          window.location.reload();
+        },
+      });
+      setShowConfirmation(true);
+    } catch (error) {
+      console.error('Error updating credential:', error);
+      setConfirmationConfig({
+        title: 'Error',
+        message: `Failed to update credential: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again.`,
+        confirmText: 'OK',
+        confirmButtonColor: 'red',
+        onConfirm: () => {
+          setShowConfirmation(false);
+        },
+      });
+      setShowConfirmation(true);
+      throw error;
+    }
   };
 
   const handleRevoke = (id: string) => {
-    console.log('Revoke credential:', id);
-    // TODO: Implement revoke credential
+    const credential = credentials.find((c) => c.id === id);
+    if (!credential) return;
+
+    setConfirmationConfig({
+      title: 'Revoke Credential',
+      message: `Are you sure you want to revoke this credential?\n\nThis action cannot be undone.`,
+      confirmText: 'Revoke',
+      confirmButtonColor: 'red',
+      onConfirm: async () => {
+        try {
+          console.log('Revoke credential:', id);
+          const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.REJECT(id));
+          const revokeResponse = await fetch(revokeUrl, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+            },
+          });
+
+          if (!revokeResponse.ok) {
+            throw new Error('Failed to revoke credential');
+          }
+
+          setShowConfirmation(false);
+          // Refresh the credentials list
+          window.location.reload();
+        } catch (error) {
+          console.error('Error revoking credential:', error);
+          setShowConfirmation(false);
+          setConfirmationConfig({
+            title: 'Error',
+            message: `Failed to revoke credential: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            confirmText: 'OK',
+            confirmButtonColor: 'red',
+            onConfirm: () => {
+              setShowConfirmation(false);
+            },
+          });
+          setShowConfirmation(true);
+        }
+      },
+    });
+    setShowConfirmation(true);
+  };
+
+  const handleRenew = (id: string) => {
+    const credential = credentials.find((c) => c.id === id);
+    if (!credential) return;
+
+    setConfirmationConfig({
+      title: 'Renew Credential',
+      message: `Are you sure you want to renew this credential?\n\nA new credential with the same data will be issued.`,
+      confirmText: 'Renew',
+      confirmButtonColor: 'blue',
+      onConfirm: async () => {
+        try {
+          console.log('Renew credential:', id);
+          const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.BASE);
+
+          // Transform attributes into the format expected by the API
+          const attributesObject: Record<string, string | number | boolean> = {};
+          if (credential.encryptedBody) {
+            Object.entries(credential.encryptedBody).forEach(([key, value]) => {
+              if (!['schema_id', 'schema_version', 'issuer_did', 'holder_did'].includes(key)) {
+                attributesObject[key] = value as string | number | boolean;
+              }
+            });
+          }
+
+          const issueResponse = await fetch(issueUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+            },
+            body: JSON.stringify({
+              holder_did: credential.holderDid,
+              schema_id: credential.schemaId,
+              schema_version: credential.schemaVersion,
+              ...attributesObject,
+            }),
+          });
+
+          if (!issueResponse.ok) {
+            throw new Error('Failed to renew credential');
+          }
+
+          setShowConfirmation(false);
+          setConfirmationConfig({
+            title: 'Renew Credential',
+            message: `A new credential has been issued successfully.\n\nThe holder will receive the renewed credential.`,
+            confirmText: 'OK',
+            confirmButtonColor: 'green',
+            onConfirm: () => {
+              setShowConfirmation(false);
+              // Refresh the credentials list
+              window.location.reload();
+            },
+          });
+          setShowConfirmation(true);
+        } catch (error) {
+          console.error('Error renewing credential:', error);
+          setShowConfirmation(false);
+          setConfirmationConfig({
+            title: 'Error',
+            message: `Failed to renew credential: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            confirmText: 'OK',
+            confirmButtonColor: 'red',
+            onConfirm: () => {
+              setShowConfirmation(false);
+            },
+          });
+          setShowConfirmation(true);
+        }
+      },
+    });
+    setShowConfirmation(true);
+  };
+
+  const handleRowClick = (credential: IssuedCredential) => {
+    setSelectedCredential(credential);
+    setShowViewModal(true);
   };
 
   const handleNewCredential = () => {
     setShowIssueModal(true);
+  };
+
+  const handleCopyDid = async (did: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(did);
+      setCopiedId(id);
+      // Reset after 2 seconds
+      setTimeout(() => {
+        setCopiedId(null);
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to copy DID:', error);
+    }
+  };
+
+  const truncateDid = (did: string, maxLength: number = 25): string => {
+    if (did.length <= maxLength) {
+      return did;
+    }
+    return did.substring(0, maxLength) + '...';
   };
 
   const handleIssueCredential = async (data: IssueNewCredentialFormData) => {
@@ -378,9 +649,52 @@ export default function IssuedByMePage() {
       label: 'HOLDER DID',
       sortKey: 'holderDid',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">
-          {row.holderDid.substring(0, 25)}...
-        </ThemedText>
+        <div className="flex items-center gap-2">
+          <ThemedText className="text-sm text-gray-900">{truncateDid(row.holderDid)}</ThemedText>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCopyDid(row.holderDid, row.id);
+            }}
+            className={`relative transition-all duration-200 cursor-pointer ${
+              copiedId === row.id
+                ? 'text-green-500 scale-110'
+                : 'text-blue-500 hover:text-blue-600 hover:scale-110'
+            }`}
+            title={copiedId === row.id ? 'Copied!' : 'Copy to clipboard'}
+          >
+            {copiedId === row.id ? (
+              <svg
+                className="w-4 h-4 animate-[scale-in_0.3s_cubic-bezier(0.68,-0.55,0.265,1.55)]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+              </svg>
+            )}
+          </button>
+        </div>
       ),
     },
     {
@@ -416,30 +730,54 @@ export default function IssuedByMePage() {
       label: 'ACTIVE UNTIL',
       sortKey: 'activeUntil',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{formatDate(row.activeUntil)}</ThemedText>
+        <ThemedText className="text-sm text-gray-900">
+          {row.activeUntil === '-' ? '-' : formatDate(row.activeUntil)}
+        </ThemedText>
       ),
     },
     {
       id: 'action',
       label: 'ACTION',
-      render: (row) => (
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleUpdate(row.id)}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer"
-          >
-            UPDATE
-          </button>
-          {row.status === 'APPROVED' && (
-            <button
-              onClick={() => handleRevoke(row.id)}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer"
-            >
-              REVOKE
-            </button>
-          )}
-        </div>
-      ),
+      render: (row) => {
+        const showUpdateButton = row.schemaName !== 'Unknown Schema' && row.schemaId;
+        return (
+          <div className="flex gap-2">
+            {showUpdateButton && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleUpdate(row.id);
+                }}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer"
+              >
+                UPDATE
+              </button>
+            )}
+            {showUpdateButton && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRenew(row.id);
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
+              >
+                RENEW
+              </button>
+            )}
+            {row.status === 'APPROVED' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRevoke(row.id);
+                }}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer"
+              >
+                REVOKE
+              </button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -518,6 +856,7 @@ export default function IssuedByMePage() {
             totalCount={filteredCredentials.length}
             rowsPerPageOptions={[5, 10, 25, 50, 100]}
             idKey="id"
+            onRowClick={handleRowClick}
           />
         )}
       </div>
@@ -593,6 +932,174 @@ export default function IssuedByMePage() {
       >
         <IssueNewCredentialForm schemas={schemas} onSubmit={handleIssueCredential} />
       </Modal>
+
+      {/* Update Credential Modal */}
+      <Modal
+        isOpen={showUpdateModal}
+        onClose={() => {
+          setShowUpdateModal(false);
+          setSelectedCredential(null);
+        }}
+        title="Update Credential"
+        maxWidth="1000px"
+      >
+        {selectedCredential && (
+          <UpdateCredentialForm
+            onSubmit={handleUpdateCredential}
+            onCancel={() => {
+              setShowUpdateModal(false);
+              setSelectedCredential(null);
+            }}
+            credentialData={{
+              id: selectedCredential.id,
+              holderDid: selectedCredential.holderDid,
+              issuerDid: localStorage.getItem('institutionDID') || undefined,
+              schemaName: selectedCredential.schemaName,
+              schemaId: selectedCredential.schemaId,
+              // Use the selected credential's schema version
+              schemaVersion: selectedCredential.schemaVersion,
+              status: selectedCredential.status,
+              issuedAt: selectedCredential.createdAt,
+              activeUntil: selectedCredential.activeUntil,
+              lastUpdated: selectedCredential.lastUpdated,
+              schemaIsActive: (() => {
+                // Find the schema with the selected credential's version to check if it's active
+                const credentialSchema = schemas.find(
+                  (s) =>
+                    s.id === selectedCredential.schemaId &&
+                    s.version === selectedCredential.schemaVersion
+                );
+                return credentialSchema?.isActive;
+              })(),
+              attributes: (() => {
+                // Find the schema with the selected credential's version to get attribute types
+                const credentialSchema = schemas.find(
+                  (s) =>
+                    s.id === selectedCredential.schemaId &&
+                    s.version === selectedCredential.schemaVersion
+                );
+
+                if (selectedCredential.encryptedBody) {
+                  // Extract attributes from encryptedBody
+                  const extractedAttributes = Object.entries(selectedCredential.encryptedBody)
+                    .filter(
+                      ([key]) =>
+                        !['schema_id', 'schema_version', 'issuer_did', 'holder_did'].includes(key)
+                    )
+                    .map(([name, value], index) => {
+                      // Find the attribute type from schema
+                      const schemaAttribute = credentialSchema?.attributes.find(
+                        (attr) => attr.name === name
+                      );
+                      return {
+                        id: index + 1,
+                        name,
+                        type: schemaAttribute?.type || 'string',
+                        value: String(value),
+                      };
+                    });
+
+                  // If we found attributes in encryptedBody, return them
+                  if (extractedAttributes.length > 0) {
+                    return extractedAttributes;
+                  }
+                }
+
+                // Fallback: Use schema attributes with empty values
+                return (
+                  credentialSchema?.attributes.map((attr, index) => ({
+                    id: index + 1,
+                    name: attr.name,
+                    type: attr.type,
+                    value: '',
+                  })) || []
+                );
+              })(),
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* View Credential Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedCredential(null);
+        }}
+        title="View Credential"
+        maxWidth="1000px"
+      >
+        {selectedCredential && (
+          <ViewCredentialForm
+            onClose={() => {
+              setShowViewModal(false);
+              setSelectedCredential(null);
+            }}
+            credentialData={{
+              id: selectedCredential.id,
+              holderDid: selectedCredential.holderDid,
+              issuerDid: localStorage.getItem('institutionDID') || undefined,
+              schemaName: selectedCredential.schemaName,
+              schemaId: selectedCredential.schemaId,
+              schemaVersion: selectedCredential.schemaVersion,
+              status: selectedCredential.status,
+              issuedAt: selectedCredential.createdAt,
+              activeUntil: selectedCredential.activeUntil,
+              lastUpdated: selectedCredential.lastUpdated,
+              attributes: (() => {
+                // Find the schema with the selected credential's version to get attribute types
+                const credentialSchema = schemas.find(
+                  (s) =>
+                    s.id === selectedCredential.schemaId &&
+                    s.version === selectedCredential.schemaVersion
+                );
+
+                if (selectedCredential.encryptedBody) {
+                  // Extract attributes from encryptedBody
+                  const extractedAttributes = Object.entries(selectedCredential.encryptedBody)
+                    .filter(
+                      ([key]) =>
+                        !['schema_id', 'schema_version', 'issuer_did', 'holder_did'].includes(key)
+                    )
+                    .map(([name, value], index) => {
+                      return {
+                        id: index + 1,
+                        name,
+                        value: String(value),
+                      };
+                    });
+
+                  // If we found attributes in encryptedBody, return them
+                  if (extractedAttributes.length > 0) {
+                    return extractedAttributes;
+                  }
+                }
+
+                // Fallback: Use schema attributes with empty values
+                return (
+                  credentialSchema?.attributes.map((attr, index) => ({
+                    id: index + 1,
+                    name: attr.name,
+                    value: '',
+                  })) || []
+                );
+              })(),
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmation}
+        onClose={() => setShowConfirmation(false)}
+        onConfirm={confirmationConfig.onConfirm}
+        title={confirmationConfig.title}
+        message={confirmationConfig.message}
+        confirmText={confirmationConfig.confirmText}
+        confirmButtonColor={confirmationConfig.confirmButtonColor}
+      />
     </InstitutionLayout>
   );
 }
