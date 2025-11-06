@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import FillIssueRequestForm, { IssueRequestFormData } from '@/components/FillIssueRequestForm';
+import ViewSchemaForm from '@/components/ViewSchemaForm';
+import { DateTimePicker } from '@/components/DateTimePicker';
 import InfoModal from '@/components/InfoModal';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
@@ -23,6 +25,7 @@ interface IssueRequest {
   holder_did: string;
   version: number;
   status: string;
+  type: string; // ISSUANCE, RENEWAL, UPDATE, REVOCATION
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -80,6 +83,8 @@ interface Schema {
   attributes: SchemaAttribute[];
   image_link: string | null;
   expired_in: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export default function IssueRequestPage() {
@@ -87,23 +92,37 @@ export default function IssueRequestPage() {
   const [requests, setRequests] = useState<IssueRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<IssueRequest[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filterSchema, setFilterSchema] = useState('');
+  const [searchValue, setSearchValue] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [filterSchemaStatus, setFilterSchemaStatus] = useState<string>('active');
+  const [filterRequestedOnStart, setFilterRequestedOnStart] = useState<string>('');
+  const [filterRequestedOnEnd, setFilterRequestedOnEnd] = useState<string>('');
+  const [filterSchemaExpiresStart, setFilterSchemaExpiresStart] = useState<string>('');
+  const [filterSchemaExpiresEnd, setFilterSchemaExpiresEnd] = useState<string>('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showSchemaModal, setShowSchemaModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<IssueRequest | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [schemaData, setSchemaData] = useState<Schema | null>(null);
   const [isLoadingSchema, setIsLoadingSchema] = useState(false);
+  const [isSubmittingCredential, setIsSubmittingCredential] = useState(false);
   const [requestAttributes, setRequestAttributes] = useState<
     Record<string, string | number | boolean>
   >({});
   const [schemaNames, setSchemaNames] = useState<Map<string, string>>(new Map());
+  const [schemaExpiredIns, setSchemaExpiredIns] = useState<Map<string, number>>(new Map());
+  const [schemaIsActive, setSchemaIsActive] = useState<Map<string, boolean>>(new Map());
   const [parsedBodies, setParsedBodies] = useState<
     Map<string, { schema_id: string; schema_version: number } | null>
   >(new Map());
+  const [selectedRequestIds, setSelectedRequestIds] = useState<Set<string>>(new Set());
+  const [isBulkRejecting, setIsBulkRejecting] = useState(false);
+  const [bulkRemainingCount, setBulkRemainingCount] = useState(0);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [infoModalConfig, setInfoModalConfig] = useState({
     title: '',
@@ -122,6 +141,7 @@ export default function IssueRequestPage() {
   });
 
   const filterModalRef = useRef<HTMLDivElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
 
   // Helper function to parse encrypted_body - attempts decryption with private key
   const parseEncryptedBody = async (
@@ -163,114 +183,149 @@ export default function IssueRequestPage() {
   }, [router]);
 
   // Fetch issue requests from API
+  const fetchRequests = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const issuerDid = localStorage.getItem('institutionDID');
+      if (!issuerDid) {
+        throw new Error('Institution DID not found. Please log in again.');
+      }
+
+      // Fetch all request types
+      const requestTypes = ['ISSUANCE', 'RENEWAL', 'UPDATE', 'REVOCATION'];
+      const allRequests: IssueRequest[] = [];
+
+      // Fetch requests for each type in parallel
+      const fetchPromises = requestTypes.map(async (type) => {
+        try {
+          const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.REQUESTS, {
+            type,
+            issuer_did: issuerDid,
+          });
+
+          const response = await authenticatedGet(url);
+
+          if (response.ok) {
+            const apiResponse: ApiResponse = await response.json();
+            // Add type to each request
+            const requestsWithType = apiResponse.data.data.map((req) => ({
+              ...req,
+              type,
+            }));
+            return requestsWithType;
+          }
+          return [];
+        } catch (err) {
+          console.error(`Failed to fetch ${type} requests:`, err);
+          return [];
+        }
+      });
+
+      const results = await Promise.all(fetchPromises);
+      results.forEach((requests) => allRequests.push(...requests));
+
+      console.log('Fetched all requests:', allRequests);
+      console.log('Total count:', allRequests.length);
+
+      // Parse and cache all encrypted bodies
+      const parsedBodiesMap = new Map<
+        string,
+        { schema_id: string; schema_version: number } | null
+      >();
+      for (const request of allRequests) {
+        const parsedBody = await parseEncryptedBody(request.encrypted_body);
+        parsedBodiesMap.set(request.encrypted_body, parsedBody);
+      }
+      setParsedBodies(parsedBodiesMap);
+
+      // Extract unique schema IDs from parsed bodies
+      const schemaIds = new Set<string>();
+      for (const [, parsedBody] of parsedBodiesMap.entries()) {
+        if (parsedBody?.schema_id) {
+          schemaIds.add(parsedBody.schema_id);
+        }
+      }
+
+      // Fetch schema names for all unique schema IDs
+      const schemaNameMap = new Map<string, string>();
+      const schemaExpiredInMap = new Map<string, number>();
+      const schemaIsActiveMap = new Map<string, boolean>();
+      const schemaFetchPromises = Array.from(schemaIds).map(async (schemaId) => {
+        try {
+          // Get schema version from cached parsed bodies or default to version 1
+          const request = allRequests.find((r) => {
+            const parsed = parsedBodiesMap.get(r.encrypted_body);
+            return parsed?.schema_id === schemaId;
+          });
+
+          const parsedBody = parsedBodiesMap.get(request?.encrypted_body || '');
+          const schemaVersion = parsedBody?.schema_version || 1;
+
+          const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion));
+          const schemaResponse = await authenticatedGet(schemaUrl);
+
+          if (schemaResponse.ok) {
+            const schemaData: SchemaApiResponse = await schemaResponse.json();
+            schemaNameMap.set(schemaId, schemaData.data.name);
+            // If expired_in is null or 0, set to 0 for lifetime
+            const expiredIn = schemaData.data.schema.expired_in;
+            schemaExpiredInMap.set(schemaId, expiredIn || 0);
+            schemaIsActiveMap.set(schemaId, schemaData.data.isActive);
+          } else {
+            // Schema not found or error
+            schemaNameMap.set(schemaId, 'Unknown Schema');
+            schemaExpiredInMap.set(schemaId, 0);
+            schemaIsActiveMap.set(schemaId, false);
+          }
+        } catch (err) {
+          console.error(`Failed to fetch schema ${schemaId}:`, err);
+          schemaNameMap.set(schemaId, 'Unknown Schema');
+          schemaExpiredInMap.set(schemaId, 0);
+          schemaIsActiveMap.set(schemaId, false);
+        }
+      });
+
+      await Promise.all(schemaFetchPromises);
+      setSchemaNames(schemaNameMap);
+      setSchemaExpiredIns(schemaExpiredInMap);
+      setSchemaIsActive(schemaIsActiveMap);
+
+      // Filter to show only PENDING requests
+      const pendingRequests = allRequests.filter((r) => r.status === 'PENDING');
+      setRequests(pendingRequests);
+      setFilteredRequests(pendingRequests);
+    } catch (err) {
+      console.error('Error fetching issue requests:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) return;
-
-    const fetchRequests = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const issuerDid = localStorage.getItem('institutionDID');
-        if (!issuerDid) {
-          throw new Error('Institution DID not found. Please log in again.');
-        }
-
-        const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.REQUESTS, {
-          type: 'ISSUANCE',
-          issuer_did: issuerDid,
-        });
-
-        const response = await authenticatedGet(url);
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch issue requests');
-        }
-
-        const apiResponse: ApiResponse = await response.json();
-
-        // Extract the actual data array from nested structure
-        const requestsData = apiResponse.data.data;
-
-        console.log('Fetched requests:', requestsData);
-        console.log('Total count:', apiResponse.data.count);
-
-        // Parse and cache all encrypted bodies
-        const parsedBodiesMap = new Map<
-          string,
-          { schema_id: string; schema_version: number } | null
-        >();
-        for (const request of requestsData) {
-          const parsedBody = await parseEncryptedBody(request.encrypted_body);
-          parsedBodiesMap.set(request.encrypted_body, parsedBody);
-        }
-        setParsedBodies(parsedBodiesMap);
-
-        // Extract unique schema IDs from parsed bodies
-        const schemaIds = new Set<string>();
-        for (const [, parsedBody] of parsedBodiesMap.entries()) {
-          if (parsedBody?.schema_id) {
-            schemaIds.add(parsedBody.schema_id);
-          }
-        }
-
-        // Fetch schema names for all unique schema IDs
-        const schemaNameMap = new Map<string, string>();
-        const schemaFetchPromises = Array.from(schemaIds).map(async (schemaId) => {
-          try {
-            // Get schema version from cached parsed bodies or default to version 1
-            const request = requestsData.find((r) => {
-              const parsed = parsedBodiesMap.get(r.encrypted_body);
-              return parsed?.schema_id === schemaId;
-            });
-
-            const parsedBody = parsedBodiesMap.get(request?.encrypted_body || '');
-            const schemaVersion = parsedBody?.schema_version || 1;
-
-            const schemaUrl = buildApiUrl(
-              API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion)
-            );
-            const schemaResponse = await authenticatedGet(schemaUrl);
-
-            if (schemaResponse.ok) {
-              const schemaData: SchemaApiResponse = await schemaResponse.json();
-              schemaNameMap.set(schemaId, schemaData.data.name);
-            }
-          } catch (err) {
-            console.error(`Failed to fetch schema ${schemaId}:`, err);
-            schemaNameMap.set(schemaId, 'Unknown Schema');
-          }
-        });
-
-        await Promise.all(schemaFetchPromises);
-        setSchemaNames(schemaNameMap);
-
-        // Filter to show only PENDING requests
-        const pendingRequests = requestsData.filter((r) => r.status === 'PENDING');
-        setRequests(pendingRequests);
-        setFilteredRequests(pendingRequests);
-      } catch (err) {
-        console.error('Error fetching issue requests:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchRequests();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchRequests]);
 
-  const activeCount = requests.filter((r) => r.status === 'PENDING').length;
+  // Calculate stats
+  const totalPendingCount = requests.length;
+  const issuanceCount = requests.filter((r) => r.type === 'ISSUANCE').length;
+  const renewalCount = requests.filter((r) => r.type === 'RENEWAL').length;
+  const updateCount = requests.filter((r) => r.type === 'UPDATE').length;
+  const revocationCount = requests.filter((r) => r.type === 'REVOCATION').length;
 
-  // Calculate credentials expiring within 24 hours
-  const expiringCount = requests.filter((request) => {
-    const activeUntilDate = new Date(request.createdAt);
-    activeUntilDate.setFullYear(activeUntilDate.getFullYear() + 5); // 5 years from request date
+  // Count requests with active vs inactive schemas
+  const activeSchemaCount = requests.filter((r) => {
+    const parsedBody = getCachedParsedBody(r.encrypted_body);
+    const schemaId = parsedBody?.schema_id || '';
+    return schemaIsActive.get(schemaId) === true;
+  }).length;
 
-    const now = new Date();
-    const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-    // Check if activeUntil is between now and 24 hours from now
-    return activeUntilDate <= twentyFourHoursFromNow && activeUntilDate > now;
+  const inactiveSchemaCount = requests.filter((r) => {
+    const parsedBody = getCachedParsedBody(r.encrypted_body);
+    const schemaId = parsedBody?.schema_id || '';
+    return schemaIsActive.get(schemaId) !== true;
   }).length;
 
   // Close filter modal when clicking outside
@@ -294,21 +349,31 @@ export default function IssueRequestPage() {
     };
   }, [showFilterModal]);
 
+  // Update filter modal position when scrolling
+  useEffect(() => {
+    const updateFilterPosition = () => {
+      if (showFilterModal && filterButtonRef.current) {
+        const rect = filterButtonRef.current.getBoundingClientRect();
+        setFilterButtonPosition({
+          top: rect.bottom + 8,
+          left: rect.left,
+        });
+      }
+    };
+
+    if (showFilterModal) {
+      window.addEventListener('scroll', updateFilterPosition, true);
+      window.addEventListener('resize', updateFilterPosition);
+    }
+
+    return () => {
+      window.removeEventListener('scroll', updateFilterPosition, true);
+      window.removeEventListener('resize', updateFilterPosition);
+    };
+  }, [showFilterModal]);
+
   const handleSearch = (value: string) => {
-    const filtered = requests.filter((request) => {
-      const searchLower = value.toLowerCase();
-
-      // Get cached parsed body to get schema_id for searching
-      const parsedBody = getCachedParsedBody(request.encrypted_body);
-      const schemaId = parsedBody?.schema_id || '';
-
-      return (
-        request.holder_did.toLowerCase().includes(searchLower) ||
-        schemaId.toLowerCase().includes(searchLower) ||
-        request.status.toLowerCase().includes(searchLower)
-      );
-    });
-    setFilteredRequests(filtered);
+    setSearchValue(value);
   };
 
   const handleFilter = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -320,23 +385,307 @@ export default function IssueRequestPage() {
     setShowFilterModal(true);
   };
 
-  const applyFilters = (schema: string) => {
+  // Apply filters whenever values change
+  useEffect(() => {
     let filtered = requests;
 
-    if (schema) {
+    // Apply search filter
+    if (searchValue) {
+      const searchLower = searchValue.toLowerCase();
       filtered = filtered.filter((request) => {
         const parsedBody = getCachedParsedBody(request.encrypted_body);
         const schemaId = parsedBody?.schema_id || '';
-        return schemaId.toLowerCase().includes(schema.toLowerCase());
+        const schemaName = schemaNames.get(schemaId) || '';
+
+        return (
+          request.holder_did.toLowerCase().includes(searchLower) ||
+          schemaId.toLowerCase().includes(searchLower) ||
+          schemaName.toLowerCase().includes(searchLower) ||
+          request.type.toLowerCase().includes(searchLower) ||
+          request.id.toLowerCase().includes(searchLower)
+        );
       });
     }
 
+    // Apply type filter
+    if (filterType !== 'all') {
+      filtered = filtered.filter((request) => request.type === filterType);
+    }
+
+    // Apply schema status filter
+    if (filterSchemaStatus !== 'all') {
+      filtered = filtered.filter((request) => {
+        const parsedBody = getCachedParsedBody(request.encrypted_body);
+        const schemaId = parsedBody?.schema_id || '';
+        const isActive = schemaIsActive.get(schemaId);
+
+        if (filterSchemaStatus === 'active') {
+          return isActive === true;
+        } else if (filterSchemaStatus === 'inactive') {
+          return isActive === false || isActive === undefined;
+        }
+        return true;
+      });
+    }
+
+    // Apply requested on date filter
+    if (filterRequestedOnStart || filterRequestedOnEnd) {
+      filtered = filtered.filter((request) => {
+        const requestDate = new Date(request.createdAt);
+        const startDate = filterRequestedOnStart ? new Date(filterRequestedOnStart) : null;
+        const endDate = filterRequestedOnEnd ? new Date(filterRequestedOnEnd) : null;
+
+        if (startDate && endDate) {
+          endDate.setHours(23, 59, 59, 999); // Include the entire end date
+          return requestDate >= startDate && requestDate <= endDate;
+        } else if (startDate) {
+          return requestDate >= startDate;
+        } else if (endDate) {
+          endDate.setHours(23, 59, 59, 999);
+          return requestDate <= endDate;
+        }
+        return true;
+      });
+    }
+
+    // Apply schema expires date filter
+    if (filterSchemaExpiresStart || filterSchemaExpiresEnd) {
+      filtered = filtered.filter((request) => {
+        const parsedBody = getCachedParsedBody(request.encrypted_body);
+        const schemaId = parsedBody?.schema_id || '';
+        const expiredIn = schemaExpiredIns.get(schemaId);
+
+        // If expired_in is null or 0, it's lifetime - skip date filtering
+        if (!expiredIn || expiredIn === 0) {
+          return false;
+        }
+
+        const createdDate = new Date(request.createdAt);
+        // Convert years to milliseconds: years * 365.25 days * 24 hours * 60 minutes * 60 seconds * 1000 ms
+        const expiryDate = new Date(
+          createdDate.getTime() + expiredIn * 365.25 * 24 * 60 * 60 * 1000
+        );
+        const startDate = filterSchemaExpiresStart ? new Date(filterSchemaExpiresStart) : null;
+        const endDate = filterSchemaExpiresEnd ? new Date(filterSchemaExpiresEnd) : null;
+
+        if (startDate && endDate) {
+          endDate.setHours(23, 59, 59, 999);
+          return expiryDate >= startDate && expiryDate <= endDate;
+        } else if (startDate) {
+          return expiryDate >= startDate;
+        } else if (endDate) {
+          endDate.setHours(23, 59, 59, 999);
+          return expiryDate <= endDate;
+        }
+        return true;
+      });
+    }
+
+    // Sort: inactive schemas at the end
+    filtered.sort((a, b) => {
+      const parsedBodyA = getCachedParsedBody(a.encrypted_body);
+      const parsedBodyB = getCachedParsedBody(b.encrypted_body);
+      const schemaIdA = parsedBodyA?.schema_id || '';
+      const schemaIdB = parsedBodyB?.schema_id || '';
+      const isActiveA = schemaIsActive.get(schemaIdA);
+      const isActiveB = schemaIsActive.get(schemaIdB);
+
+      // Active schemas come first
+      if (isActiveA && !isActiveB) return -1;
+      if (!isActiveA && isActiveB) return 1;
+
+      // If both same status, maintain original order (by createdAt)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
     setFilteredRequests(filtered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    searchValue,
+    filterType,
+    filterSchemaStatus,
+    filterRequestedOnStart,
+    filterRequestedOnEnd,
+    filterSchemaExpiresStart,
+    filterSchemaExpiresEnd,
+    requests,
+    schemaNames,
+    schemaIsActive,
+    schemaExpiredIns,
+    parsedBodies,
+  ]);
+
+  const clearFilters = () => {
+    setSearchValue('');
+    setFilterType('all');
+    setFilterSchemaStatus('active');
+    setFilterRequestedOnStart('');
+    setFilterRequestedOnEnd('');
+    setFilterSchemaExpiresStart('');
+    setFilterSchemaExpiresEnd('');
   };
 
-  const handleSchemaChange = (schema: string) => {
-    setFilterSchema(schema);
-    applyFilters(schema);
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (filterType !== 'all') count++;
+    if (filterSchemaStatus !== 'active') count++;
+    if (filterRequestedOnStart) count++;
+    if (filterRequestedOnEnd) count++;
+    if (filterSchemaExpiresStart) count++;
+    if (filterSchemaExpiresEnd) count++;
+    return count;
+  };
+
+  const handleSelectionChange = (
+    selectedIndexes: number[],
+    selectedIdValues?: (string | number)[]
+  ) => {
+    if (selectedIdValues) {
+      // Filter out requests with inactive schemas
+      const validIds = selectedIdValues.filter((id) => {
+        const request = filteredRequests.find((r) => r.id === String(id));
+        if (!request) return false;
+
+        const parsedBody = getCachedParsedBody(request.encrypted_body);
+        const schemaId = parsedBody?.schema_id || '';
+        const isActive = schemaIsActive.get(schemaId);
+
+        // Only allow selection if schema is active
+        return isActive === true;
+      });
+
+      setSelectedRequestIds(new Set(validIds.map(String)));
+    } else {
+      setSelectedRequestIds(new Set());
+    }
+  };
+
+  const handleUnselectAll = () => {
+    setSelectedRequestIds(new Set());
+  };
+
+  const handleViewRequest = (requestId: string) => {
+    const request = requests.find((r) => r.id === requestId);
+    if (request) {
+      setSelectedRequest(request);
+      setShowViewModal(true);
+    }
+  };
+
+  const handleViewSchema = async (schemaId: string, schemaVersion: number) => {
+    try {
+      setIsLoadingSchema(true);
+      const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion));
+      const schemaResponse = await authenticatedGet(schemaUrl);
+
+      if (schemaResponse.ok) {
+        const schemaApiData: SchemaApiResponse = await schemaResponse.json();
+
+        if (schemaApiData.success && schemaApiData.data) {
+          const { id, name, schema, version, isActive, createdAt, updatedAt } = schemaApiData.data;
+
+          // Transform schema properties into attributes array
+          const attributes: SchemaAttribute[] = Object.entries(schema.properties).map(
+            ([key, prop]) => ({
+              name: key,
+              type: prop.type,
+              required: schema.required.includes(key),
+              description: prop.description,
+            })
+          );
+
+          setSchemaData({
+            id: id,
+            name: name,
+            version: version.toString(),
+            status: isActive ? 'Active' : 'Inactive',
+            attributes: attributes,
+            image_link: schemaApiData.data.image_link,
+            expired_in: schema.expired_in,
+            created_at: createdAt,
+            updated_at: updatedAt,
+          });
+
+          setShowSchemaModal(true);
+        } else {
+          throw new Error('Invalid schema response');
+        }
+      } else {
+        throw new Error('Failed to fetch schema details');
+      }
+    } catch (err) {
+      console.error('Error fetching schema details:', err);
+      alert('Failed to load schema details');
+    } finally {
+      setIsLoadingSchema(false);
+    }
+  };
+
+  const handleBulkReject = async () => {
+    if (selectedRequestIds.size === 0) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to reject ${selectedRequestIds.size} selected request(s)?`
+    );
+
+    if (!confirmed) return;
+
+    setIsBulkRejecting(true);
+    setBulkRemainingCount(selectedRequestIds.size);
+
+    const selectedArray = Array.from(selectedRequestIds);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const requestId of selectedArray) {
+      try {
+        const request = requests.find((r) => r.id === requestId);
+        if (!request) {
+          failCount++;
+          continue;
+        }
+
+        // Get parsed body to extract schema info (not used but kept for potential future use)
+        // const parsedBody = getCachedParsedBody(request.encrypted_body);
+        const vcId = `vc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const expiredIn = 157680000; // Default 5 years
+
+        const requestBody = {
+          request_id: request.id,
+          issuer_did: request.issuer_did,
+          holder_did: request.holder_did,
+          action: 'REJECTED',
+          request_type: request.type,
+          vc_id: vcId,
+          expired_in: expiredIn,
+        };
+
+        const rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUE_VC);
+        const response = await authenticatedPost(rejectUrl, requestBody);
+        if (response.ok) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (error) {
+        console.error(`Error rejecting request ${requestId}:`, error);
+        failCount++;
+      } finally {
+        setBulkRemainingCount((prev) => prev - 1);
+      }
+    }
+
+    setIsBulkRejecting(false);
+    setBulkRemainingCount(0);
+    setSelectedRequestIds(new Set());
+
+    // Refresh the requests list
+    if (successCount > 0) {
+      setRequests((prev) => prev.filter((r) => !selectedArray.includes(r.id)));
+      setFilteredRequests((prev) => prev.filter((r) => !selectedArray.includes(r.id)));
+    }
+
+    alert(`Bulk reject completed!\nSuccess: ${successCount}\nFailed: ${failCount}`);
   };
 
   const handleReview = async (requestId: string) => {
@@ -369,7 +718,8 @@ export default function IssueRequestPage() {
           const schemaApiData: SchemaApiResponse = await schemaResponse.json();
 
           if (schemaApiData.success && schemaApiData.data) {
-            const { id, name, schema, version, isActive } = schemaApiData.data;
+            const { id, name, schema, version, isActive, createdAt, updatedAt } =
+              schemaApiData.data;
 
             // Transform schema properties into attributes array
             const attributes: SchemaAttribute[] = Object.entries(schema.properties).map(
@@ -389,6 +739,8 @@ export default function IssueRequestPage() {
               attributes: attributes,
               image_link: schemaApiData.data.image_link,
               expired_in: schema.expired_in,
+              created_at: createdAt,
+              updated_at: updatedAt,
             });
 
             // Set empty attributes for now - you can fetch actual values from another endpoint
@@ -415,7 +767,7 @@ export default function IssueRequestPage() {
     }
 
     try {
-      setIsLoadingSchema(true);
+      setIsSubmittingCredential(true);
 
       // Convert form attributes to credential data
       const credentialData: Record<string, string | number | boolean> = {};
@@ -507,19 +859,18 @@ export default function IssueRequestPage() {
 
       if (schemaData.expired_in > 0) {
         // expired_in is in years, convert to milliseconds and add to current datetime
-        const millisecondsPerYear = 365.25 * 24 * 60 * 60 * 1000; // Account for leap years
+        // years * 365.25 days * 24 hours * 60 minutes * 60 seconds * 1000 ms
         const expirationDate = new Date(
-          now.getTime() + schemaData.expired_in * millisecondsPerYear
+          now.getTime() + schemaData.expired_in * 365.25 * 24 * 60 * 60 * 1000
         );
         expiredAt = expirationDate.toISOString();
         console.log(
           `Calculated expired_at: ${expiredAt} (${schemaData.expired_in} years from now)`
         );
       } else {
-        // expired_in is 0 or null, set far future date for lifetime credential (100 years)
-        const lifetimeDate = new Date(now.getTime() + 100 * 365.25 * 24 * 60 * 60 * 1000);
-        expiredAt = lifetimeDate.toISOString();
-        console.log('expired_in is 0 (lifetime), setting expired_at to far future:', expiredAt);
+        // expired_in is 0 or null, set expired_at to null for lifetime credential
+        expiredAt = null;
+        console.log('expired_in is 0 or null (lifetime), setting expired_at to null');
       }
 
       // Create Verifiable Credential
@@ -617,7 +968,7 @@ export default function IssueRequestPage() {
       });
       setShowInfoModal(true);
     } finally {
-      setIsLoadingSchema(false);
+      setIsSubmittingCredential(false);
     }
   };
 
@@ -739,22 +1090,14 @@ export default function IssueRequestPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date
-      .toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      })
-      .replace(/\//g, '/');
-  };
-
-  const calculateActiveUntil = (requestedOn: string, expiredIn: number): string => {
-    const date = new Date(requestedOn);
-    date.setFullYear(date.getFullYear() + 5); // check expiredIn from schema if available
-    if (expiredIn) {
-      date.setSeconds(date.getSeconds() + expiredIn);
-    }
-    return formatDate(date.toISOString());
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
   };
 
   const truncateDid = (did: string, maxLength: number = 25): string => {
@@ -837,17 +1180,39 @@ export default function IssueRequestPage() {
         const parsedBody = getCachedParsedBody(row.encrypted_body);
         const schemaId = parsedBody?.schema_id || '';
         const schemaName = schemaNames.get(schemaId) || schemaId || 'Unknown Schema';
-        return <ThemedText className="text-sm text-gray-900">{schemaName}</ThemedText>;
+        const isActive = schemaIsActive.get(schemaId);
+        const isUnknown = schemaName === 'Unknown Schema';
+
+        // If unknown schema, just show text without button
+        if (isUnknown) {
+          return <ThemedText className="text-sm text-red-600">{schemaName} (Not Found)</ThemedText>;
+        }
+
+        return (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewSchema(schemaId, parsedBody?.schema_version || 1);
+            }}
+            className={`text-sm hover:underline text-left cursor-pointer ${
+              isActive === false ? 'text-red-600' : 'text-blue-600 hover:text-blue-800'
+            }`}
+          >
+            {schemaName}
+            {isActive === false && ' (Inactive)'}
+          </button>
+        );
       },
     },
     {
       id: 'request_type',
       label: 'TYPE',
-      render: () => (
+      sortKey: 'type',
+      render: (row) => (
         <span
-          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRequestTypeColor('ISSUANCE')}`}
+          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRequestTypeColor(row.type)}`}
         >
-          Issuance
+          {row.type.charAt(0) + row.type.slice(1).toLowerCase()}
         </span>
       ),
     },
@@ -861,14 +1226,36 @@ export default function IssueRequestPage() {
     },
     {
       id: 'activeUntil',
-      label: 'ACTIVE UNTIL',
+      label: 'SCHEMA EXPIRES',
       sortKey: 'createdAt',
       render: (row) => {
-        // Default to 5 years (157680000 seconds) if no schema data available
-        const expiredIn = schemaData?.expired_in || 157680000;
+        const parsedBody = getCachedParsedBody(row.encrypted_body);
+        const schemaId = parsedBody?.schema_id || '';
+        const expiredIn = schemaExpiredIns.get(schemaId);
+
+        // Handle lifetime (0 or null/undefined)
+        if (!expiredIn || expiredIn === 0) {
+          return <ThemedText className="text-sm text-gray-900">Lifetime</ThemedText>;
+        }
+
+        // Calculate expiry from request createdAt + expired_in (in years)
+        const createdDate = new Date(row.createdAt);
+        // Convert years to milliseconds: years * 365.25 days * 24 hours * 60 minutes * 60 seconds * 1000 ms
+        const expiryDate = new Date(
+          createdDate.getTime() + expiredIn * 365.25 * 24 * 60 * 60 * 1000
+        );
+
         return (
           <ThemedText className="text-sm text-gray-900">
-            {calculateActiveUntil(row.createdAt, expiredIn)}
+            {expiryDate.toLocaleString('en-US', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false,
+            })}
           </ThemedText>
         );
       },
@@ -876,24 +1263,41 @@ export default function IssueRequestPage() {
     {
       id: 'action',
       label: 'ACTION',
-      render: (row) => (
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleReview(row.id)}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
-            disabled={row.status !== 'PENDING'}
-          >
-            REVIEW
-          </button>
-          <button
-            onClick={() => handleReject(row.id)}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
-            disabled={row.status !== 'PENDING'}
-          >
-            REJECT
-          </button>
-        </div>
-      ),
+      render: (row) => {
+        const parsedBody = getCachedParsedBody(row.encrypted_body);
+        const schemaId = parsedBody?.schema_id || '';
+        const isSchemaActive = schemaIsActive.get(schemaId);
+
+        // For non-ISSUANCE types, no action buttons
+        if (row.type !== 'ISSUANCE') {
+          return null;
+        }
+
+        // Hide buttons completely if schema is inactive or unknown
+        if (isSchemaActive === false || isSchemaActive === undefined) {
+          return null;
+        }
+
+        // For ISSUANCE type with active schema, show REVIEW and REJECT buttons
+        return (
+          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => handleReview(row.id)}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={row.status !== 'PENDING'}
+            >
+              REVIEW
+            </button>
+            <button
+              onClick={() => handleReject(row.id)}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={row.status !== 'PENDING'}
+            >
+              REJECT
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -917,18 +1321,55 @@ export default function IssueRequestPage() {
         </ThemedText>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
-          <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <ThemedText className="text-sm text-gray-600 mb-2">Active Requests</ThemedText>
-            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-              {activeCount.toLocaleString()}
-            </ThemedText>
+        <div className="space-y-6 mb-8 pt-4">
+          {/* First Row: Total, Active, Inactive */}
+          <div className="grid grid-cols-3 gap-6">
+            <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Total Pending</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {totalPendingCount.toLocaleString()}
+              </ThemedText>
+            </div>
+            <div className="bg-green-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Active Schema</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {activeSchemaCount.toLocaleString()}
+              </ThemedText>
+            </div>
+            <div className="bg-red-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Inactive Schema</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {inactiveSchemaCount.toLocaleString()}
+              </ThemedText>
+            </div>
           </div>
-          <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <ThemedText className="text-sm text-gray-600 mb-2">Expired in 24 hours</ThemedText>
-            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-              {expiringCount.toLocaleString()}
-            </ThemedText>
+
+          {/* Second Row: Issuance, Renewal, Update, Revoke */}
+          <div className="grid grid-cols-4 gap-6">
+            <div className="bg-purple-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Issuance</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {issuanceCount.toLocaleString()}
+              </ThemedText>
+            </div>
+            <div className="bg-cyan-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Renewal</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {renewalCount.toLocaleString()}
+              </ThemedText>
+            </div>
+            <div className="bg-orange-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Update</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {updateCount.toLocaleString()}
+              </ThemedText>
+            </div>
+            <div className="bg-rose-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Revoke</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {revocationCount.toLocaleString()}
+              </ThemedText>
+            </div>
           </div>
         </div>
 
@@ -952,12 +1393,78 @@ export default function IssueRequestPage() {
             data={filteredRequests}
             columns={columns}
             onFilter={handleFilter}
-            searchPlaceholder="Search..."
+            activeFilterCount={getActiveFilterCount()}
+            searchPlaceholder="Search by holder DID, schema, type, or ID..."
             onSearch={handleSearch}
             enableSelection={true}
+            onSelectionChange={handleSelectionChange}
+            selectedIds={selectedRequestIds}
+            onRowClick={(row) => handleViewRequest(row.id)}
             totalCount={filteredRequests.length}
             rowsPerPageOptions={[5, 10, 25, 50, 100]}
             idKey="id"
+            filterButtonRef={filterButtonRef}
+            defaultSortColumn="createdAt"
+            defaultSortDirection="desc"
+            topRightButtons={
+              <div className="flex items-center gap-3 justify-end">
+                {selectedRequestIds.size > 0 ? (
+                  <>
+                    <button
+                      onClick={handleBulkReject}
+                      disabled={isBulkRejecting}
+                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {isBulkRejecting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Rejecting ({bulkRemainingCount} remaining)
+                        </>
+                      ) : (
+                        `Reject Selected (${selectedRequestIds.size})`
+                      )}
+                    </button>
+                    <div className="h-8 w-px bg-gray-200" />
+                    <button
+                      onClick={handleUnselectAll}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium cursor-pointer"
+                    >
+                      Unselect All
+                    </button>
+                    <div className="h-8 w-px bg-gray-200" />
+                  </>
+                ) : null}
+                <button
+                  onClick={fetchRequests}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                      </svg>
+                      Refresh
+                    </>
+                  )}
+                </button>
+              </div>
+            }
           />
         )}
       </div>
@@ -966,19 +1473,19 @@ export default function IssueRequestPage() {
       {showFilterModal && (
         <div
           ref={filterModalRef}
-          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 p-6 w-80 z-50"
+          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 w-[640px] z-50 max-h-[85vh] overflow-hidden flex flex-col"
           style={{
             top: `${filterButtonPosition.top}px`,
             left: `${filterButtonPosition.left}px`,
           }}
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
               Filter Requests
             </ThemedText>
             <button
               onClick={() => setShowFilterModal(false)}
-              className="text-gray-400 hover:text-gray-600 cursor-pointer"
+              className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -991,18 +1498,87 @@ export default function IssueRequestPage() {
             </button>
           </div>
 
-          {/* Schema Filter */}
-          <div>
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              Encrypted Body
-            </ThemedText>
-            <input
-              type="text"
-              value={filterSchema}
-              onChange={(e) => handleSchemaChange(e.target.value)}
-              placeholder="Search by encrypted body"
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-            />
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto flex-1 px-6 py-4">
+            <div className="space-y-4">
+              {/* Request Type Filter */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                    Request Type
+                  </ThemedText>
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
+                  >
+                    <option value="all">All</option>
+                    <option value="ISSUANCE">Issuance</option>
+                    <option value="RENEWAL">Renewal</option>
+                    <option value="UPDATE">Update</option>
+                    <option value="REVOCATION">Revocation</option>
+                  </select>
+                </div>
+
+                {/* Schema Status Filter */}
+                <div>
+                  <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                    Schema Status
+                  </ThemedText>
+                  <select
+                    value={filterSchemaStatus}
+                    onChange={(e) => setFilterSchemaStatus(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
+                  >
+                    <option value="all">All</option>
+                    <option value="active">Active Schema</option>
+                    <option value="inactive">Inactive Schema</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Requested On Date Filter */}
+              <div>
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Requested On
+                </ThemedText>
+                <div className="grid grid-cols-2 gap-4">
+                  <DateTimePicker
+                    value={filterRequestedOnStart}
+                    onChange={setFilterRequestedOnStart}
+                  />
+                  <DateTimePicker value={filterRequestedOnEnd} onChange={setFilterRequestedOnEnd} />
+                </div>
+              </div>
+
+              {/* Schema Expires Date Filter */}
+              <div>
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Schema Expires
+                </ThemedText>
+                <div className="grid grid-cols-2 gap-4">
+                  <DateTimePicker
+                    value={filterSchemaExpiresStart}
+                    onChange={setFilterSchemaExpiresStart}
+                  />
+                  <DateTimePicker
+                    value={filterSchemaExpiresEnd}
+                    onChange={setFilterSchemaExpiresEnd}
+                  />
+                </div>
+              </div>
+            </div>
+            {/* End of Scrollable Content */}
+          </div>
+
+          {/* Clear Filters Button */}
+          <div className="px-6 py-4 border-t border-gray-200">
+            <button
+              onClick={clearFilters}
+              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium cursor-pointer"
+            >
+              Clear All Filters
+            </button>
           </div>
         </div>
       )}
@@ -1011,7 +1587,7 @@ export default function IssueRequestPage() {
       <Modal
         isOpen={showReviewModal}
         onClose={() => {
-          if (!isLoadingSchema) {
+          if (!isLoadingSchema && !isSubmittingCredential) {
             setShowReviewModal(false);
             setSchemaData(null);
             setRequestAttributes({});
@@ -1021,8 +1597,8 @@ export default function IssueRequestPage() {
         maxWidth="1000px"
       >
         {isLoadingSchema ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <div className="flex items-center justify-center gap-3 py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <ThemedText className="text-gray-600">Loading schema and preparing form...</ThemedText>
           </div>
         ) : selectedRequest && schemaData ? (
@@ -1031,11 +1607,17 @@ export default function IssueRequestPage() {
             schemaName={schemaData.name}
             version={schemaData.version}
             status={schemaData.status}
+            expiredIn={schemaData.expired_in}
+            createdAt={schemaData.created_at}
+            updatedAt={schemaData.updated_at}
+            imageUrl={schemaData.image_link || undefined}
+            holderDid={selectedRequest.holder_did}
             initialAttributes={schemaData.attributes.map((attr, index) => ({
               id: index + 1,
               name: attr.name,
               type: attr.type,
               value: requestAttributes[attr.name] || '',
+              required: attr.required,
             }))}
             onSubmit={handleIssueCredential}
             onCancel={() => {
@@ -1043,8 +1625,251 @@ export default function IssueRequestPage() {
               setSchemaData(null);
               setRequestAttributes({});
             }}
+            isSubmitting={isSubmittingCredential}
           />
         ) : null}
+      </Modal>
+
+      {/* View Request Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedRequest(null);
+        }}
+        title="View Request Details"
+        maxWidth="800px"
+      >
+        {selectedRequest && (
+          <div className="px-8 py-6">
+            {/* Request Information Grid */}
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              {/* Request ID */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Request ID</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {selectedRequest.id}
+                </div>
+              </div>
+
+              {/* Request Type */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">
+                    Request Type
+                  </ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                  <span
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRequestTypeColor(selectedRequest.type)}`}
+                  >
+                    {selectedRequest.type.charAt(0) + selectedRequest.type.slice(1).toLowerCase()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                  <span
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                      selectedRequest.status === 'PENDING'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : selectedRequest.status === 'APPROVED'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                    }`}
+                  >
+                    {selectedRequest.status}
+                  </span>
+                </div>
+              </div>
+
+              {/* Requested On */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">
+                    Requested On
+                  </ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {formatDate(selectedRequest.createdAt)}
+                </div>
+              </div>
+
+              {/* Holder DID */}
+              <div className="col-span-2">
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 flex items-center gap-2">
+                  <span className="break-all flex-1">{selectedRequest.holder_did}</span>
+                  <button
+                    onClick={() => handleCopyDid(selectedRequest.holder_did, selectedRequest.id)}
+                    className="flex-shrink-0 p-1 hover:bg-gray-200 rounded transition-colors cursor-pointer"
+                  >
+                    {copiedId === selectedRequest.id ? (
+                      <svg
+                        className="w-4 h-4 text-green-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-4 h-4 text-gray-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Issuer DID */}
+              <div className="col-span-2">
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                  {selectedRequest.issuer_did}
+                </div>
+              </div>
+
+              {(() => {
+                const parsedBody = getCachedParsedBody(selectedRequest.encrypted_body);
+                const schemaId = parsedBody?.schema_id || '';
+                const schemaName = schemaNames.get(schemaId) || 'Unknown Schema';
+                const expiredIn = schemaExpiredIns.get(schemaId);
+
+                // Calculate schema expires properly
+                let schemaExpiresText = 'Lifetime';
+                if (expiredIn && expiredIn !== 0) {
+                  const createdDate = new Date(selectedRequest.createdAt);
+                  const expiryDate = new Date(createdDate.getTime() + expiredIn * 1000);
+                  schemaExpiresText = expiryDate.toLocaleString('en-GB', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false,
+                  });
+                }
+
+                return (
+                  <>
+                    {/* Schema Name */}
+                    <div>
+                      <label className="block mb-2">
+                        <ThemedText className="text-sm font-medium text-gray-700">
+                          Schema Name
+                        </ThemedText>
+                      </label>
+                      <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                        {schemaName}
+                      </div>
+                    </div>
+
+                    {/* Schema Expires */}
+                    <div>
+                      <label className="block mb-2">
+                        <ThemedText className="text-sm font-medium text-gray-700">
+                          Schema Expires
+                        </ThemedText>
+                      </label>
+                      <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                        {schemaExpiresText}
+                      </div>
+                    </div>
+
+                    {/* Schema ID */}
+                    <div className="col-span-2">
+                      <label className="block mb-2">
+                        <ThemedText className="text-sm font-medium text-gray-700">
+                          Schema ID
+                        </ThemedText>
+                      </label>
+                      <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                        {schemaId || 'N/A'}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowViewModal(false);
+                  setSelectedRequest(null);
+                }}
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
+              >
+                CLOSE
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* View Schema Modal */}
+      <Modal
+        isOpen={showSchemaModal}
+        onClose={() => {
+          setShowSchemaModal(false);
+          setSchemaData(null);
+        }}
+        title="View Schema"
+      >
+        {schemaData && (
+          <ViewSchemaForm
+            onClose={() => {
+              setShowSchemaModal(false);
+              setSchemaData(null);
+            }}
+            schemaData={{
+              id: schemaData.id,
+              schemaName: schemaData.name,
+              version: schemaData.version,
+              expiredIn: schemaData.expired_in,
+              isActive: schemaData.status,
+              createdAt: schemaData.created_at,
+              updatedAt: schemaData.updated_at || new Date().toISOString(),
+              attributes: schemaData.attributes.map((attr, index) => ({
+                id: index + 1,
+                name: attr.name,
+                type: attr.type,
+                description: attr.description || '',
+                required: attr.required,
+              })),
+              imageUrl: schemaData.image_link || undefined,
+            }}
+          />
+        )}
       </Modal>
 
       {/* Info Modal */}

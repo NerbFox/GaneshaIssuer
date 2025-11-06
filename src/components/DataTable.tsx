@@ -16,6 +16,7 @@ export interface DataTableProps<T> {
   columns: Column<T>[];
   onFilter?: (event: React.MouseEvent<HTMLButtonElement>) => void;
   filterButtonRef?: React.RefObject<HTMLButtonElement | null>;
+  activeFilterCount?: number; // Number of active filters
   searchPlaceholder?: string;
   onSearch?: (value: string) => void;
   topRightButton?: {
@@ -51,6 +52,7 @@ export function DataTable<T>({
   columns,
   onFilter,
   filterButtonRef,
+  activeFilterCount = 0,
   searchPlaceholder = 'Search...',
   onSearch,
   topRightButton,
@@ -268,7 +270,7 @@ export function DataTable<T>({
               <button
                 ref={filterButtonRef}
                 onClick={(e) => onFilter(e)}
-                className="p-2 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-colors cursor-pointer"
+                className="relative p-2 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-colors cursor-pointer"
                 title="Filter"
               >
                 <svg
@@ -284,6 +286,12 @@ export function DataTable<T>({
                     d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
                   />
                 </svg>
+                {/* Filter Count Badge */}
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-blue-500 text-white text-xs font-semibold rounded-full">
+                    {activeFilterCount}
+                  </span>
+                )}
               </button>
             )}
 

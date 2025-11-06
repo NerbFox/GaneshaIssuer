@@ -19,6 +19,7 @@ interface ViewSchemaFormProps {
     version: string;
     expiredIn: number;
     isActive: string;
+    createdAt?: string;
     updatedAt: string;
     attributes: Attribute[];
     imageUrl?: string;
@@ -111,27 +112,33 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
             </ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-            {schemaData.expiredIn === 0 ? 'Lifetime' : schemaData.expiredIn}
+            {schemaData.expiredIn === 0 ||
+            schemaData.expiredIn === null ||
+            schemaData.expiredIn === undefined
+              ? 'Lifetime'
+              : schemaData.expiredIn}
           </div>
         </div>
 
-        {/* Status */}
-        <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
-          </label>
-          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-            <span
-              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                schemaData.isActive === 'Active'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-red-100 text-red-700'
-              }`}
-            >
-              {schemaData.isActive}
-            </span>
+        {/* Created At */}
+        {schemaData.createdAt && (
+          <div>
+            <label className="block mb-2">
+              <ThemedText className="text-sm font-medium text-gray-700">Created At</ThemedText>
+            </label>
+            <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+              {new Date(schemaData.createdAt).toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Updated At */}
         <div>
@@ -148,6 +155,24 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
               second: '2-digit',
               hour12: false,
             })}
+          </div>
+        </div>
+
+        {/* Status - Full width on last row */}
+        <div className="col-span-2">
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+            <span
+              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                schemaData.isActive === 'Active'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-red-100 text-red-700'
+              }`}
+            >
+              {schemaData.isActive}
+            </span>
           </div>
         </div>
       </div>

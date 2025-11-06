@@ -11,6 +11,7 @@ import UpdateSchemaForm, {
   SchemaFormData as UpdateSchemaFormData,
 } from '@/components/UpdateSchemaForm';
 import ViewSchemaForm from '@/components/ViewSchemaForm';
+import { DateTimePicker } from '@/components/DateTimePicker';
 import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { authenticatedFetch, authenticatedGet, authenticatedPost } from '@/utils/api-client';
@@ -68,6 +69,10 @@ export default function SchemaPage() {
   const [filterMaxAttributes, setFilterMaxAttributes] = useState('');
   const [filterMinExpiredIn, setFilterMinExpiredIn] = useState('');
   const [filterMaxExpiredIn, setFilterMaxExpiredIn] = useState('');
+  const [filterCreatedAtStart, setFilterCreatedAtStart] = useState<string>('');
+  const [filterCreatedAtEnd, setFilterCreatedAtEnd] = useState<string>('');
+  const [filterUpdatedAtStart, setFilterUpdatedAtStart] = useState<string>('');
+  const [filterUpdatedAtEnd, setFilterUpdatedAtEnd] = useState<string>('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [showCreateSchemaModal, setShowCreateSchemaModal] = useState(false);
   const [showUpdateSchemaModal, setShowUpdateSchemaModal] = useState(false);
@@ -324,6 +329,46 @@ export default function SchemaPage() {
       }
     }
 
+    // Created At date filter
+    if (filterCreatedAtStart || filterCreatedAtEnd) {
+      filtered = filtered.filter((schema) => {
+        const createdDate = new Date(schema.createdAt);
+        const startDate = filterCreatedAtStart ? new Date(filterCreatedAtStart) : null;
+        const endDate = filterCreatedAtEnd ? new Date(filterCreatedAtEnd) : null;
+
+        if (startDate && endDate) {
+          endDate.setHours(23, 59, 59, 999); // Include the entire end date
+          return createdDate >= startDate && createdDate <= endDate;
+        } else if (startDate) {
+          return createdDate >= startDate;
+        } else if (endDate) {
+          endDate.setHours(23, 59, 59, 999);
+          return createdDate <= endDate;
+        }
+        return true;
+      });
+    }
+
+    // Updated At date filter
+    if (filterUpdatedAtStart || filterUpdatedAtEnd) {
+      filtered = filtered.filter((schema) => {
+        const updatedDate = new Date(schema.updatedAt);
+        const startDate = filterUpdatedAtStart ? new Date(filterUpdatedAtStart) : null;
+        const endDate = filterUpdatedAtEnd ? new Date(filterUpdatedAtEnd) : null;
+
+        if (startDate && endDate) {
+          endDate.setHours(23, 59, 59, 999);
+          return updatedDate >= startDate && updatedDate <= endDate;
+        } else if (startDate) {
+          return updatedDate >= startDate;
+        } else if (endDate) {
+          endDate.setHours(23, 59, 59, 999);
+          return updatedDate <= endDate;
+        }
+        return true;
+      });
+    }
+
     setFilteredSchemas(filtered);
   };
 
@@ -338,6 +383,10 @@ export default function SchemaPage() {
     filterMaxAttributes,
     filterMinExpiredIn,
     filterMaxExpiredIn,
+    filterCreatedAtStart,
+    filterCreatedAtEnd,
+    filterUpdatedAtStart,
+    filterUpdatedAtEnd,
     schemas,
   ]);
 
@@ -348,6 +397,24 @@ export default function SchemaPage() {
     setFilterMaxAttributes('');
     setFilterMinExpiredIn('');
     setFilterMaxExpiredIn('');
+    setFilterCreatedAtStart('');
+    setFilterCreatedAtEnd('');
+    setFilterUpdatedAtStart('');
+    setFilterUpdatedAtEnd('');
+  };
+
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (filterStatus !== 'all') count++;
+    if (filterMinAttributes) count++;
+    if (filterMaxAttributes) count++;
+    if (filterMinExpiredIn) count++;
+    if (filterMaxExpiredIn) count++;
+    if (filterCreatedAtStart) count++;
+    if (filterCreatedAtEnd) count++;
+    if (filterUpdatedAtStart) count++;
+    if (filterUpdatedAtEnd) count++;
+    return count;
   };
 
   const handleUpdateSchema = async (schemaId: string, version: number) => {
@@ -1077,6 +1144,7 @@ export default function SchemaPage() {
             columns={columns}
             onFilter={handleFilter}
             filterButtonRef={filterButtonRef}
+            activeFilterCount={getActiveFilterCount()}
             searchPlaceholder="Search..."
             onSearch={handleSearch}
             defaultSortColumn="createdAt"
@@ -1225,13 +1293,13 @@ export default function SchemaPage() {
       {showFilterModal && (
         <div
           ref={filterModalRef}
-          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 p-6 w-80 z-30"
+          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 w-[640px] z-30 max-h-[85vh] overflow-hidden flex flex-col"
           style={{
             top: `${filterButtonPosition.top}px`,
             left: `${filterButtonPosition.left}px`,
           }}
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
               Filter Schemas
             </ThemedText>
@@ -1250,77 +1318,112 @@ export default function SchemaPage() {
             </button>
           </div>
 
-          {/* Status Filter */}
-          <div className="mb-4">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">Status</ThemedText>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
-            >
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto flex-1 px-6 py-4">
+            <div className="space-y-4">
+              {/* Status Filter */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                    Status
+                  </ThemedText>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) =>
+                      setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')
+                    }
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
+                  >
+                    <option value="all">All</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
 
-          {/* Attribute Count Filter */}
-          <div className="mb-4">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              Number of Attributes
-            </ThemedText>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                value={filterMinAttributes}
-                onChange={(e) => setFilterMinAttributes(e.target.value)}
-                placeholder="Min"
-                min="0"
-                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
-              />
-              <input
-                type="number"
-                value={filterMaxAttributes}
-                onChange={(e) => setFilterMaxAttributes(e.target.value)}
-                placeholder="Max"
-                min="0"
-                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
-              />
-            </div>
-          </div>
+              {/* Attribute Count Filter */}
+              <div>
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Number of Attributes
+                </ThemedText>
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="number"
+                    value={filterMinAttributes}
+                    onChange={(e) => setFilterMinAttributes(e.target.value)}
+                    placeholder="Min"
+                    min="0"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                  />
+                  <input
+                    type="number"
+                    value={filterMaxAttributes}
+                    onChange={(e) => setFilterMaxAttributes(e.target.value)}
+                    placeholder="Max"
+                    min="0"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                  />
+                </div>
+              </div>
 
-          {/* Expired In Filter */}
-          <div className="mb-4">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              Expired In (Years)
-            </ThemedText>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                value={filterMinExpiredIn}
-                onChange={(e) => setFilterMinExpiredIn(e.target.value)}
-                placeholder="Min"
-                min="0"
-                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
-              />
-              <input
-                type="number"
-                value={filterMaxExpiredIn}
-                onChange={(e) => setFilterMaxExpiredIn(e.target.value)}
-                placeholder="Max"
-                min="0"
-                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
-              />
+              {/* Expired In Filter */}
+              <div>
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Expired In (Years)
+                </ThemedText>
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="number"
+                    value={filterMinExpiredIn}
+                    onChange={(e) => setFilterMinExpiredIn(e.target.value)}
+                    placeholder="Min"
+                    min="0"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                  />
+                  <input
+                    type="number"
+                    value={filterMaxExpiredIn}
+                    onChange={(e) => setFilterMaxExpiredIn(e.target.value)}
+                    placeholder="Max"
+                    min="0"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                  />
+                </div>
+              </div>
+
+              {/* Created At Date Filter */}
+              <div>
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Created At
+                </ThemedText>
+                <div className="grid grid-cols-2 gap-4">
+                  <DateTimePicker value={filterCreatedAtStart} onChange={setFilterCreatedAtStart} />
+                  <DateTimePicker value={filterCreatedAtEnd} onChange={setFilterCreatedAtEnd} />
+                </div>
+              </div>
+
+              {/* Updated At Date Filter */}
+              <div>
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Updated At
+                </ThemedText>
+                <div className="grid grid-cols-2 gap-4">
+                  <DateTimePicker value={filterUpdatedAtStart} onChange={setFilterUpdatedAtStart} />
+                  <DateTimePicker value={filterUpdatedAtEnd} onChange={setFilterUpdatedAtEnd} />
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Clear Filters Button */}
-          <button
-            onClick={clearFilters}
-            className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium cursor-pointer"
-          >
-            Clear All Filters
-          </button>
+          <div className="px-6 py-4 border-t border-gray-200">
+            <button
+              onClick={clearFilters}
+              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium cursor-pointer"
+            >
+              Clear All Filters
+            </button>
+          </div>
         </div>
       )}
 
@@ -1384,6 +1487,7 @@ export default function SchemaPage() {
               version: selectedSchema.version.toString(),
               expiredIn: selectedSchema.expiredIn,
               isActive: selectedSchema.isActive ? 'Active' : 'Inactive',
+              createdAt: selectedSchema.createdAt,
               updatedAt: selectedSchema.updatedAt,
               attributes: Object.entries(selectedSchema.schemaDetails.properties).map(
                 ([name, config], index) => ({
