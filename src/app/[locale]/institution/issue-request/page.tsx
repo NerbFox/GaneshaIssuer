@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import FillIssueRequestForm, { IssueRequestFormData } from '@/components/FillIssueRequestForm';
+import InfoModal from '@/components/InfoModal';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey } from '@/utils/vcSigner';
@@ -102,6 +103,12 @@ export default function IssueRequestPage() {
   const [parsedBodies, setParsedBodies] = useState<
     Map<string, { schema_id: string; schema_version: number } | null>
   >(new Map());
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState({
+    title: '',
+    message: '',
+    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -574,9 +581,12 @@ export default function IssueRequestPage() {
       console.log('Issue VC result:', result);
 
       if (result.success) {
-        alert(
-          `Credential issued successfully!\nTransaction Hash: ${result.data.transaction_hash}\nBlock Number: ${result.data.block_number}`
-        );
+        setInfoModalConfig({
+          title: 'Success',
+          message: `Credential issued successfully!\nTransaction Hash: ${result.data.transaction_hash}\nBlock Number: ${result.data.block_number}`,
+          buttonColor: 'green',
+        });
+        setShowInfoModal(true);
 
         // Remove the request from the list
         setRequests((prev) => prev.filter((request) => request.id !== selectedRequest.id));
@@ -589,7 +599,12 @@ export default function IssueRequestPage() {
       }
     } catch (err) {
       console.error('Error issuing credential:', err);
-      alert(`Failed to issue credential: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setInfoModalConfig({
+        title: 'Error',
+        message: `Failed to issue credential: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     } finally {
       setIsLoadingSchema(false);
     }
@@ -666,10 +681,20 @@ export default function IssueRequestPage() {
       setRequests((prev) => prev.filter((r) => r.id !== requestId));
       setFilteredRequests((prev) => prev.filter((r) => r.id !== requestId));
 
-      alert('Credential request rejected successfully');
+      setInfoModalConfig({
+        title: 'Success',
+        message: 'Credential request rejected successfully',
+        buttonColor: 'green',
+      });
+      setShowInfoModal(true);
     } catch (err) {
       console.error('Error rejecting request:', err);
-      alert(`Failed to reject request: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setInfoModalConfig({
+        title: 'Error',
+        message: `Failed to reject request: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     } finally {
       setIsLoading(false);
     }
@@ -998,6 +1023,15 @@ export default function IssueRequestPage() {
           />
         ) : null}
       </Modal>
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonColor={infoModalConfig.buttonColor}
+      />
     </InstitutionLayout>
   );
 }

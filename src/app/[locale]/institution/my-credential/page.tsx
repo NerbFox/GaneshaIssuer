@@ -9,6 +9,7 @@ import { redirectIfJWTInvalid } from '@/utils/auth';
 import Modal from '@/components/Modal';
 import { buildApiUrlWithParams, buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 import { encryptWithPublicKey } from '@/utils/encryptUtils';
+import InfoModal from '@/components/InfoModal';
 
 interface Credential {
   id: string;
@@ -70,6 +71,12 @@ export default function MyCredentialPage() {
   const [filteredSchemas, setFilteredSchemas] = useState<Schema[]>([]);
   const [isSchemasLoading, setIsSchemasLoading] = useState(false);
   const [expandedSchemaId, setExpandedSchemaId] = useState<string | null>(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState({
+    title: '',
+    message: '',
+    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -206,7 +213,12 @@ export default function MyCredentialPage() {
     } catch (error) {
       console.error('Error fetching schemas:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Failed to fetch schemas: ${errorMessage}`);
+      setInfoModalConfig({
+        title: 'Error',
+        message: `Failed to fetch schemas: ${errorMessage}`,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     } finally {
       setIsSchemasLoading(false);
     }
@@ -218,19 +230,34 @@ export default function MyCredentialPage() {
       const token = localStorage.getItem('institutionToken');
 
       if (!holderDid) {
-        alert('Holder DID not found. Please login again.');
+        setInfoModalConfig({
+          title: 'Error',
+          message: 'Holder DID not found. Please login again.',
+          buttonColor: 'red',
+        });
+        setShowInfoModal(true);
         return;
       }
 
       if (!token) {
-        alert('Authentication token not found. Please login again.');
+        setInfoModalConfig({
+          title: 'Error',
+          message: 'Authentication token not found. Please login again.',
+          buttonColor: 'red',
+        });
+        setShowInfoModal(true);
         return;
       }
 
       // Find the schema to get its version
       const schema = schemas.find((s) => s.id === schemaId);
       if (!schema) {
-        alert('Schema not found');
+        setInfoModalConfig({
+          title: 'Error',
+          message: 'Schema not found',
+          buttonColor: 'red',
+        });
+        setShowInfoModal(true);
         return;
       }
 
@@ -310,9 +337,12 @@ export default function MyCredentialPage() {
       }
 
       if (result.success) {
-        alert(
-          `Credential request successful! Request ID: ${result.data.request_id}\nStatus: ${result.data.status}`
-        );
+        setInfoModalConfig({
+          title: 'Success',
+          message: `Credential request successful! Request ID: ${result.data.request_id}\nStatus: ${result.data.status}`,
+          buttonColor: 'green',
+        });
+        setShowInfoModal(true);
         setShowRequestModal(false);
       } else {
         throw new Error(result.message || 'Request failed');
@@ -320,9 +350,12 @@ export default function MyCredentialPage() {
     } catch (error) {
       console.error('Error requesting credential:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(
-        `Failed to request credential: ${errorMessage}\n\nPlease check the console for more details.`
-      );
+      setInfoModalConfig({
+        title: 'Error',
+        message: `Failed to request credential: ${errorMessage}\n\nPlease check the console for more details.`,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     }
   };
 
@@ -737,6 +770,15 @@ export default function MyCredentialPage() {
       </Modal>
 
       {/* Filter Popup */}
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonColor={infoModalConfig.buttonColor}
+      />
     </InstitutionLayout>
   );
 }

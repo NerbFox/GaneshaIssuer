@@ -14,6 +14,7 @@ import ViewSchemaForm from '@/components/ViewSchemaForm';
 import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { authenticatedFetch, authenticatedGet, authenticatedPost } from '@/utils/api-client';
+import InfoModal from '@/components/InfoModal';
 
 interface Schema {
   id: string;
@@ -81,6 +82,12 @@ export default function SchemaPage() {
     null
   ); // Track which bulk action is in progress
   const [bulkRemainingCount, setBulkRemainingCount] = useState(0); // Track remaining schemas in bulk operation
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState({
+    title: '',
+    message: '',
+    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
 
   const filterModalRef = useRef<HTMLDivElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
@@ -361,7 +368,12 @@ export default function SchemaPage() {
       }
     } catch (error) {
       console.error('Error fetching schema details:', error);
-      alert('Failed to load schema details. Please try again.');
+      setInfoModalConfig({
+        title: 'Error',
+        message: 'Failed to load schema details. Please try again.',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     }
   };
 
@@ -396,7 +408,12 @@ export default function SchemaPage() {
       }
     } catch (error) {
       console.error('Error fetching schema details:', error);
-      alert('Failed to load schema details. Please try again.');
+      setInfoModalConfig({
+        title: 'Error',
+        message: 'Failed to load schema details. Please try again.',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     }
   };
 
@@ -477,9 +494,12 @@ export default function SchemaPage() {
 
       // Show success message with transaction hash if available
       if (result.transaction_hash) {
-        alert(
-          `Schema updated successfully!\nNew version: ${result.data.version}\nTransaction: ${result.transaction_hash.substring(0, 10)}...`
-        );
+        setInfoModalConfig({
+          title: 'Success',
+          message: `Schema updated successfully!\nNew version: ${result.data.version}\nTransaction: ${result.transaction_hash.substring(0, 10)}...`,
+          buttonColor: 'green',
+        });
+        setShowInfoModal(true);
       }
 
       // Refresh the schema list
@@ -492,7 +512,12 @@ export default function SchemaPage() {
       console.error('Error updating schema:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update schema. Please try again.';
-      alert(errorMessage);
+      setInfoModalConfig({
+        title: 'Error',
+        message: errorMessage,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       throw error; // Re-throw to prevent the form from clearing
     }
   };
@@ -540,9 +565,12 @@ export default function SchemaPage() {
 
       // Show success message with transaction hash if available
       if (result.transaction_hash) {
-        alert(
-          `Schema ${action}d successfully!\nTransaction: ${result.transaction_hash.substring(0, 10)}...`
-        );
+        setInfoModalConfig({
+          title: 'Success',
+          message: `Schema ${action}d successfully!\nTransaction: ${result.transaction_hash.substring(0, 10)}...`,
+          buttonColor: 'green',
+        });
+        setShowInfoModal(true);
       }
     } catch (error) {
       console.error('Error toggling schema status:', error);
@@ -550,7 +578,12 @@ export default function SchemaPage() {
         error instanceof Error
           ? error.message
           : 'Failed to update schema status. Please try again.';
-      alert(errorMessage);
+      setInfoModalConfig({
+        title: 'Error',
+        message: errorMessage,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
 
       // Try to refresh the schema list to ensure correct state
       try {
@@ -588,7 +621,12 @@ export default function SchemaPage() {
 
   const handleBulkToggle = async (action: 'reactivate' | 'deactivate') => {
     if (selectedSchemaKeys.size === 0) {
-      alert('Please select at least one schema');
+      setInfoModalConfig({
+        title: 'Validation Error',
+        message: 'Please select at least one schema',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
@@ -711,7 +749,12 @@ export default function SchemaPage() {
       resultMessage += `\n✗ Failed: ${failCount}\n\nFailed schemas:\n${failedSchemas}`;
     }
 
-    alert(resultMessage);
+    setInfoModalConfig({
+      title: 'Bulk Action Results',
+      message: resultMessage,
+      buttonColor: failCount > 0 ? 'yellow' : 'green',
+    });
+    setShowInfoModal(true);
 
     setIsBulkToggling(false);
     setBulkTogglingAction(null);
@@ -809,7 +852,12 @@ export default function SchemaPage() {
       console.error('Error creating schema:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to create schema. Please try again.';
-      alert(errorMessage);
+      setInfoModalConfig({
+        title: 'Error',
+        message: errorMessage,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       // Don't close modal on error, let user fix the issue
       throw error; // Re-throw to prevent the form from clearing
     }
@@ -1320,6 +1368,15 @@ export default function SchemaPage() {
           />
         )}
       </Modal>
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonColor={infoModalConfig.buttonColor}
+      />
     </InstitutionLayout>
   );
 }

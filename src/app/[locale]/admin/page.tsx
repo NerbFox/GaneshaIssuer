@@ -10,6 +10,7 @@ import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import { DataTable, Column } from '@/components/DataTable';
+import InfoModal from '@/components/InfoModal';
 
 interface Institution {
   id: string;
@@ -81,6 +82,12 @@ export default function AdminPage() {
   ); // Track which bulk action is in progress
   const [adminData, setAdminData] = useState<AdminData | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState({
+    title: '',
+    message: '',
+    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
 
   const fetchPendingInstitutions = useCallback(
     async (token: string, devData?: Institution[]) => {
@@ -204,7 +211,12 @@ export default function AdminPage() {
         // Simulate API call in development mode
         await new Promise((resolve) => setTimeout(resolve, 1000));
         console.log('DEV MODE: Approving institution', institutionId);
-        alert(t('approveSuccess'));
+        setInfoModalConfig({
+          title: 'Success',
+          message: t('approveSuccess'),
+          buttonColor: 'green',
+        });
+        setShowInfoModal(true);
         // Remove institution from list
         setInstitutions((prev) => prev.filter((inst) => inst.id !== institutionId));
         setProcessingIds((prev) => {
@@ -235,11 +247,21 @@ export default function AdminPage() {
         throw new Error(data.message || 'Failed to approve institution');
       }
 
-      alert(t('approveSuccess'));
+      setInfoModalConfig({
+        title: 'Success',
+        message: t('approveSuccess'),
+        buttonColor: 'green',
+      });
+      setShowInfoModal(true);
       fetchPendingInstitutions(token!);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      alert(errorMessage);
+      setInfoModalConfig({
+        title: 'Error',
+        message: errorMessage,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     } finally {
       setProcessingIds((prev) => {
         const newSet = new Set(prev);
@@ -271,7 +293,12 @@ export default function AdminPage() {
         // Simulate API call in development mode
         await new Promise((resolve) => setTimeout(resolve, 1000));
         console.log('DEV MODE: Rejecting institution', institutionId);
-        alert(t('rejectSuccess'));
+        setInfoModalConfig({
+          title: 'Success',
+          message: t('rejectSuccess'),
+          buttonColor: 'green',
+        });
+        setShowInfoModal(true);
         // Remove institution from list
         setInstitutions((prev) => prev.filter((inst) => inst.id !== institutionId));
         setProcessingIds((prev) => {
@@ -300,11 +327,21 @@ export default function AdminPage() {
         throw new Error(data.message || 'Failed to reject institution');
       }
 
-      alert(t('rejectSuccess'));
+      setInfoModalConfig({
+        title: 'Success',
+        message: t('rejectSuccess'),
+        buttonColor: 'green',
+      });
+      setShowInfoModal(true);
       fetchPendingInstitutions(token!);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      alert(errorMessage);
+      setInfoModalConfig({
+        title: 'Error',
+        message: errorMessage,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     } finally {
       setProcessingIds((prev) => {
         const newSet = new Set(prev);
@@ -316,7 +353,12 @@ export default function AdminPage() {
 
   const handleBulkAction = async (action: 'approve' | 'reject') => {
     if (selectedInstitutionIds.size === 0) {
-      alert(`Please select at least one institution to ${action}.`);
+      setInfoModalConfig({
+        title: 'Validation Error',
+        message: `Please select at least one institution to ${action}.`,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
@@ -410,7 +452,12 @@ export default function AdminPage() {
       resultMessage += `\n✗ Failed: ${failCount}\n\nFailed institutions:\n${failedInstitutions}`;
     }
 
-    alert(resultMessage);
+    setInfoModalConfig({
+      title: 'Bulk Action Results',
+      message: resultMessage,
+      buttonColor: failCount > 0 ? 'yellow' : 'green',
+    });
+    setShowInfoModal(true);
 
     // Clear selection and refresh data
     setSelectedInstitutionIds(new Set());
@@ -724,6 +771,15 @@ export default function AdminPage() {
           />
         )}
       </div>
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonColor={infoModalConfig.buttonColor}
+      />
     </div>
   );
 }

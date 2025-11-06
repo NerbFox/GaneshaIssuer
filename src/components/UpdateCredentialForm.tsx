@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ThemedText } from './ThemedText';
 import { DataTable, Column } from './DataTable';
+import InfoModal from './InfoModal';
 
 interface AttributeData {
   id: number;
@@ -62,6 +63,12 @@ export default function UpdateCredentialForm({
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<Record<number, File>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState({
+    title: '',
+    message: '',
+    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
 
   const [initialAttributes, setInitialAttributes] = useState<AttributeData[]>([]);
 
@@ -100,7 +107,12 @@ export default function UpdateCredentialForm({
     // Validate all attributes have values
     const emptyAttributes = attributes.filter((attr) => !attr.value);
     if (emptyAttributes.length > 0) {
-      alert(`Please fill in all attributes: ${emptyAttributes.map((a) => a.name).join(', ')}`);
+      setInfoModalConfig({
+        title: 'Validation Error',
+        message: `Please fill in all attributes: ${emptyAttributes.map((a) => a.name).join(', ')}`,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
@@ -295,6 +307,15 @@ export default function UpdateCredentialForm({
           {isSubmitting ? 'UPDATING...' : 'UPDATE CREDENTIAL'}
         </button>
       </div>
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonColor={infoModalConfig.buttonColor}
+      />
     </div>
   );
 }
