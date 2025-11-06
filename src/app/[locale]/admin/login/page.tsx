@@ -50,7 +50,7 @@ export default function AdminLoginPage() {
         return;
       }
 
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.ADMIN.LOGIN), {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.ADMIN_AUTH.LOGIN), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

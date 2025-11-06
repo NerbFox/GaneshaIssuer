@@ -157,7 +157,7 @@ export default function IssueRequestPage() {
           throw new Error('Institution DID not found. Please log in again.');
         }
 
-        const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIAL.GET_REQUESTS, {
+        const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.REQUESTS, {
           type: 'ISSUANCE',
           issuer_did: issuerDid,
         });
@@ -208,7 +208,9 @@ export default function IssueRequestPage() {
             const parsedBody = parsedBodiesMap.get(request?.encrypted_body || '');
             const schemaVersion = parsedBody?.schema_version || 1;
 
-            const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, schemaVersion));
+            const schemaUrl = buildApiUrl(
+              API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion)
+            );
             const schemaResponse = await authenticatedGet(schemaUrl);
 
             if (schemaResponse.ok) {
@@ -342,7 +344,7 @@ export default function IssueRequestPage() {
         console.log('Parsed schema version:', schemaVersion);
 
         // Fetch schema details using parsed schema_id and schema_version
-        const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, schemaVersion));
+        const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion));
         const schemaResponse = await authenticatedGet(schemaUrl);
 
         if (schemaResponse.ok) {
@@ -406,7 +408,7 @@ export default function IssueRequestPage() {
       // Fetch DID Document to get issuer name
       let issuerName = 'Issuer Institution'; // Default fallback
       try {
-        const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DID.DOCUMENT(selectedRequest.issuer_did));
+        const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DIDS.DOCUMENT(selectedRequest.issuer_did));
         console.log('Fetching DID Document from:', didDocumentUrl);
 
         const didDocResponse = await authenticatedGet(didDocumentUrl);
@@ -434,7 +436,7 @@ export default function IssueRequestPage() {
       let holderPublicKeyHex: string;
       try {
         console.log('Fetching DID document for:', selectedRequest.holder_did);
-        const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DID.DOCUMENT(selectedRequest.holder_did));
+        const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DIDS.DOCUMENT(selectedRequest.holder_did));
 
         const didResponse = await fetch(didDocumentUrl, {
           headers: {
@@ -543,25 +545,10 @@ export default function IssueRequestPage() {
         expired_at: expiredAt, // ISO datetime string or null for lifetime credentials
       };
 
-      // Validate request body
-      console.log('Validating request body...');
-      console.log('- request_id:', requestBody.request_id);
-      console.log('- action:', requestBody.action);
-      console.log('- vc_id:', requestBody.vc_id);
-      console.log('- schema_id:', requestBody.schema_id);
-      console.log('- schema_version:', requestBody.schema_version);
-      console.log('- vc_hash:', requestBody.vc_hash);
-      console.log('- expired_at:', requestBody.expired_at);
-      console.log('- encrypted_body type:', typeof requestBody.encrypted_body);
-      console.log(
-        '- encrypted_body preview:',
-        requestBody.encrypted_body.substring(0, 100) + '...'
-      );
-
       console.log('Request body:', requestBody);
 
       // Send POST request to issue VC
-      const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.ISSUE_VC);
+      const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUE_VC);
       console.log('Sending request to:', issueUrl);
       console.log('Request body:', requestBody);
 
@@ -639,7 +626,7 @@ export default function IssueRequestPage() {
       // Fetch schema details to get expired_in
       let expiredIn = 0; // Default lifetime
       try {
-        const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, schemaVersion));
+        const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion));
         const schemaResponse = await authenticatedGet(schemaUrl);
 
         if (schemaResponse.ok) {
@@ -656,18 +643,14 @@ export default function IssueRequestPage() {
       // Prepare rejection request body
       const requestBody = {
         request_id: request.id,
-        issuer_did: request.issuer_did,
-        holder_did: request.holder_did,
         action: 'REJECTED',
-        request_type: 'ISSUANCE',
         vc_id: vcId,
-        expired_in: expiredIn,
       };
 
       console.log('Rejection request body:', requestBody);
 
       // Send rejection request to API
-      const rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.ISSUE_VC);
+      const rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUE_VC);
       const response = await authenticatedPost(rejectUrl, requestBody);
 
       if (!response.ok) {

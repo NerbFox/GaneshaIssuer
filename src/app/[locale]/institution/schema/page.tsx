@@ -95,7 +95,7 @@ export default function SchemaPage() {
         throw new Error('Institution DID not found. Please log in again.');
       }
 
-      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.BASE, {
+      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMAS.BASE, {
         issuerDid,
       });
 
@@ -156,7 +156,7 @@ export default function SchemaPage() {
           throw new Error('Institution DID not found. Please log in again.');
         }
 
-        const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.BASE, {
+        const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMAS.BASE, {
           issuerDid,
         });
 
@@ -334,7 +334,7 @@ export default function SchemaPage() {
     try {
       // Fetch the full schema details from API
       const response = await authenticatedGet(
-        buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, version))
+        buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, version))
       );
 
       if (!response.ok) {
@@ -369,7 +369,7 @@ export default function SchemaPage() {
     try {
       // Fetch the full schema details from API
       const response = await authenticatedGet(
-        buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, version))
+        buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, version))
       );
 
       if (!response.ok) {
@@ -442,7 +442,7 @@ export default function SchemaPage() {
           throw new Error('No authentication token found. Please log in.');
         }
 
-        response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.UPDATE(data.schemaId)), {
+        response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_ID(data.schemaId)), {
           method: 'PUT',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -452,7 +452,7 @@ export default function SchemaPage() {
         });
       } else {
         response = await authenticatedFetch(
-          buildApiUrl(API_ENDPOINTS.SCHEMA.UPDATE(data.schemaId)),
+          buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_ID(data.schemaId)),
           {
             method: 'PUT',
             body: JSON.stringify(payload),
@@ -521,8 +521,8 @@ export default function SchemaPage() {
 
       // Call the appropriate API endpoint
       const endpoint = isCurrentlyActive
-        ? API_ENDPOINTS.SCHEMA.DEACTIVATE(schemaId, schemaVersion)
-        : API_ENDPOINTS.SCHEMA.REACTIVATE(schemaId, schemaVersion);
+        ? API_ENDPOINTS.SCHEMAS.DEACTIVATE(schemaId, schemaVersion)
+        : API_ENDPOINTS.SCHEMAS.REACTIVATE(schemaId, schemaVersion);
 
       const response = await authenticatedFetch(buildApiUrl(endpoint), {
         method: 'PATCH',
@@ -654,8 +654,8 @@ export default function SchemaPage() {
         // Call the appropriate API endpoint
         const endpoint =
           action === 'deactivate'
-            ? API_ENDPOINTS.SCHEMA.DEACTIVATE(schema.id, schema.version)
-            : API_ENDPOINTS.SCHEMA.REACTIVATE(schema.id, schema.version);
+            ? API_ENDPOINTS.SCHEMAS.DEACTIVATE(schema.id, schema.version)
+            : API_ENDPOINTS.SCHEMAS.REACTIVATE(schema.id, schema.version);
 
         const response = await authenticatedFetch(buildApiUrl(endpoint), {
           method: 'PATCH',
@@ -775,7 +775,7 @@ export default function SchemaPage() {
           throw new Error('No authentication token found. Please log in.');
         }
 
-        response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), {
+        response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMAS.BASE), {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -784,7 +784,7 @@ export default function SchemaPage() {
           body: formData,
         });
       } else {
-        response = await authenticatedPost(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), payload);
+        response = await authenticatedPost(buildApiUrl(API_ENDPOINTS.SCHEMAS.BASE), payload);
       }
 
       if (!response.ok) {

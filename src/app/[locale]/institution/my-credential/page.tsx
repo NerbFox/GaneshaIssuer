@@ -184,7 +184,7 @@ export default function MyCredentialPage() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.BASE, { isActive: true });
+      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMAS.BASE, { isActive: true });
 
       const response = await fetch(url, {
         headers,
@@ -236,7 +236,7 @@ export default function MyCredentialPage() {
 
       // Step 1: Fetch the DID document to get the public key
       console.log('Fetching DID document for:', issuerDid);
-      const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DID.DOCUMENT(issuerDid));
+      const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DIDS.DOCUMENT(issuerDid));
 
       const didResponse = await fetch(didDocumentUrl, {
         headers: {
@@ -288,7 +288,7 @@ export default function MyCredentialPage() {
 
       console.log('Requesting credential with: ', requestBody);
 
-      const url = buildApiUrl(API_ENDPOINTS.CREDENTIAL.REQUESTS);
+      const url = buildApiUrl(API_ENDPOINTS.CREDENTIALS.REQUESTS);
 
       const response = await fetch(url, {
         method: 'POST',

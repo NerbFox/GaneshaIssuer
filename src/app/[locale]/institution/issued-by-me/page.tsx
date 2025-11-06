@@ -144,7 +144,7 @@ export default function IssuedByMePage() {
         }
 
         // Fetch credentials
-        const credentialsUrl = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIAL.GET_REQUESTS, {
+        const credentialsUrl = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.REQUESTS, {
           type: 'ISSUANCE',
           issuer_did: institutionDID,
         });
@@ -158,7 +158,7 @@ export default function IssuedByMePage() {
         const credentialsResult: ApiCredentialResponse = await credentialsResponse.json();
 
         // Fetch schemas to get schema names
-        const schemasUrl = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.BASE, {
+        const schemasUrl = buildApiUrlWithParams(API_ENDPOINTS.SCHEMAS.BASE, {
           issuerDid: institutionDID,
         });
 
@@ -362,7 +362,7 @@ export default function IssuedByMePage() {
 
       // Step 1: Revoke the old credential
       console.log('Revoking old credential:', data.credentialId);
-      const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.REJECT(data.credentialId));
+      const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.REVOKE_VC);
       const revokeResponse = await fetch(revokeUrl, {
         method: 'PATCH',
         headers: {
@@ -377,7 +377,7 @@ export default function IssuedByMePage() {
 
       // Step 2: Issue a new credential with updated data
       console.log('Issuing new credential with updated data:', data);
-      const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.ISSUE);
+      const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.ISSUE_VC);
 
       // Transform attributes into the format expected by the API
       const attributesObject: Record<string, string | number | boolean> = {};
@@ -446,7 +446,7 @@ export default function IssuedByMePage() {
       onConfirm: async () => {
         try {
           console.log('Revoke credential:', id);
-          const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.REJECT(id));
+          const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.REVOKE_VC);
           const revokeResponse = await fetch(revokeUrl, {
             method: 'PATCH',
             headers: {
@@ -493,7 +493,7 @@ export default function IssuedByMePage() {
       onConfirm: async () => {
         try {
           console.log('Renew credential:', id);
-          const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIAL.BASE);
+          const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.RENEW_VC);
 
           // Transform attributes into the format expected by the API
           const attributesObject: Record<string, string | number | boolean> = {};

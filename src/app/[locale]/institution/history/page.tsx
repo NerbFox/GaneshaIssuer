@@ -94,7 +94,7 @@ export default function HistoryPage() {
           throw new Error('Institution DID not found. Please log in again.');
         }
 
-        const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIAL.ISSUER_HISTORY, {
+        const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.ISSUER_HISTORY, {
           issuer_did: issuerDid,
         });
 
@@ -157,7 +157,9 @@ export default function HistoryPage() {
             const parsedBody = await parseEncryptedBody(request?.encrypted_body || '');
             const schemaVersion = parsedBody?.schema_version || 1;
 
-            const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, schemaVersion));
+            const schemaUrl = buildApiUrl(
+              API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion)
+            );
             const schemaResponse = await authenticatedGet(schemaUrl);
             if (schemaResponse.ok) {
               const schemaData: SchemaApiResponse = await schemaResponse.json();

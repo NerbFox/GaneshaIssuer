@@ -69,7 +69,7 @@ export default function MyRequestPage() {
 
       for (const type of requestTypes) {
         try {
-          const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIAL.GET_REQUESTS, {
+          const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.REQUESTS, {
             type: type,
             holder_did: institutionDID,
           });
