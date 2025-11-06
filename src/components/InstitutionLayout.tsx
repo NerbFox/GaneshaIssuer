@@ -16,6 +16,18 @@ interface InstitutionLayoutProps {
 export default function InstitutionLayout({ children, activeTab }: InstitutionLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [confirmationConfig, setConfirmationConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    cancelText?: string;
+    confirmButtonColor?: 'blue' | 'green' | 'red' | 'yellow';
+  }>({
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
   const pathname = usePathname();
   const router = useRouter();
 
@@ -27,25 +39,34 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
   };
 
   const handleLogout = () => {
-    setShowLogoutConfirm(true);
-  };
+    setConfirmationConfig({
+      title: 'Confirm Logout',
+      message: `Are you sure you want to logout?\n\nAll unsaved changes will be lost.`,
+      confirmText: 'Logout',
+      cancelText: 'Cancel',
+      confirmButtonColor: 'red',
+      onConfirm: () => {
+        // Clear all data from localStorage
+        localStorage.clear();
 
-  const confirmLogout = () => {
-    // Clear all data from localStorage
-    localStorage.clear();
+        // Clear all cookies
+        document.cookie.split(';').forEach((cookie) => {
+          const eqPos = cookie.indexOf('=');
+          const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        });
 
-    // Clear all cookies
-    document.cookie.split(';').forEach((cookie) => {
-      const eqPos = cookie.indexOf('=');
-      const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
-      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        // Extract locale from pathname (e.g., /en/institution/... -> en)
+        const locale = pathname.split('/')[1] || 'en';
+
+        // Close confirmation modal
+        setShowLogoutConfirm(false);
+
+        // Redirect to base URL with locale
+        router.push(`/${locale}`);
+      },
     });
-
-    // Extract locale from pathname (e.g., /en/institution/... -> en)
-    const locale = pathname.split('/')[1] || 'en';
-
-    // Redirect to base URL with locale
-    router.push(`/${locale}`);
+    setShowLogoutConfirm(true);
   };
 
   return (
@@ -193,12 +214,12 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
       <ConfirmationModal
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}
-        onConfirm={confirmLogout}
-        title="Confirm Logout"
-        message="Are you sure you want to logout?\n\nAll unsaved changes will be lost."
-        confirmText="Logout"
-        cancelText="Cancel"
-        confirmButtonColor="red"
+        onConfirm={confirmationConfig.onConfirm}
+        title={confirmationConfig.title}
+        message={confirmationConfig.message}
+        confirmText={confirmationConfig.confirmText}
+        cancelText={confirmationConfig.cancelText}
+        confirmButtonColor={confirmationConfig.confirmButtonColor}
       />
     </div>
   );
