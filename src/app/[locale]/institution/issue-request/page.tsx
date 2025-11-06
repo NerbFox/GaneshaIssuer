@@ -8,6 +8,7 @@ import { DataTable, Column } from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import FillIssueRequestForm, { IssueRequestFormData } from '@/components/FillIssueRequestForm';
 import InfoModal from '@/components/InfoModal';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey } from '@/utils/vcSigner';
@@ -108,6 +109,16 @@ export default function IssueRequestPage() {
     title: '',
     message: '',
     buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    title: '',
+    message: '',
+    onConfirm: () => {},
   });
 
   const filterModalRef = useRef<HTMLDivElement>(null);
@@ -619,9 +630,21 @@ export default function IssueRequestPage() {
       return;
     }
 
-    // Confirm rejection
-    const confirmed = window.confirm('Are you sure you want to reject this credential request?');
-    if (!confirmed) {
+    // Show confirmation modal
+    setConfirmModalConfig({
+      title: 'Confirm Rejection',
+      message: 'Are you sure you want to reject this credential request?',
+      onConfirm: () => executeReject(requestId),
+    });
+    setShowConfirmModal(true);
+  };
+
+  const executeReject = async (requestId: string) => {
+    setShowConfirmModal(false);
+
+    const request = requests.find((r) => r.id === requestId);
+    if (!request) {
+      console.error('Request not found');
       return;
     }
 
@@ -1031,6 +1054,18 @@ export default function IssueRequestPage() {
         title={infoModalConfig.title}
         message={infoModalConfig.message}
         buttonColor={infoModalConfig.buttonColor}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmModalConfig.onConfirm}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        confirmText="Reject"
+        cancelText="Cancel"
+        confirmButtonColor="red"
       />
     </InstitutionLayout>
   );

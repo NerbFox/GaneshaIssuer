@@ -15,6 +15,7 @@ import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { authenticatedFetch, authenticatedGet, authenticatedPost } from '@/utils/api-client';
 import InfoModal from '@/components/InfoModal';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 interface Schema {
   id: string;
@@ -87,6 +88,18 @@ export default function SchemaPage() {
     title: '',
     message: '',
     buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    confirmButtonColor?: 'blue' | 'green' | 'red' | 'yellow';
+  }>({
+    title: '',
+    message: '',
+    onConfirm: () => {},
   });
 
   const filterModalRef = useRef<HTMLDivElement>(null);
@@ -523,6 +536,25 @@ export default function SchemaPage() {
   };
 
   const handleToggleStatus = async (schemaId: string, schemaVersion: number) => {
+    const schema = schemas.find((s) => s.id === schemaId && s.version === schemaVersion);
+    if (!schema) return;
+
+    const isCurrentlyActive = schema.isActive === true;
+    const action = isCurrentlyActive ? 'deactivate' : 'reactivate';
+
+    // Show confirmation modal
+    setConfirmModalConfig({
+      title: `Confirm ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+      message: `Are you sure you want to ${action} this schema?\n\nSchema: ${schema.schemaName}\nCurrent Status: ${schema.isActive ? 'Active' : 'Inactive'}`,
+      onConfirm: () => executeToggleStatus(schemaId, schemaVersion),
+      confirmText: action.charAt(0).toUpperCase() + action.slice(1),
+      confirmButtonColor: isCurrentlyActive ? 'red' : 'green',
+    });
+    setShowConfirmModal(true);
+  };
+
+  const executeToggleStatus = async (schemaId: string, schemaVersion: number) => {
+    setShowConfirmModal(false);
     const schemaKey = `${schemaId}-${schemaVersion}`;
 
     try {
@@ -531,15 +563,6 @@ export default function SchemaPage() {
 
       const isCurrentlyActive = schema.isActive === true;
       const action = isCurrentlyActive ? 'deactivate' : 'reactivate';
-
-      // Show confirmation prompt
-      const confirmed = window.confirm(
-        `Are you sure you want to ${action} this schema?\n\nSchema: ${schema.schemaName}\nCurrent Status: ${schema.isActive ? 'Active' : 'Inactive'}`
-      );
-
-      if (!confirmed) {
-        return; // User cancelled the action
-      }
 
       // Add schema to toggling set
       setTogglingSchemas((prev) => new Set(prev).add(schemaKey));
@@ -634,13 +657,21 @@ export default function SchemaPage() {
     const selectedSchemas = schemas.filter((schema) => selectedSchemaKeys.has(schema.uniqueKey));
 
     const actionText = action === 'reactivate' ? 'reactivate' : 'deactivate';
-    const confirmed = window.confirm(
-      `Are you sure you want to ${actionText} ${selectedSchemas.length} schema(s)?`
-    );
+    setConfirmModalConfig({
+      title: `Confirm Bulk ${actionText.charAt(0).toUpperCase() + actionText.slice(1)}`,
+      message: `Are you sure you want to ${actionText} ${selectedSchemas.length} schema(s)?`,
+      onConfirm: () => executeBulkToggle(action),
+      confirmText: actionText.charAt(0).toUpperCase() + actionText.slice(1),
+      confirmButtonColor: action === 'reactivate' ? 'green' : 'red',
+    });
+    setShowConfirmModal(true);
+  };
 
-    if (!confirmed) {
-      return;
-    }
+  const executeBulkToggle = async (action: 'reactivate' | 'deactivate') => {
+    setShowConfirmModal(false);
+
+    // Get selected schemas from uniqueKeys
+    const selectedSchemas = schemas.filter((schema) => selectedSchemaKeys.has(schema.uniqueKey));
 
     // Clear selection first before processing
     setSelectedSchemaKeys(new Set());
@@ -1376,6 +1407,17 @@ export default function SchemaPage() {
         title={infoModalConfig.title}
         message={infoModalConfig.message}
         buttonColor={infoModalConfig.buttonColor}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmModalConfig.onConfirm}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        confirmText={confirmModalConfig.confirmText}
+        confirmButtonColor={confirmModalConfig.confirmButtonColor}
       />
     </InstitutionLayout>
   );

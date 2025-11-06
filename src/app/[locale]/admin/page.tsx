@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import { DataTable, Column } from '@/components/DataTable';
 import InfoModal from '@/components/InfoModal';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 interface Institution {
   id: string;
@@ -87,6 +88,18 @@ export default function AdminPage() {
     title: '',
     message: '',
     buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    confirmButtonColor?: 'blue' | 'green' | 'red' | 'yellow';
+  }>({
+    title: '',
+    message: '',
+    onConfirm: () => {},
   });
 
   const fetchPendingInstitutions = useCallback(
@@ -190,9 +203,18 @@ export default function AdminPage() {
   }, [adminData, fetchPendingInstitutions]);
 
   const handleApprove = async (institutionId: string) => {
-    if (!confirm(t('confirmApprove'))) {
-      return;
-    }
+    setConfirmModalConfig({
+      title: t('confirmApprove'),
+      message: 'Are you sure you want to approve this institution?',
+      onConfirm: () => executeApprove(institutionId),
+      confirmText: 'Approve',
+      confirmButtonColor: 'green',
+    });
+    setShowConfirmModal(true);
+  };
+
+  const executeApprove = async (institutionId: string) => {
+    setShowConfirmModal(false);
 
     // Development bypass check
     const urlParams = new URLSearchParams(window.location.search);
@@ -272,9 +294,18 @@ export default function AdminPage() {
   };
 
   const handleReject = async (institutionId: string) => {
-    if (!confirm(t('confirmReject'))) {
-      return;
-    }
+    setConfirmModalConfig({
+      title: t('confirmReject'),
+      message: 'Are you sure you want to reject this institution?',
+      onConfirm: () => executeReject(institutionId),
+      confirmText: 'Reject',
+      confirmButtonColor: 'red',
+    });
+    setShowConfirmModal(true);
+  };
+
+  const executeReject = async (institutionId: string) => {
+    setShowConfirmModal(false);
 
     // Development bypass check
     const urlParams = new URLSearchParams(window.location.search);
@@ -363,9 +394,18 @@ export default function AdminPage() {
     }
 
     const confirmMessage = `Are you sure you want to ${action} ${selectedInstitutionIds.size} selected institution(s)?`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+    setConfirmModalConfig({
+      title: `Confirm Bulk ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+      message: confirmMessage,
+      onConfirm: () => executeBulkAction(action),
+      confirmText: action.charAt(0).toUpperCase() + action.slice(1),
+      confirmButtonColor: action === 'approve' ? 'green' : 'red',
+    });
+    setShowConfirmModal(true);
+  };
+
+  const executeBulkAction = async (action: 'approve' | 'reject') => {
+    setShowConfirmModal(false);
 
     setIsBulkProcessing(true);
     setBulkProcessingAction(action);
@@ -487,11 +527,21 @@ export default function AdminPage() {
   };
 
   const handleLogout = () => {
-    if (confirm(t('confirmLogout'))) {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminData');
-      router.push('/admin/login');
-    }
+    setConfirmModalConfig({
+      title: t('confirmLogout'),
+      message: 'Are you sure you want to logout?',
+      onConfirm: executeLogout,
+      confirmText: 'Logout',
+      confirmButtonColor: 'red',
+    });
+    setShowConfirmModal(true);
+  };
+
+  const executeLogout = () => {
+    setShowConfirmModal(false);
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminData');
+    router.push('/admin/login');
   };
 
   // Define columns for DataTable
@@ -779,6 +829,17 @@ export default function AdminPage() {
         title={infoModalConfig.title}
         message={infoModalConfig.message}
         buttonColor={infoModalConfig.buttonColor}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmModalConfig.onConfirm}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        confirmText={confirmModalConfig.confirmText}
+        confirmButtonColor={confirmModalConfig.confirmButtonColor}
       />
     </div>
   );
