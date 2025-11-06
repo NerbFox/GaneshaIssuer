@@ -7,6 +7,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import FillIssueRequestForm, { IssueRequestFormData } from '@/components/FillIssueRequestForm';
+import InfoModal from '@/components/InfoModal';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey } from '@/utils/vcSigner';
@@ -102,6 +104,22 @@ export default function IssueRequestPage() {
   const [parsedBodies, setParsedBodies] = useState<
     Map<string, { schema_id: string; schema_version: number } | null>
   >(new Map());
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState({
+    title: '',
+    message: '',
+    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -574,9 +592,12 @@ export default function IssueRequestPage() {
       console.log('Issue VC result:', result);
 
       if (result.success) {
-        alert(
-          `Credential issued successfully!\nTransaction Hash: ${result.data.transaction_hash}\nBlock Number: ${result.data.block_number}`
-        );
+        setInfoModalConfig({
+          title: 'Success',
+          message: `Credential issued successfully!\nTransaction Hash: ${result.data.transaction_hash}\nBlock Number: ${result.data.block_number}`,
+          buttonColor: 'green',
+        });
+        setShowInfoModal(true);
 
         // Remove the request from the list
         setRequests((prev) => prev.filter((request) => request.id !== selectedRequest.id));
@@ -589,7 +610,12 @@ export default function IssueRequestPage() {
       }
     } catch (err) {
       console.error('Error issuing credential:', err);
-      alert(`Failed to issue credential: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setInfoModalConfig({
+        title: 'Error',
+        message: `Failed to issue credential: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     } finally {
       setIsLoadingSchema(false);
     }
@@ -604,9 +630,21 @@ export default function IssueRequestPage() {
       return;
     }
 
-    // Confirm rejection
-    const confirmed = window.confirm('Are you sure you want to reject this credential request?');
-    if (!confirmed) {
+    // Show confirmation modal
+    setConfirmModalConfig({
+      title: 'Confirm Rejection',
+      message: 'Are you sure you want to reject this credential request?',
+      onConfirm: () => executeReject(requestId),
+    });
+    setShowConfirmModal(true);
+  };
+
+  const executeReject = async (requestId: string) => {
+    setShowConfirmModal(false);
+
+    const request = requests.find((r) => r.id === requestId);
+    if (!request) {
+      console.error('Request not found');
       return;
     }
 
@@ -666,10 +704,20 @@ export default function IssueRequestPage() {
       setRequests((prev) => prev.filter((r) => r.id !== requestId));
       setFilteredRequests((prev) => prev.filter((r) => r.id !== requestId));
 
-      alert('Credential request rejected successfully');
+      setInfoModalConfig({
+        title: 'Success',
+        message: 'Credential request rejected successfully',
+        buttonColor: 'green',
+      });
+      setShowInfoModal(true);
     } catch (err) {
       console.error('Error rejecting request:', err);
-      alert(`Failed to reject request: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setInfoModalConfig({
+        title: 'Error',
+        message: `Failed to reject request: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     } finally {
       setIsLoading(false);
     }
@@ -998,6 +1046,27 @@ export default function IssueRequestPage() {
           />
         ) : null}
       </Modal>
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonColor={infoModalConfig.buttonColor}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmModalConfig.onConfirm}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        confirmText="Reject"
+        cancelText="Cancel"
+        confirmButtonColor="red"
+      />
     </InstitutionLayout>
   );
 }

@@ -10,6 +10,8 @@ import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import { DataTable, Column } from '@/components/DataTable';
+import InfoModal from '@/components/InfoModal';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 interface Institution {
   id: string;
@@ -81,6 +83,24 @@ export default function AdminPage() {
   ); // Track which bulk action is in progress
   const [adminData, setAdminData] = useState<AdminData | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState({
+    title: '',
+    message: '',
+    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    confirmButtonColor?: 'blue' | 'green' | 'red' | 'yellow';
+  }>({
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   const fetchPendingInstitutions = useCallback(
     async (token: string, devData?: Institution[]) => {
@@ -183,9 +203,18 @@ export default function AdminPage() {
   }, [adminData, fetchPendingInstitutions]);
 
   const handleApprove = async (institutionId: string) => {
-    if (!confirm(t('confirmApprove'))) {
-      return;
-    }
+    setConfirmModalConfig({
+      title: t('confirmApprove'),
+      message: 'Are you sure you want to approve this institution?',
+      onConfirm: () => executeApprove(institutionId),
+      confirmText: 'Approve',
+      confirmButtonColor: 'green',
+    });
+    setShowConfirmModal(true);
+  };
+
+  const executeApprove = async (institutionId: string) => {
+    setShowConfirmModal(false);
 
     // Development bypass check
     const urlParams = new URLSearchParams(window.location.search);
@@ -204,7 +233,12 @@ export default function AdminPage() {
         // Simulate API call in development mode
         await new Promise((resolve) => setTimeout(resolve, 1000));
         console.log('DEV MODE: Approving institution', institutionId);
-        alert(t('approveSuccess'));
+        setInfoModalConfig({
+          title: 'Success',
+          message: t('approveSuccess'),
+          buttonColor: 'green',
+        });
+        setShowInfoModal(true);
         // Remove institution from list
         setInstitutions((prev) => prev.filter((inst) => inst.id !== institutionId));
         setProcessingIds((prev) => {
@@ -235,11 +269,21 @@ export default function AdminPage() {
         throw new Error(data.message || 'Failed to approve institution');
       }
 
-      alert(t('approveSuccess'));
+      setInfoModalConfig({
+        title: 'Success',
+        message: t('approveSuccess'),
+        buttonColor: 'green',
+      });
+      setShowInfoModal(true);
       fetchPendingInstitutions(token!);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      alert(errorMessage);
+      setInfoModalConfig({
+        title: 'Error',
+        message: errorMessage,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     } finally {
       setProcessingIds((prev) => {
         const newSet = new Set(prev);
@@ -250,9 +294,18 @@ export default function AdminPage() {
   };
 
   const handleReject = async (institutionId: string) => {
-    if (!confirm(t('confirmReject'))) {
-      return;
-    }
+    setConfirmModalConfig({
+      title: t('confirmReject'),
+      message: 'Are you sure you want to reject this institution?',
+      onConfirm: () => executeReject(institutionId),
+      confirmText: 'Reject',
+      confirmButtonColor: 'red',
+    });
+    setShowConfirmModal(true);
+  };
+
+  const executeReject = async (institutionId: string) => {
+    setShowConfirmModal(false);
 
     // Development bypass check
     const urlParams = new URLSearchParams(window.location.search);
@@ -271,7 +324,12 @@ export default function AdminPage() {
         // Simulate API call in development mode
         await new Promise((resolve) => setTimeout(resolve, 1000));
         console.log('DEV MODE: Rejecting institution', institutionId);
-        alert(t('rejectSuccess'));
+        setInfoModalConfig({
+          title: 'Success',
+          message: t('rejectSuccess'),
+          buttonColor: 'green',
+        });
+        setShowInfoModal(true);
         // Remove institution from list
         setInstitutions((prev) => prev.filter((inst) => inst.id !== institutionId));
         setProcessingIds((prev) => {
@@ -300,11 +358,21 @@ export default function AdminPage() {
         throw new Error(data.message || 'Failed to reject institution');
       }
 
-      alert(t('rejectSuccess'));
+      setInfoModalConfig({
+        title: 'Success',
+        message: t('rejectSuccess'),
+        buttonColor: 'green',
+      });
+      setShowInfoModal(true);
       fetchPendingInstitutions(token!);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      alert(errorMessage);
+      setInfoModalConfig({
+        title: 'Error',
+        message: errorMessage,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     } finally {
       setProcessingIds((prev) => {
         const newSet = new Set(prev);
@@ -316,14 +384,28 @@ export default function AdminPage() {
 
   const handleBulkAction = async (action: 'approve' | 'reject') => {
     if (selectedInstitutionIds.size === 0) {
-      alert(`Please select at least one institution to ${action}.`);
+      setInfoModalConfig({
+        title: 'Validation Error',
+        message: `Please select at least one institution to ${action}.`,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
     const confirmMessage = `Are you sure you want to ${action} ${selectedInstitutionIds.size} selected institution(s)?`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+    setConfirmModalConfig({
+      title: `Confirm Bulk ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+      message: confirmMessage,
+      onConfirm: () => executeBulkAction(action),
+      confirmText: action.charAt(0).toUpperCase() + action.slice(1),
+      confirmButtonColor: action === 'approve' ? 'green' : 'red',
+    });
+    setShowConfirmModal(true);
+  };
+
+  const executeBulkAction = async (action: 'approve' | 'reject') => {
+    setShowConfirmModal(false);
 
     setIsBulkProcessing(true);
     setBulkProcessingAction(action);
@@ -410,7 +492,12 @@ export default function AdminPage() {
       resultMessage += `\n✗ Failed: ${failCount}\n\nFailed institutions:\n${failedInstitutions}`;
     }
 
-    alert(resultMessage);
+    setInfoModalConfig({
+      title: 'Bulk Action Results',
+      message: resultMessage,
+      buttonColor: failCount > 0 ? 'yellow' : 'green',
+    });
+    setShowInfoModal(true);
 
     // Clear selection and refresh data
     setSelectedInstitutionIds(new Set());
@@ -440,11 +527,21 @@ export default function AdminPage() {
   };
 
   const handleLogout = () => {
-    if (confirm(t('confirmLogout'))) {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminData');
-      router.push('/admin/login');
-    }
+    setConfirmModalConfig({
+      title: t('confirmLogout'),
+      message: 'Are you sure you want to logout?',
+      onConfirm: executeLogout,
+      confirmText: 'Logout',
+      confirmButtonColor: 'red',
+    });
+    setShowConfirmModal(true);
+  };
+
+  const executeLogout = () => {
+    setShowConfirmModal(false);
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminData');
+    router.push('/admin/login');
   };
 
   // Define columns for DataTable
@@ -724,6 +821,26 @@ export default function AdminPage() {
           />
         )}
       </div>
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonColor={infoModalConfig.buttonColor}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmModalConfig.onConfirm}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        confirmText={confirmModalConfig.confirmText}
+        confirmButtonColor={confirmModalConfig.confirmButtonColor}
+      />
     </div>
   );
 }

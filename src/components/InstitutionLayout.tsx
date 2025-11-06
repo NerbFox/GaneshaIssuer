@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { sidebarNavigation, NavigationSection, NavigationItem } from '@/constants/navigation';
 import { ThemedText } from './ThemedText';
+import ConfirmationModal from './ConfirmationModal';
 
 interface InstitutionLayoutProps {
   children: ReactNode;
@@ -14,6 +15,7 @@ interface InstitutionLayoutProps {
 
 export default function InstitutionLayout({ children, activeTab }: InstitutionLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -25,15 +27,10 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
   };
 
   const handleLogout = () => {
-    // Show confirmation prompt
-    const confirmed = window.confirm(
-      'Are you sure you want to logout?\n\nAll unsaved changes will be lost.'
-    );
+    setShowLogoutConfirm(true);
+  };
 
-    if (!confirmed) {
-      return; // User cancelled the logout
-    }
-
+  const confirmLogout = () => {
     // Clear all data from localStorage
     localStorage.clear();
 
@@ -191,6 +188,18 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
           <div className="flex-1 overflow-auto">{children}</div>
         </main>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={confirmLogout}
+        title="Confirm Logout"
+        message="Are you sure you want to logout?\n\nAll unsaved changes will be lost."
+        confirmText="Logout"
+        cancelText="Cancel"
+        confirmButtonColor="red"
+      />
     </div>
   );
 }

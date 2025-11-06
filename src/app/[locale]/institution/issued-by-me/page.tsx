@@ -12,6 +12,7 @@ import IssueNewCredentialForm, {
 import UpdateCredentialForm, { UpdateCredentialFormData } from '@/components/UpdateCredentialForm';
 import ViewCredentialForm from '@/components/ViewCredentialForm';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import InfoModal from '@/components/InfoModal';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { authenticatedGet } from '@/utils/api-client';
@@ -98,6 +99,12 @@ export default function IssuedByMePage() {
     title: '',
     message: '',
     onConfirm: () => {},
+  });
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState({
+    title: '',
+    message: '',
+    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
   });
   const [schemas, setSchemas] = useState<
     {
@@ -589,15 +596,21 @@ export default function IssuedByMePage() {
       console.log('Issuing new credential:', data);
       // TODO: Implement API call to issue credential
       // For now, just close the modal
-      alert(
-        `Credential will be issued to:\nHolder DID: ${data.holderDid}\nSchema: ${data.schemaName} v${data.version}`
-      );
+      setInfoModalConfig({
+        title: 'Success',
+        message: `Credential will be issued to:\nHolder DID: ${data.holderDid}\nSchema: ${data.schemaName} v${data.version}`,
+        buttonColor: 'green',
+      });
+      setShowInfoModal(true);
       setShowIssueModal(false);
     } catch (error) {
       console.error('Error issuing credential:', error);
-      alert(
-        `Failed to issue credential: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      setInfoModalConfig({
+        title: 'Error',
+        message: `Failed to issue credential: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       throw error;
     }
   };
@@ -1101,6 +1114,15 @@ export default function IssuedByMePage() {
         message={confirmationConfig.message}
         confirmText={confirmationConfig.confirmText}
         confirmButtonColor={confirmationConfig.confirmButtonColor}
+      />
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonColor={infoModalConfig.buttonColor}
       />
     </InstitutionLayout>
   );

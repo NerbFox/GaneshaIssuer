@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ThemedText } from './ThemedText';
 import { DataTable, Column } from './DataTable';
+import InfoModal from './InfoModal';
 
 interface AttributeData {
   id: number;
@@ -49,6 +50,12 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
   const [uploadedFiles, setUploadedFiles] = useState<Record<number, File>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableVersions, setAvailableVersions] = useState<number[]>([]);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState({
+    title: '',
+    message: '',
+    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
 
   const didPrefixes = ['did:dcert:'];
 
@@ -112,19 +119,34 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
   const handleSubmit = async () => {
     // Validate required fields
     if (!holderDid.trim()) {
-      alert('Holder DID is required');
+      setInfoModalConfig({
+        title: 'Validation Error',
+        message: 'Holder DID is required',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
     if (!schemaId) {
-      alert('Schema ID is required');
+      setInfoModalConfig({
+        title: 'Validation Error',
+        message: 'Schema ID is required',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
     // Validate all attributes have values
     const emptyAttributes = attributes.filter((attr) => !attr.value);
     if (emptyAttributes.length > 0) {
-      alert(`Please fill in all attributes: ${emptyAttributes.map((a) => a.name).join(', ')}`);
+      setInfoModalConfig({
+        title: 'Validation Error',
+        message: `Please fill in all attributes: ${emptyAttributes.map((a) => a.name).join(', ')}`,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
@@ -345,6 +367,15 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
           {isSubmitting ? 'ISSUING...' : 'ISSUE CREDENTIAL'}
         </button>
       </div>
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonColor={infoModalConfig.buttonColor}
+      />
     </div>
   );
 }
