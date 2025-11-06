@@ -52,7 +52,9 @@ export default function InfoModal({
 
           {/* Message */}
           <div className="mb-6">
-            <ThemedText className="text-gray-700 whitespace-pre-line">{message}</ThemedText>
+            <ThemedText className="text-gray-700 whitespace-pre-line break-words overflow-wrap-anywhere">
+              {message}
+            </ThemedText>
           </div>
 
           {/* Actions */}
