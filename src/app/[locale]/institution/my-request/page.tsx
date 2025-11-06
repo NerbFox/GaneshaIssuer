@@ -108,7 +108,7 @@ export default function MyRequestPage() {
                   credentialType: schemaName,
                   issuerDid: (item.issuer_did as string) || 'Unknown',
                   requestType: type as 'ISSUANCE' | 'RENEWAL' | 'UPDATE' | 'REVOCATION',
-                  requestedAt:
+                  requestedDate:
                     (item.createdAt as string) ||
                     (item.created_at as string) ||
                     new Date().toISOString(),
@@ -282,10 +282,10 @@ export default function MyRequestPage() {
   const columns: Column<CredentialRequest>[] = [
     {
       id: 'credentialType',
-      label: 'SCHEMA',
+      label: 'REQUEST ID',
       sortKey: 'credentialType',
       render: (row) => (
-        <ThemedText className="text-sm font-medium text-gray-900">{row.credentialType}</ThemedText>
+        <ThemedText className="text-sm font-medium text-gray-900">{row.id}</ThemedText>
       ),
     },
     {

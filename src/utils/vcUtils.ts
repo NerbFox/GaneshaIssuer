@@ -4,6 +4,7 @@
  */
 
 import { sha256 } from '@noble/hashes/sha2';
+import { SignedVerifiableCredential } from './vcSigner';
 
 export interface VerifiableCredential {
   '@context': string[];
@@ -18,6 +19,22 @@ export interface VerifiableCredential {
     id: string;
     [key: string]: string | number | boolean;
   };
+}
+
+export interface VerifiableCredentialDB {
+  '@context': string[];
+  id: string;
+  type: string[];
+  issuer: string;
+  issuerName: string;
+  validFrom: string;
+  expiredAt: string | null;
+  imageLink: string | null;
+  credentialSubject: {
+    id: string;
+    [key: string]: string | number | boolean;
+  };
+  request_id: string;
 }
 
 /**
@@ -72,7 +89,7 @@ export function createVC(params: {
  * Note: SHA-256 is the standard hash function for W3C Verifiable Credentials
  * and is used in the Data Integrity proofs specification.
  */
-export function hashVC(vc: VerifiableCredential): string {
+export function hashVC(vc: SignedVerifiableCredential): string {
   // Convert VC to canonical JSON string (sorted keys for consistency)
   const vcString = JSON.stringify(vc, Object.keys(vc).sort());
 

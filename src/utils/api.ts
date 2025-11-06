@@ -59,6 +59,7 @@ export const API_ENDPOINTS = {
     REVOKE_VC: `${CREDENTIALS_PATH}/revoke-vc`,
     RENEW_VC: `${CREDENTIALS_PATH}/renew-vc`,
     UPDATE_VC: `${CREDENTIALS_PATH}/update-vc`,
+    VALIDATE_VC: `${CREDENTIALS_PATH}/validate-vc`,
 
     // Claim operations (Phase 1 & 2)
     CLAIM: `${CREDENTIALS_PATH}/claim`,

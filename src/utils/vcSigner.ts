@@ -14,13 +14,17 @@
 import { p256 } from '@noble/curves/p256';
 import { sha256 } from '@noble/hashes/sha2';
 import { hexToBytes, bytesToHex } from './seedphrase-p256';
-import { VerifiableCredential } from './vcUtils';
+import { VerifiableCredential, VerifiableCredentialDB } from './vcUtils';
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
 export interface SignedVerifiableCredential extends VerifiableCredential {
+  proof: DataIntegrityProof;
+}
+
+export interface SignedVerifiableCredentialDB extends VerifiableCredentialDB {
   proof: DataIntegrityProof;
 }
 

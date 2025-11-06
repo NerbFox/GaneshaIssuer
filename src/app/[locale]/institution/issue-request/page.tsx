@@ -892,8 +892,10 @@ export default function IssueRequestPage() {
       console.log('Signed VC with proof:', signedVC);
 
       // Hash the original VC (before signing)
-      const vcHash = hashVC(vc);
+      const vcHash = hashVC(signedVC);
       console.log('VC Hash:', vcHash);
+
+      console.info('VC full signed: ', signedVC);
 
       // Encrypt the signed VC with holder's public key
       // SignedVC is JSON-serializable, so we can safely cast it
