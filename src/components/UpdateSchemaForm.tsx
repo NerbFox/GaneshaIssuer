@@ -374,9 +374,7 @@ export default function UpdateSchemaForm({
       {/* Schema ID */}
       <div className="mb-6">
         <label className="block mb-2">
-          <ThemedText className="text-sm font-medium text-gray-900">
-            Schema ID<span className="text-red-500">*</span>
-          </ThemedText>
+          <ThemedText className="text-sm font-medium text-gray-900">Schema ID</ThemedText>
         </label>
         <input
           type="text"
@@ -391,9 +389,7 @@ export default function UpdateSchemaForm({
       {/* Schema Name */}
       <div className="mb-6">
         <label className="block mb-2">
-          <ThemedText className="text-sm font-medium text-gray-900">
-            Schema Name<span className="text-red-500">*</span>
-          </ThemedText>
+          <ThemedText className="text-sm font-medium text-gray-900">Schema Name</ThemedText>
         </label>
         <input
           type="text"
