@@ -1051,12 +1051,12 @@ export default function MyCredentialPage() {
   const getVCInfoData = (schema: Schema): VCInfoItem[] => {
     return [
       {
-        id: '1',
+        id: `${schema.id}-schema-id`,
         name: 'Schema ID',
         value: schema.id,
       },
       {
-        id: '2',
+        id: `${schema.id}-vc-duration`,
         name: 'VC Duration',
         value: `${schema.schema.expired_in} Years`,
       },
@@ -1064,8 +1064,8 @@ export default function MyCredentialPage() {
   };
 
   const getAttributesData = (schema: Schema): AttributeItem[] => {
-    return Object.entries(schema.schema.properties).map(([key, value], index) => ({
-      id: `${index + 1}`,
+    return Object.entries(schema.schema.properties).map(([key, value]) => ({
+      id: `${schema.id}-${key}`, // Use schema.id + attribute key for unique ID
       name: key,
       type: value.type,
     }));

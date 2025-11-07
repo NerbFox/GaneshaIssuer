@@ -466,8 +466,10 @@ export function DataTable<T>({
               paginatedData.map((row, paginatedIndex) => {
                 const actualIndex = (currentPage - 1) * rowsPerPage + paginatedIndex;
                 const isDragging = draggedIndex === actualIndex;
-                // Use idKey if available, otherwise use index
-                const rowKey = idKey ? String(row[idKey]) : `row-${actualIndex}`;
+                // Use idKey combined with index for unique key, or just index
+                const rowKey = idKey
+                  ? `${String(row[idKey])}-${actualIndex}`
+                  : `row-${actualIndex}`;
                 const rowId = idKey ? (row[idKey] as string | number) : actualIndex;
                 const isSelected = selectedRows.has(rowId);
                 const isExpanded = expandableRows && expandableRows.expandedRowId === rowId;
@@ -475,7 +477,6 @@ export function DataTable<T>({
                 return (
                   <Fragment key={rowKey}>
                     <tr
-                      key={rowKey}
                       draggable={enableDragDrop}
                       onDragStart={() => enableDragDrop && onDragStart?.(actualIndex)}
                       onDragOver={(e) => enableDragDrop && onDragOver?.(e, actualIndex)}
