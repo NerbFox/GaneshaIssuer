@@ -267,7 +267,9 @@ export default function IssueRequestPage() {
 
           if (schemaResponse.ok) {
             const schemaData: SchemaApiResponse = await schemaResponse.json();
-            schemaNameMap.set(schemaId, schemaData.data.name);
+            // Store schema name with version suffix
+            const schemaNameWithVersion = `${schemaData.data.name} v${schemaVersion}`;
+            schemaNameMap.set(schemaId, schemaNameWithVersion);
             // If expired_in is null or 0, set to 0 for lifetime
             const expiredIn = schemaData.data.schema.expired_in;
             schemaExpiredInMap.set(schemaId, expiredIn || 0);
