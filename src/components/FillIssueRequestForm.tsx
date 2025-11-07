@@ -529,7 +529,7 @@ export default function FillIssueRequestForm({
           onSearch={handleSearch}
           enableSelection={false}
           totalCount={filteredAttributes.length}
-          rowsPerPageOptions={[5, 10, 25]}
+          hideBottomControls={true}
           idKey="id"
         />
       </div>
