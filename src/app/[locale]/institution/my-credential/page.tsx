@@ -54,6 +54,10 @@ interface Schema {
   updatedAt: string;
 }
 
+interface SchemaWithCompositeId extends Schema {
+  compositeId: string;
+}
+
 interface VCInfoItem {
   id: string;
   name: string;
@@ -79,10 +83,21 @@ export default function MyCredentialPage() {
 
   // Request New Credential Modal
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [schemas, setSchemas] = useState<Schema[]>([]);
-  const [filteredSchemas, setFilteredSchemas] = useState<Schema[]>([]);
+  const [schemas, setSchemas] = useState<SchemaWithCompositeId[]>([]);
+  const [filteredSchemas, setFilteredSchemas] = useState<SchemaWithCompositeId[]>([]);
   const [isSchemasLoading, setIsSchemasLoading] = useState(false);
   const [expandedSchemaId, setExpandedSchemaId] = useState<string | null>(null);
+
+  // Helper function to add composite IDs to schemas
+  const addCompositeIds = (schemas: Schema[]): SchemaWithCompositeId[] => {
+    return schemas.map((schema, index) => ({
+      ...schema,
+      compositeId:
+        schema.id && schema.version !== undefined
+          ? `${schema.id}-v${schema.version}`
+          : `schema-${index}`, // Fallback for schemas without proper id or version
+    }));
+  };
 
   // View Credential Modal
   const [showViewCredentialModal, setShowViewCredentialModal] = useState(false);
@@ -327,8 +342,17 @@ export default function MyCredentialPage() {
       console.log('Schemas fetched:', result);
 
       if (result.success && result.data) {
-        setSchemas(result.data.data);
-        setFilteredSchemas(result.data.data);
+        const schemasWithIds = addCompositeIds(result.data.data);
+        console.log(
+          'Schemas with composite IDs:',
+          schemasWithIds.map((s) => ({
+            id: s.id,
+            version: s.version,
+            compositeId: s.compositeId,
+          }))
+        );
+        setSchemas(schemasWithIds);
+        setFilteredSchemas(schemasWithIds);
       }
     } catch (error) {
       console.error('Error fetching schemas:', error);
@@ -804,11 +828,16 @@ export default function MyCredentialPage() {
         schema.issuer_name.toLowerCase().includes(searchLower)
       );
     });
-    setFilteredSchemas(filtered);
+    // Ensure all filtered schemas have compositeId
+    const filteredWithIds = filtered.map((schema, index) => ({
+      ...schema,
+      compositeId: schema.compositeId || `schema-fallback-${index}`,
+    }));
+    setFilteredSchemas(filteredWithIds);
   };
 
-  const toggleExpandSchema = (schemaId: string) => {
-    setExpandedSchemaId(expandedSchemaId === schemaId ? null : schemaId);
+  const toggleExpandSchema = (compositeId: string) => {
+    setExpandedSchemaId(expandedSchemaId === compositeId ? null : compositeId);
   };
 
   const handleOpenUploadModal = () => {
@@ -1072,7 +1101,7 @@ export default function MyCredentialPage() {
   };
 
   // Schema columns for Request Modal
-  const schemaColumns: Column<Schema>[] = [
+  const schemaColumns: Column<SchemaWithCompositeId>[] = [
     {
       id: 'name',
       label: 'SCHEMA NAME',
@@ -1095,13 +1124,19 @@ export default function MyCredentialPage() {
       render: (row) => (
         <div className="flex gap-2">
           <button
-            onClick={() => handleRequestCredential(row.id, row.issuer_did)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRequestCredential(row.id, row.issuer_did);
+            }}
             className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
           >
             REQUEST
           </button>
           <button
-            onClick={() => toggleExpandSchema(row.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleExpandSchema(row.compositeId);
+            }}
             className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium"
           >
             VIEW
@@ -1324,18 +1359,18 @@ export default function MyCredentialPage() {
           ) : (
             <>
               {/* Schema List with Expandable Rows */}
-              <DataTable
-                data={filteredSchemas}
+              <DataTable<SchemaWithCompositeId>
+                data={filteredSchemas.filter((s) => s.compositeId)}
                 columns={schemaColumns}
                 searchPlaceholder="Search schemas..."
                 onSearch={handleSchemaSearch}
-                enableSelection={true}
-                totalCount={filteredSchemas.length}
+                enableSelection={false}
+                totalCount={filteredSchemas.filter((s) => s.compositeId).length}
                 rowsPerPageOptions={[5, 10, 25]}
-                idKey="id"
+                idKey="compositeId"
                 expandableRows={{
                   expandedRowId: expandedSchemaId,
-                  renderExpandedContent: (schema: Schema) => (
+                  renderExpandedContent: (schema: SchemaWithCompositeId) => (
                     <div className="space-y-6 bg-white p-4 rounded-lg">
                       {/* VC Info */}
                       <div>
