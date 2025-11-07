@@ -947,7 +947,7 @@ export default function IssueRequestPage() {
       if (result.success) {
         setInfoModalConfig({
           title: 'Success',
-          message: `Credential issued successfully!\nTransaction Hash: ${result.data.transaction_hash}\nBlock Number: ${result.data.block_number}`,
+          message: `Credential issued successfully!`,
           buttonColor: 'green',
         });
         setShowInfoModal(true);
@@ -1220,7 +1220,7 @@ export default function IssueRequestPage() {
     },
     {
       id: 'createdAt',
-      label: 'REQUESTED ON',
+      label: 'REQUESTED AT',
       sortKey: 'createdAt',
       render: (row) => (
         <ThemedText className="text-sm text-gray-900">{formatDate(row.createdAt)}</ThemedText>
@@ -1228,7 +1228,7 @@ export default function IssueRequestPage() {
     },
     {
       id: 'activeUntil',
-      label: 'SCHEMA EXPIRES',
+      label: 'EXPIRED AT',
       sortKey: 'createdAt',
       render: (row) => {
         const parsedBody = getCachedParsedBody(row.encrypted_body);
