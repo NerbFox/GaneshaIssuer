@@ -11,11 +11,13 @@ import IssueNewCredentialForm, {
 } from '@/components/IssueNewCredentialForm';
 import UpdateCredentialForm, { UpdateCredentialFormData } from '@/components/UpdateCredentialForm';
 import ViewCredentialForm from '@/components/ViewCredentialForm';
+import ViewSchemaForm from '@/components/ViewSchemaForm';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import InfoModal from '@/components/InfoModal';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
-import { authenticatedGet } from '@/utils/api-client';
+import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
+import { decryptWithPrivateKey } from '@/utils/encryptUtils';
 
 interface IssuedCredential {
   id: string;
@@ -72,6 +74,45 @@ interface SchemaResponse {
   };
 }
 
+interface SchemaApiResponse {
+  success: boolean;
+  data: {
+    id: string;
+    name: string;
+    schema: {
+      type: string;
+      required: string[];
+      properties: Record<string, { type: string; description: string }>;
+      expired_in: number;
+    };
+    issuer_did: string;
+    version: number;
+    isActive: boolean;
+    image_link: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+interface SchemaAttribute {
+  name: string;
+  type: string;
+  required: boolean;
+  description?: string;
+}
+
+interface Schema {
+  id: string;
+  name: string;
+  version: string;
+  status: string;
+  attributes: SchemaAttribute[];
+  image_link: string | null;
+  expired_in: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export default function IssuedByMePage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -120,6 +161,8 @@ export default function IssuedByMePage() {
       }[];
     }[]
   >([]);
+  const [showSchemaModal, setShowSchemaModal] = useState(false);
+  const [schemaData, setSchemaData] = useState<Schema | null>(null);
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -201,23 +244,53 @@ export default function IssuedByMePage() {
         }));
         setSchemas(transformedSchemas);
 
+        // Parse and cache all encrypted bodies (store full decrypted data)
+        const parsedBodiesMap = new Map<
+          string,
+          { schema_id: string; schema_version: number } | null
+        >();
+        const decryptedBodiesMap = new Map<string, Record<string, unknown>>();
+
+        const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
+        for (const credential of credentialsResult.data.data) {
+          if (privateKeyHex) {
+            try {
+              const decryptedBody = await decryptWithPrivateKey(
+                credential.encrypted_body,
+                privateKeyHex
+              );
+              // Store schema info for quick access
+              parsedBodiesMap.set(credential.encrypted_body, {
+                schema_id: String(decryptedBody.schema_id || ''),
+                schema_version: Number(decryptedBody.schema_version || 1),
+              });
+              // Store full decrypted body for forms
+              decryptedBodiesMap.set(
+                credential.encrypted_body,
+                decryptedBody as Record<string, unknown>
+              );
+            } catch {
+              // Silently handle decryption error
+              parsedBodiesMap.set(credential.encrypted_body, null);
+            }
+          } else {
+            parsedBodiesMap.set(credential.encrypted_body, null);
+          }
+        }
+
         // Transform API data to match IssuedCredential interface
         const transformedCredentials: IssuedCredential[] = credentialsResult.data.data
           .filter(
             (credential) => credential.status !== 'PENDING' && credential.status !== 'REJECTED'
           ) // Filter out PENDING and REJECTED requests
           .map((credential) => {
-            // Parse encrypted_body to get schema_id and schema_version
-            let schemaId = '';
-            let schemaVersion = 1;
-            let encryptedBody: Record<string, unknown> | undefined = undefined;
-            try {
-              encryptedBody = JSON.parse(credential.encrypted_body);
-              schemaId = (encryptedBody?.schema_id as string) || '';
-              schemaVersion = (encryptedBody?.schema_version as number) || 1;
-            } catch {
-              // Silently ignore JSON parse errors
-            }
+            // Get parsed body from cache
+            const parsedBody = parsedBodiesMap.get(credential.encrypted_body);
+            const schemaId = parsedBody?.schema_id || '';
+            const schemaVersion = parsedBody?.schema_version || 1;
+
+            // Get decrypted body from cache
+            const encryptedBody = decryptedBodiesMap.get(credential.encrypted_body);
 
             // Get schema name from the map
             const schemaInfo = schemaMap.get(schemaId);
@@ -370,12 +443,10 @@ export default function IssuedByMePage() {
       // Step 1: Revoke the old credential
       console.log('Revoking old credential:', data.credentialId);
       const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.REVOKE_VC);
-      const revokeResponse = await fetch(revokeUrl, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-        },
+      const issuerDid = localStorage.getItem('institutionDID');
+      const revokeResponse = await authenticatedPost(revokeUrl, {
+        issuer_did: issuerDid,
+        vc_id: data.credentialId,
       });
 
       if (!revokeResponse.ok) {
@@ -392,18 +463,11 @@ export default function IssuedByMePage() {
         attributesObject[attr.name] = attr.value;
       });
 
-      const issueResponse = await fetch(issueUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-        },
-        body: JSON.stringify({
-          holder_did: data.holderDid,
-          schema_id: data.schemaId,
-          schema_version: data.version,
-          ...attributesObject,
-        }),
+      const issueResponse = await authenticatedPost(issueUrl, {
+        holder_did: data.holderDid,
+        schema_id: data.schemaId,
+        schema_version: data.version,
+        ...attributesObject,
       });
 
       if (!issueResponse.ok) {
@@ -454,12 +518,10 @@ export default function IssuedByMePage() {
         try {
           console.log('Revoke credential:', id);
           const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.REVOKE_VC);
-          const revokeResponse = await fetch(revokeUrl, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-            },
+          const issuerDid = localStorage.getItem('institutionDID');
+          const revokeResponse = await authenticatedPost(revokeUrl, {
+            issuer_did: issuerDid,
+            vc_id: id,
           });
 
           if (!revokeResponse.ok) {
@@ -512,18 +574,11 @@ export default function IssuedByMePage() {
             });
           }
 
-          const issueResponse = await fetch(issueUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-            },
-            body: JSON.stringify({
-              holder_did: credential.holderDid,
-              schema_id: credential.schemaId,
-              schema_version: credential.schemaVersion,
-              ...attributesObject,
-            }),
+          const issueResponse = await authenticatedPost(issueUrl, {
+            holder_did: credential.holderDid,
+            schema_id: credential.schemaId,
+            schema_version: credential.schemaVersion,
+            ...attributesObject,
           });
 
           if (!issueResponse.ok) {
@@ -589,6 +644,52 @@ export default function IssuedByMePage() {
       return did;
     }
     return did.substring(0, maxLength) + '...';
+  };
+
+  const handleViewSchema = async (schemaId: string, schemaVersion: number) => {
+    try {
+      const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion));
+      const schemaResponse = await authenticatedGet(schemaUrl);
+
+      if (schemaResponse.ok) {
+        const schemaApiData: SchemaApiResponse = await schemaResponse.json();
+
+        if (schemaApiData.success && schemaApiData.data) {
+          const { id, name, schema, version, isActive, createdAt, updatedAt } = schemaApiData.data;
+
+          // Transform schema properties into attributes array
+          const attributes: SchemaAttribute[] = Object.entries(schema.properties).map(
+            ([key, prop]) => ({
+              name: key,
+              type: prop.type,
+              required: schema.required.includes(key),
+              description: prop.description,
+            })
+          );
+
+          setSchemaData({
+            id: id,
+            name: name,
+            version: version.toString(),
+            status: isActive ? 'Active' : 'Inactive',
+            attributes: attributes,
+            image_link: schemaApiData.data.image_link,
+            expired_in: schema.expired_in,
+            created_at: createdAt,
+            updated_at: updatedAt,
+          });
+
+          setShowSchemaModal(true);
+        } else {
+          throw new Error('Invalid schema response');
+        }
+      } else {
+        throw new Error('Failed to fetch schema details');
+      }
+    } catch (err) {
+      console.error('Error fetching schema details:', err);
+      alert('Failed to load schema details');
+    }
   };
 
   const handleIssueCredential = async (data: IssueNewCredentialFormData) => {
@@ -716,9 +817,26 @@ export default function IssuedByMePage() {
       id: 'schemaName',
       label: 'SCHEMA NAME',
       sortKey: 'schemaName',
-      render: (row) => (
-        <ThemedText className="text-sm font-medium text-gray-900">{row.schemaName}</ThemedText>
-      ),
+      render: (row) => {
+        const isUnknown = row.schemaName.includes('Unknown Schema');
+
+        // If unknown schema, just show text without button
+        if (isUnknown || !row.schemaId) {
+          return <ThemedText className="text-sm text-red-600">{row.schemaName}</ThemedText>;
+        }
+
+        return (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewSchema(row.schemaId, row.schemaVersion);
+            }}
+            className="text-sm text-blue-600 hover:text-blue-800 hover:underline text-left cursor-pointer"
+          >
+            {row.schemaName}
+          </button>
+        );
+      },
     },
     {
       id: 'status',
@@ -1124,6 +1242,42 @@ export default function IssuedByMePage() {
         message={infoModalConfig.message}
         buttonColor={infoModalConfig.buttonColor}
       />
+
+      {/* View Schema Modal */}
+      <Modal
+        isOpen={showSchemaModal}
+        onClose={() => {
+          setShowSchemaModal(false);
+          setSchemaData(null);
+        }}
+        title="View Schema"
+      >
+        {schemaData && (
+          <ViewSchemaForm
+            onClose={() => {
+              setShowSchemaModal(false);
+              setSchemaData(null);
+            }}
+            schemaData={{
+              id: schemaData.id,
+              schemaName: schemaData.name,
+              version: schemaData.version,
+              expiredIn: schemaData.expired_in,
+              isActive: schemaData.status,
+              createdAt: schemaData.created_at,
+              updatedAt: schemaData.updated_at || new Date().toISOString(),
+              attributes: schemaData.attributes.map((attr, index) => ({
+                id: index + 1,
+                name: attr.name,
+                type: attr.type,
+                description: attr.description || '',
+                required: attr.required,
+              })),
+              imageUrl: schemaData.image_link || undefined,
+            }}
+          />
+        )}
+      </Modal>
     </InstitutionLayout>
   );
 }
