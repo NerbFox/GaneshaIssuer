@@ -132,7 +132,7 @@ export default function InstitutionPage() {
       );
 
       // Fetch all request types in parallel
-      const requestTypes = ['ISSUANCE', 'RENEWAL', 'UPDATE', 'REVOCATION'];
+      const requestTypes = ['ISSUANCE', 'RENEWAL', 'UPDATE', 'REVOKE'];
       const requestPromises = requestTypes.map(async (type) => {
         try {
           const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.REQUESTS, {
