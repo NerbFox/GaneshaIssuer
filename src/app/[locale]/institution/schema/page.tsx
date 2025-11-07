@@ -472,7 +472,7 @@ export default function SchemaPage() {
       const schemaData = result.data;
 
       // Find the schema in our list for basic info
-      const schema = schemas.find((s) => s.id === schemaId);
+      const schema = schemas.find((s) => s.id === schemaId && s.version === version);
       if (schema && schemaData) {
         // Add schema details to the schema object
         const schemaWithDetails: Schema = {
