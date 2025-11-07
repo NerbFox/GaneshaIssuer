@@ -524,15 +524,24 @@ export default function SchemaPage() {
 
       let response: Response;
 
-      // Use FormData if image is provided, otherwise use JSON
-      if (data.image) {
+      // Use FormData if image or image_link is provided, otherwise use JSON
+      if (data.image || data.image_link) {
         const formData = new FormData();
         // Append schema fields separately, not as stringified JSON
         formData.append('schema[type]', payload.schema.type);
         formData.append('schema[expired_in]', String(payload.schema.expired_in));
         formData.append('schema[required]', JSON.stringify(payload.schema.required));
         formData.append('schema[properties]', JSON.stringify(payload.schema.properties));
-        formData.append('image', data.image, data.image.name);
+
+        // Add image file if new image is uploaded
+        if (data.image) {
+          formData.append('image', data.image, data.image.name);
+        }
+
+        // Add image_link if keeping existing image (no new image uploaded)
+        if (data.image_link && !data.image) {
+          formData.append('image_link', data.image_link);
+        }
 
         const token = localStorage.getItem('institutionToken');
         if (!token) {

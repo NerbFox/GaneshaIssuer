@@ -34,6 +34,7 @@ export interface SchemaFormData {
   expiredIn: number;
   attributes: Attribute[];
   image?: File;
+  image_link?: string; // URL of existing image to keep
 }
 
 export default function UpdateSchemaForm({
@@ -230,6 +231,8 @@ export default function UpdateSchemaForm({
         expiredIn,
         attributes,
         image: vcBackgroundImage || undefined,
+        // Include image_link when keeping existing image (no new image uploaded and original image exists)
+        image_link: !vcBackgroundImage && originalImageUrl ? originalImageUrl : undefined,
       };
 
       await onSubmit(submitData);
