@@ -25,7 +25,7 @@ interface IssueRequest {
   holder_did: string;
   version: number;
   status: string;
-  type: string; // ISSUANCE, RENEWAL, UPDATE, REVOCATION
+  type: string; // ISSUANCE, RENEWAL, UPDATE, REVOKE
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -94,7 +94,7 @@ export default function IssueRequestPage() {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
-  const [filterSchemaStatus, setFilterSchemaStatus] = useState<string>('active');
+  const [filterSchemaStatus, setFilterSchemaStatus] = useState<string>('all');
   const [filterRequestedOnStart, setFilterRequestedOnStart] = useState<string>('');
   const [filterRequestedOnEnd, setFilterRequestedOnEnd] = useState<string>('');
   const [filterSchemaExpiresStart, setFilterSchemaExpiresStart] = useState<string>('');
@@ -193,7 +193,7 @@ export default function IssueRequestPage() {
       }
 
       // Fetch all request types
-      const requestTypes = ['ISSUANCE', 'RENEWAL', 'UPDATE', 'REVOCATION'];
+      const requestTypes = ['ISSUANCE', 'RENEWAL', 'UPDATE', 'REVOKE'];
       const allRequests: IssueRequest[] = [];
 
       // Fetch requests for each type in parallel
@@ -308,21 +308,21 @@ export default function IssueRequestPage() {
     fetchRequests();
   }, [isAuthenticated, fetchRequests]);
 
-  // Calculate stats
-  const totalPendingCount = requests.length;
-  const issuanceCount = requests.filter((r) => r.type === 'ISSUANCE').length;
-  const renewalCount = requests.filter((r) => r.type === 'RENEWAL').length;
-  const updateCount = requests.filter((r) => r.type === 'UPDATE').length;
-  const revocationCount = requests.filter((r) => r.type === 'REVOCATION').length;
+  // Calculate stats from filtered requests
+  const totalPendingCount = filteredRequests.length;
+  const issuanceCount = filteredRequests.filter((r) => r.type === 'ISSUANCE').length;
+  const renewalCount = filteredRequests.filter((r) => r.type === 'RENEWAL').length;
+  const updateCount = filteredRequests.filter((r) => r.type === 'UPDATE').length;
+  const revocationCount = filteredRequests.filter((r) => r.type === 'REVOKE').length;
 
-  // Count requests with active vs inactive schemas
-  const activeSchemaCount = requests.filter((r) => {
+  // Count requests with active vs inactive schemas from filtered requests
+  const activeSchemaCount = filteredRequests.filter((r) => {
     const parsedBody = getCachedParsedBody(r.encrypted_body);
     const schemaId = parsedBody?.schema_id || '';
     return schemaIsActive.get(schemaId) === true;
   }).length;
 
-  const inactiveSchemaCount = requests.filter((r) => {
+  const inactiveSchemaCount = filteredRequests.filter((r) => {
     const parsedBody = getCachedParsedBody(r.encrypted_body);
     const schemaId = parsedBody?.schema_id || '';
     return schemaIsActive.get(schemaId) !== true;
@@ -518,7 +518,7 @@ export default function IssueRequestPage() {
   const clearFilters = () => {
     setSearchValue('');
     setFilterType('all');
-    setFilterSchemaStatus('active');
+    setFilterSchemaStatus('all');
     setFilterRequestedOnStart('');
     setFilterRequestedOnEnd('');
     setFilterSchemaExpiresStart('');
@@ -528,7 +528,7 @@ export default function IssueRequestPage() {
   const getActiveFilterCount = () => {
     let count = 0;
     if (filterType !== 'all') count++;
-    if (filterSchemaStatus !== 'active') count++;
+    if (filterSchemaStatus !== 'all') count++;
     if (filterRequestedOnStart) count++;
     if (filterRequestedOnEnd) count++;
     if (filterSchemaExpiresStart) count++;
@@ -1117,7 +1117,7 @@ export default function IssueRequestPage() {
         return 'bg-purple-100 text-purple-700';
       case 'UPDATE':
         return 'bg-cyan-100 text-cyan-700';
-      case 'REVOCATION':
+      case 'REVOKE':
         return 'bg-orange-100 text-orange-700';
       default:
         return 'bg-gray-100 text-gray-700';
@@ -1333,13 +1333,15 @@ export default function IssueRequestPage() {
               </ThemedText>
             </div>
             <div className="bg-green-50 grid grid-row-2 rounded-2xl p-6">
-              <ThemedText className="text-sm text-gray-600 mb-2">Active Schema</ThemedText>
+              <ThemedText className="text-sm text-gray-600 mb-2">Active Schema Requests</ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                 {activeSchemaCount.toLocaleString()}
               </ThemedText>
             </div>
             <div className="bg-red-50 grid grid-row-2 rounded-2xl p-6">
-              <ThemedText className="text-sm text-gray-600 mb-2">Inactive Schema</ThemedText>
+              <ThemedText className="text-sm text-gray-600 mb-2">
+                Inactive Schema Requests
+              </ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                 {inactiveSchemaCount.toLocaleString()}
               </ThemedText>
@@ -1518,7 +1520,7 @@ export default function IssueRequestPage() {
                     <option value="ISSUANCE">Issuance</option>
                     <option value="RENEWAL">Renewal</option>
                     <option value="UPDATE">Update</option>
-                    <option value="REVOCATION">Revocation</option>
+                    <option value="REVOKE">Revoke</option>
                   </select>
                 </div>
 
@@ -1533,8 +1535,8 @@ export default function IssueRequestPage() {
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
                   >
                     <option value="all">All</option>
-                    <option value="active">Active Schema</option>
-                    <option value="inactive">Inactive Schema</option>
+                    <option value="active">Active Schema Requests</option>
+                    <option value="inactive">Inactive Schema Requests</option>
                   </select>
                 </div>
               </div>

@@ -210,7 +210,7 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
           searchPlaceholder="Search attributes..."
           enableSelection={false}
           totalCount={schemaData.attributes.length}
-          rowsPerPageOptions={[5, 10, 25, 50]}
+          hideBottomControls={true}
           idKey="id"
         />
       </div>

@@ -688,7 +688,7 @@ export default function UpdateSchemaForm({
           enableSelection={true}
           onSelectionChange={handleSelectionChange}
           totalCount={displayAttributes.length}
-          rowsPerPageOptions={[5, 10, 25, 50]}
+          hideBottomControls={true}
           idKey="id"
         />
       </div>
