@@ -32,14 +32,8 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
   };
 
   const confirmLogout = async () => {
-    // Show confirmation prompt
-    const confirmed = window.confirm(
-      'Are you sure you want to logout?\n\nAll credentials and unsaved changes will be lost.'
-    );
-
-    if (!confirmed) {
-      return; // User cancelled the logout
-    }
+    // Close the confirmation modal
+    setShowLogoutConfirm(false);
 
     try {
       // Clear all credentials from IndexedDB
@@ -215,7 +209,7 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
         onClose={() => setShowLogoutConfirm(false)}
         onConfirm={confirmLogout}
         title="Confirm Logout"
-        message="Are you sure you want to logout?\n\nAll unsaved changes will be lost."
+        message="Are you sure you want to logout? All unsaved changes will be lost."
         confirmText="Logout"
         cancelText="Cancel"
         confirmButtonColor="red"
