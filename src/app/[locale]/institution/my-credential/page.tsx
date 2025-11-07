@@ -1193,89 +1193,87 @@ export default function MyCredentialPage() {
           My Credential
         </ThemedText>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-              <ThemedText className="text-gray-600">Loading credentials...</ThemedText>
-            </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
+          <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+            <ThemedText className="text-sm text-gray-600 mb-2">Total Credentials</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              {isLoading ? 0 : credentials.length}
+            </ThemedText>
           </div>
-        ) : (
-          <>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
-              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Total Credentials</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {credentials.length}
-                </ThemedText>
-              </div>
-              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Active Credentials</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {activeCount}
-                </ThemedText>
-              </div>
-            </div>
+          <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+            <ThemedText className="text-sm text-gray-600 mb-2">Active Credentials</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              {isLoading ? 0 : activeCount}
+            </ThemedText>
+          </div>
+        </div>
 
-            {/* Data Table */}
-            <DataTable
-              data={filteredCredentials}
-              columns={columns}
-              onFilter={handleFilter}
-              searchPlaceholder="Search..."
-              onSearch={handleSearch}
-              enableSelection={true}
-              onRowClick={(row) => handleView(row.id)}
-              totalCount={filteredCredentials.length}
-              rowsPerPageOptions={[5, 10, 25, 50, 100]}
-              idKey="id"
-              topRightButtons={
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleOpenUploadModal}
-                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium flex items-center gap-2"
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        )}
+
+        {/* Data Table */}
+        {!isLoading && (
+          <DataTable
+            data={filteredCredentials}
+            columns={columns}
+            onFilter={handleFilter}
+            searchPlaceholder="Search..."
+            onSearch={handleSearch}
+            enableSelection={true}
+            onRowClick={(row) => handleView(row.id)}
+            totalCount={filteredCredentials.length}
+            rowsPerPageOptions={[5, 10, 25, 50, 100]}
+            idKey="id"
+            topRightButtons={
+              <div className="flex gap-3">
+                <button
+                  onClick={handleOpenUploadModal}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                      />
-                    </svg>
-                    Upload VC
-                  </button>
-                  <button
-                    onClick={handleOpenRequestModal}
-                    className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium flex items-center gap-2"
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                  Upload VC
+                </button>
+                <button
+                  onClick={handleOpenRequestModal}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 4v16m8-8H4"
-                      />
-                    </svg>
-                    Request New Credential
-                  </button>
-                </div>
-              }
-            />
-          </>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Request New Credential
+                </button>
+              </div>
+            }
+          />
         )}
       </div>
 

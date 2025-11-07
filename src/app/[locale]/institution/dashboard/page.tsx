@@ -323,105 +323,108 @@ export default function InstitutionPage() {
           Dashboard
         </ThemedText>
 
-        {isLoading ? (
+        {/* Stats Cards */}
+        <div className="space-y-6 mb-8 pt-4">
+          {/* First Row: Key Metrics - 4 cards */}
+          <div className="grid grid-cols-4 gap-6">
+            <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Active Schemas</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {isLoading ? 0 : stats.activeSchemas.toLocaleString()}
+              </ThemedText>
+            </div>
+            <div className="bg-purple-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Pending Requests</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {isLoading ? 0 : stats.pendingRequests.toLocaleString()}
+              </ThemedText>
+            </div>
+            <div className="bg-green-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Active Credentials</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {isLoading ? 0 : stats.activeCredentials.toLocaleString()}
+              </ThemedText>
+            </div>
+            <div className="bg-amber-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Success Rate</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {isLoading
+                  ? '0%'
+                  : stats.totalActivities > 0
+                    ? `${Math.round((stats.approvedActivities / stats.totalActivities) * 100)}%`
+                    : '0%'}
+              </ThemedText>
+            </div>
+          </div>
+
+          {/* Second Row: Total Counts - 2 cards */}
+          <div className="grid grid-cols-2 gap-6">
+            <div className="bg-cyan-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Total Issued</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {isLoading ? 0 : stats.totalIssued.toLocaleString()}
+              </ThemedText>
+            </div>
+            <div className="bg-teal-50 grid grid-row-2 rounded-2xl p-6">
+              <ThemedText className="text-sm text-gray-600 mb-2">Total Activities</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                {isLoading ? 0 : stats.totalActivities.toLocaleString()}
+              </ThemedText>
+            </div>
+          </div>
+        </div>
+
+        {/* Loading State */}
+        {isLoading && (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
-        ) : (
-          <>
-            {/* Stats Cards */}
-            <div className="space-y-6 mb-8 pt-4">
-              {/* First Row: Key Metrics - 4 cards */}
-              <div className="grid grid-cols-4 gap-6">
-                <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                  <ThemedText className="text-sm text-gray-600 mb-2">Active Schemas</ThemedText>
-                  <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                    {stats.activeSchemas.toLocaleString()}
-                  </ThemedText>
-                </div>
-                <div className="bg-purple-50 grid grid-row-2 rounded-2xl p-6">
-                  <ThemedText className="text-sm text-gray-600 mb-2">Pending Requests</ThemedText>
-                  <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                    {stats.pendingRequests.toLocaleString()}
-                  </ThemedText>
-                </div>
-                <div className="bg-green-50 grid grid-row-2 rounded-2xl p-6">
-                  <ThemedText className="text-sm text-gray-600 mb-2">Active Credentials</ThemedText>
-                  <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                    {stats.activeCredentials.toLocaleString()}
-                  </ThemedText>
-                </div>
-                <div className="bg-amber-50 grid grid-row-2 rounded-2xl p-6">
-                  <ThemedText className="text-sm text-gray-600 mb-2">Success Rate</ThemedText>
-                  <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                    {stats.totalActivities > 0
-                      ? `${Math.round((stats.approvedActivities / stats.totalActivities) * 100)}%`
-                      : '0%'}
-                  </ThemedText>
-                </div>
-              </div>
+        )}
 
-              {/* Second Row: Total Counts - 2 cards */}
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-cyan-50 grid grid-row-2 rounded-2xl p-6">
-                  <ThemedText className="text-sm text-gray-600 mb-2">Total Issued</ThemedText>
-                  <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                    {stats.totalIssued.toLocaleString()}
-                  </ThemedText>
-                </div>
-                <div className="bg-teal-50 grid grid-row-2 rounded-2xl p-6">
-                  <ThemedText className="text-sm text-gray-600 mb-2">Total Activities</ThemedText>
-                  <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                    {stats.totalActivities.toLocaleString()}
-                  </ThemedText>
-                </div>
-              </div>
+        {/* Recent Activity */}
+        {!isLoading && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <ThemedText fontSize={20} fontWeight={600} className="text-gray-900">
+                Recent Activity
+              </ThemedText>
+              <button
+                onClick={() => router.push('/en/institution/history')}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
+              >
+                View All →
+              </button>
             </div>
-
-            {/* Recent Activity */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <ThemedText fontSize={20} fontWeight={600} className="text-gray-900">
-                  Recent Activity
-                </ThemedText>
-                <button
-                  onClick={() => router.push('/en/institution/history')}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
-                >
-                  View All →
-                </button>
+            {recentActivities.length === 0 ? (
+              <div className="text-center py-8">
+                <ThemedText className="text-gray-500">No recent activities</ThemedText>
               </div>
-              {recentActivities.length === 0 ? (
-                <div className="text-center py-8">
-                  <ThemedText className="text-gray-500">No recent activities</ThemedText>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {recentActivities.map((activity) => (
-                    <div
-                      key={activity.id}
-                      className="flex items-center gap-4 pb-4 border-b border-gray-200 last:border-0"
-                    >
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span>{getActionIcon(activity.actionType)}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">
-                          {getRequestTypeLabel(activity.requestType)} request{' '}
-                          {activity.actionType.toLowerCase()} for{' '}
-                          <span className="text-blue-600">{activity.schemaName}</span>
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Holder: {truncateDid(activity.holderDid, 30)} •{' '}
-                          {formatDateTime(activity.date)}
-                        </p>
-                      </div>
+            ) : (
+              <div className="space-y-4">
+                {recentActivities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-center gap-4 pb-4 border-b border-gray-200 last:border-0"
+                  >
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span>{getActionIcon(activity.actionType)}</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">
+                        {getRequestTypeLabel(activity.requestType)} request{' '}
+                        {activity.actionType.toLowerCase()} for{' '}
+                        <span className="text-blue-600">{activity.schemaName}</span>
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Holder: {truncateDid(activity.holderDid, 30)} •{' '}
+                        {formatDateTime(activity.date)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </InstitutionLayout>

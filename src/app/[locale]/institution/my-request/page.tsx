@@ -351,44 +351,42 @@ export default function MyRequestPage() {
           My Request
         </ThemedText>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-              <ThemedText className="text-gray-600">Loading requests...</ThemedText>
-            </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
+          <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+            <ThemedText className="text-sm text-gray-600 mb-2">Total Requests</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              {isLoading ? 0 : requests.length}
+            </ThemedText>
           </div>
-        ) : (
-          <>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
-              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Total Requests</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {requests.length}
-                </ThemedText>
-              </div>
-              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Pending</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {pendingCount}
-                </ThemedText>
-              </div>
-            </div>
+          <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+            <ThemedText className="text-sm text-gray-600 mb-2">Pending</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              {isLoading ? 0 : pendingCount}
+            </ThemedText>
+          </div>
+        </div>
 
-            {/* Data Table */}
-            <DataTable
-              data={filteredRequests}
-              columns={columns}
-              onFilter={handleFilter}
-              searchPlaceholder="Search..."
-              onSearch={handleSearch}
-              enableSelection={true}
-              totalCount={filteredRequests.length}
-              rowsPerPageOptions={[5, 10, 25, 50, 100]}
-              idKey="id"
-            />
-          </>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        )}
+
+        {/* Data Table */}
+        {!isLoading && (
+          <DataTable
+            data={filteredRequests}
+            columns={columns}
+            onFilter={handleFilter}
+            searchPlaceholder="Search..."
+            onSearch={handleSearch}
+            enableSelection={true}
+            totalCount={filteredRequests.length}
+            rowsPerPageOptions={[5, 10, 25, 50, 100]}
+            idKey="id"
+          />
         )}
       </div>
 
