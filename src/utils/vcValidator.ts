@@ -205,10 +205,38 @@ export const validateVCWithAPI = async (
     }
 
     // Check if API response indicates validation success
-    if (data.valid === false || data.success === false) {
+    if (data.success === false) {
       return {
         isValid: false,
         errors: [data.message || 'VC validation failed'],
+      };
+    }
+
+    // Check the data.is_valid field from the response
+    if (data.data && data.data.is_valid === false) {
+      const errors = [];
+
+      if (data.data.errors && data.data.errors.length > 0) {
+        errors.push(...data.data.errors);
+      } else {
+        // Provide specific error messages based on validation flags
+        if (data.data.did_valid === false) {
+          errors.push('DID validation failed');
+        }
+        if (data.data.expiration_valid === false) {
+          errors.push('Expiration validation failed');
+        }
+        if (data.data.hash_valid === false) {
+          errors.push('Hash validation failed');
+        }
+        if (errors.length === 0) {
+          errors.push(data.message || 'VC validation failed');
+        }
+      }
+
+      return {
+        isValid: false,
+        errors,
       };
     }
 
