@@ -16,6 +16,7 @@ export interface DataTableProps<T> {
   columns: Column<T>[];
   onFilter?: (event: React.MouseEvent<HTMLButtonElement>) => void;
   filterButtonRef?: React.RefObject<HTMLButtonElement | null>;
+  activeFilterCount?: number; // Number of active filters
   searchPlaceholder?: string;
   onSearch?: (value: string) => void;
   topRightButton?: {
@@ -26,7 +27,8 @@ export interface DataTableProps<T> {
   topRightButtons?: ReactNode; // New prop for custom buttons
   enableSelection?: boolean;
   onSelectionChange?: (selectedIds: number[], selectedIdValues?: (string | number)[]) => void;
-  onRowClick?: (row: T) => void; // Add row click handler
+  selectedIds?: Set<string | number>; // External control of selected IDs
+  onRowClick?: (row: T) => void;
   totalCount?: number;
   rowsPerPageOptions?: number[];
   idKey?: keyof T; // Key to use for the ID column (e.g., 'id')
@@ -41,6 +43,8 @@ export interface DataTableProps<T> {
   };
   hideTopControls?: boolean; // Hide search, filter, and top buttons
   hideBottomControls?: boolean; // Hide pagination and rows per page
+  defaultSortColumn?: string; // Default column to sort by
+  defaultSortDirection?: 'asc' | 'desc'; // Default sort direction
 }
 
 export function DataTable<T>({
@@ -48,12 +52,14 @@ export function DataTable<T>({
   columns,
   onFilter,
   filterButtonRef,
+  activeFilterCount = 0,
   searchPlaceholder = 'Search...',
   onSearch,
   topRightButton,
   topRightButtons,
   enableSelection = true,
   onSelectionChange,
+  selectedIds,
   onRowClick,
   totalCount,
   rowsPerPageOptions = [5, 10, 25, 50, 100],
@@ -66,16 +72,23 @@ export function DataTable<T>({
   expandableRows,
   hideTopControls = false,
   hideBottomControls = false,
+  defaultSortColumn,
+  defaultSortDirection = 'asc',
 }: DataTableProps<T>) {
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(rowsPerPageOptions[0]);
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortColumn, setSortColumn] = useState<string | null>(defaultSortColumn ?? null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(defaultSortDirection);
 
-  // Reset to page 1 when data length changes or becomes 0
+  useEffect(() => {
+    if (selectedIds !== undefined) {
+      setSelectedRows(selectedIds);
+    }
+  }, [selectedIds]);
+
   useEffect(() => {
     const total = totalCount || data.length;
     const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
@@ -136,17 +149,46 @@ export function DataTable<T>({
 
   const handleSelectAll = () => {
     if (selectAll) {
-      setSelectedRows(new Set());
-      setSelectAll(false);
-      onSelectionChange?.([], []);
-    } else {
-      // Get ID values if idKey is provided
       if (idKey) {
-        const allIdValues = paginatedData.map((row) => row[idKey] as string | number);
-        const allIndices = paginatedData.map((_, index) => (currentPage - 1) * rowsPerPage + index);
-        setSelectedRows(new Set(allIdValues));
+        const currentPageIds = paginatedData.map((row) => row[idKey] as string | number);
+        const newSelected = new Set(selectedRows);
+        currentPageIds.forEach((id) => newSelected.delete(id));
+        setSelectedRows(newSelected);
+        setSelectAll(false);
+
+        const selectedIndices: number[] = [];
+        const selectedIdValues: (string | number)[] = [];
+        data.forEach((row, idx) => {
+          const id = row[idKey] as string | number;
+          if (newSelected.has(id)) {
+            selectedIndices.push(idx);
+            selectedIdValues.push(id);
+          }
+        });
+        onSelectionChange?.(selectedIndices, selectedIdValues);
+      } else {
+        setSelectedRows(new Set());
+        setSelectAll(false);
+        onSelectionChange?.([], []);
+      }
+    } else {
+      if (idKey) {
+        const currentPageIds = paginatedData.map((row) => row[idKey] as string | number);
+        const newSelected = new Set(selectedRows);
+        currentPageIds.forEach((id) => newSelected.add(id));
+        setSelectedRows(newSelected);
         setSelectAll(true);
-        onSelectionChange?.(allIndices, allIdValues);
+
+        const selectedIndices: number[] = [];
+        const selectedIdValues: (string | number)[] = [];
+        data.forEach((row, idx) => {
+          const id = row[idKey] as string | number;
+          if (newSelected.has(id)) {
+            selectedIndices.push(idx);
+            selectedIdValues.push(id);
+          }
+        });
+        onSelectionChange?.(selectedIndices, selectedIdValues);
       } else {
         const allIndices = paginatedData.map((_, index) => (currentPage - 1) * rowsPerPage + index);
         setSelectedRows(new Set(allIndices));
@@ -193,6 +235,14 @@ export function DataTable<T>({
     setCurrentPage(page);
   };
 
+  useEffect(() => {
+    if (idKey && paginatedData.length > 0) {
+      const currentPageIds = paginatedData.map((row) => row[idKey] as string | number);
+      const allCurrentPageSelected = currentPageIds.every((id) => selectedRows.has(id));
+      setSelectAll(allCurrentPageSelected && currentPageIds.length > 0);
+    }
+  }, [currentPage, paginatedData, selectedRows, idKey]);
+
   const handleRowsPerPageChange = (value: number) => {
     setRowsPerPage(value);
     setCurrentPage(1);
@@ -213,14 +263,14 @@ export function DataTable<T>({
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Top Controls */}
       {!hideTopControls && (
-        <div className="flex items-center justify-between px-4 pt-4 bg-gray-50">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 pb-4 bg-gray-50">
           <div className="flex items-center gap-3">
             {/* Filter Button */}
             {onFilter && (
               <button
                 ref={filterButtonRef}
                 onClick={(e) => onFilter(e)}
-                className="p-2 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-colors cursor-pointer"
+                className="relative p-2 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-colors cursor-pointer"
                 title="Filter"
               >
                 <svg
@@ -236,6 +286,12 @@ export function DataTable<T>({
                     d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
                   />
                 </svg>
+                {/* Filter Count Badge */}
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-blue-500 text-white text-xs font-semibold rounded-full">
+                    {activeFilterCount}
+                  </span>
+                )}
               </button>
             )}
 
@@ -265,17 +321,19 @@ export function DataTable<T>({
           </div>
 
           {/* Top Right Buttons */}
-          {topRightButtons
-            ? topRightButtons
-            : topRightButton && (
-                <button
-                  onClick={topRightButton.onClick}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
-                >
-                  {topRightButton.icon}
-                  {topRightButton.label}
-                </button>
-              )}
+          <div>
+            {topRightButtons
+              ? topRightButtons
+              : topRightButton && (
+                  <button
+                    onClick={topRightButton.onClick}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
+                  >
+                    {topRightButton.icon}
+                    {topRightButton.label}
+                  </button>
+                )}
+          </div>
         </div>
       )}
 
@@ -408,8 +466,10 @@ export function DataTable<T>({
               paginatedData.map((row, paginatedIndex) => {
                 const actualIndex = (currentPage - 1) * rowsPerPage + paginatedIndex;
                 const isDragging = draggedIndex === actualIndex;
-                // Use idKey if available, otherwise use index
-                const rowKey = idKey ? String(row[idKey]) : `row-${actualIndex}`;
+                // Use idKey combined with index for unique key, or just index
+                const rowKey = idKey
+                  ? `${String(row[idKey])}-${actualIndex}`
+                  : `row-${actualIndex}`;
                 const rowId = idKey ? (row[idKey] as string | number) : actualIndex;
                 const isSelected = selectedRows.has(rowId);
                 const isExpanded = expandableRows && expandableRows.expandedRowId === rowId;
@@ -417,7 +477,6 @@ export function DataTable<T>({
                 return (
                   <Fragment key={rowKey}>
                     <tr
-                      key={rowKey}
                       draggable={enableDragDrop}
                       onDragStart={() => enableDragDrop && onDragStart?.(actualIndex)}
                       onDragOver={(e) => enableDragDrop && onDragOver?.(e, actualIndex)}

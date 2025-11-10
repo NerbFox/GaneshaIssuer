@@ -3,7 +3,8 @@
  * Following W3C VC Data Model standards
  */
 
-import { sha256 } from '@noble/hashes/sha2.js';
+import { sha256 } from '@noble/hashes/sha2';
+import { SignedVerifiableCredential } from './vcSigner';
 
 export interface VerifiableCredential {
   '@context': string[];
@@ -12,10 +13,28 @@ export interface VerifiableCredential {
   issuer: string;
   issuerName: string;
   validFrom: string;
+  expiredAt: string | null;
+  imageLink: string | null;
   credentialSubject: {
     id: string;
     [key: string]: string | number | boolean;
   };
+}
+
+export interface VerifiableCredentialDB {
+  '@context': string[];
+  id: string;
+  type: string[];
+  issuer: string;
+  issuerName: string;
+  validFrom: string;
+  expiredAt: string | null;
+  imageLink: string | null;
+  credentialSubject: {
+    id: string;
+    [key: string]: string | number | boolean;
+  };
+  request_id: string;
 }
 
 /**
@@ -29,19 +48,33 @@ export function createVC(params: {
   holderDid: string;
   credentialData: Record<string, string | number | boolean>;
   validFrom?: string;
+  imageLink: string | null;
+  expiredAt: string | null;
 }): VerifiableCredential {
-  const { id, vcType, issuerDid, holderDid, credentialData, validFrom, issuerName } = params;
+  const {
+    id,
+    vcType,
+    issuerDid,
+    holderDid,
+    credentialData,
+    validFrom,
+    expiredAt,
+    imageLink,
+    issuerName,
+  } = params;
 
   return {
     '@context': [
       'https://www.w3.org/ns/credentials/v2',
       'https://www.w3.org/ns/credentials/examples/v2',
     ],
-    id: `http://credentials.example/${id}`,
+    id: id,
     type: ['VerifiableCredential', vcType],
     issuer: issuerDid,
     issuerName: issuerName,
     validFrom: validFrom || new Date().toISOString(),
+    expiredAt: expiredAt || null,
+    imageLink: imageLink || null,
     credentialSubject: {
       id: holderDid,
       ...credentialData,
@@ -56,7 +89,7 @@ export function createVC(params: {
  * Note: SHA-256 is the standard hash function for W3C Verifiable Credentials
  * and is used in the Data Integrity proofs specification.
  */
-export function hashVC(vc: VerifiableCredential): string {
+export function hashVC(vc: SignedVerifiableCredential): string {
   // Convert VC to canonical JSON string (sorted keys for consistency)
   const vcString = JSON.stringify(vc, Object.keys(vc).sort());
 

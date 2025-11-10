@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import Button from '@/components/Button';
 import { decodeJWT, verifyJWT, validateJWTClaims } from '@/utils/jwt-es256';
 import { hexToBytes } from '@/utils/seedphrase-p256';
+import InfoModal from '@/components/InfoModal';
 
 export default function TestJWTPage() {
   const [jwt, setJwt] = useState('');
@@ -14,6 +15,12 @@ export default function TestJWTPage() {
     errors: string[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState({
+    title: '',
+    message: '',
+    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
 
   const verifyJWTWithLocalKey = async (
     token: string
@@ -68,7 +75,12 @@ export default function TestJWTPage() {
 
   const handleVerify = async () => {
     if (!jwt.trim()) {
-      alert('Please enter a JWT token');
+      setInfoModalConfig({
+        title: 'Validation Error',
+        message: 'Please enter a JWT token',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
@@ -93,7 +105,12 @@ export default function TestJWTPage() {
     const storedToken = localStorage.getItem('institutionToken');
 
     if (!storedToken) {
-      alert('No token found in localStorage');
+      setInfoModalConfig({
+        title: 'Error',
+        message: 'No token found in localStorage',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
@@ -251,6 +268,15 @@ export default function TestJWTPage() {
           </div>
         </div>
       </div>
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonColor={infoModalConfig.buttonColor}
+      />
     </div>
   );
 }

@@ -3,18 +3,28 @@
 import { useState, useEffect } from 'react';
 import { ThemedText } from './ThemedText';
 import { DataTable, Column } from './DataTable';
+import InfoModal from './InfoModal';
+import DatePicker from './DatePicker';
+import { DateTimePicker } from './DateTimePicker';
+import TimePicker from './TimePicker';
 
 interface AttributeData {
   id: number;
   name: string;
   type: string;
   value: string | number | boolean;
+  required?: boolean;
 }
 
 interface Schema {
   id: string;
   name: string;
   version: number;
+  isActive: boolean;
+  expiredIn?: number;
+  imageUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
   attributes: {
     name: string;
     type: string;
@@ -43,21 +53,53 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
   const [holderDid, setHolderDid] = useState('');
   const [schemaId, setSchemaId] = useState('');
   const [schemaName, setSchemaName] = useState('');
-  const [version, setVersion] = useState<number>(1);
+  const [version, setVersion] = useState<number>(0);
+  const [expiredIn, setExpiredIn] = useState<number | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [attributes, setAttributes] = useState<AttributeData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<Record<number, File>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [availableVersions, setAvailableVersions] = useState<number[]>([]);
+  const [availableVersions, setAvailableVersions] = useState<
+    { version: number; isActive: boolean }[]
+  >([]);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState({
+    title: '',
+    message: '',
+    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
 
-  const didPrefixes = ['did:dcert:', 'did:key:', 'did:web:'];
+  const didPrefixes = ['did:dcert:'];
 
-  // Update schema name and attributes when schema ID changes
+  // Update schema name, attributes, and metadata when schema ID or version changes
   useEffect(() => {
     if (schemaId) {
+      // Get available versions for this schema (only active versions)
+      const versions = schemas
+        .filter((s) => s.id === schemaId && s.isActive)
+        .map((s) => ({ version: s.version, isActive: s.isActive }))
+        .sort((a, b) => b.version - a.version); // Sort descending
+      setAvailableVersions(versions);
+
+      // Set default version to the highest active version if not already set
+      if (version === 0 && versions.length > 0) {
+        setVersion(versions[0].version);
+      }
+    } else {
+      setAvailableVersions([]);
+      setVersion(0);
+    }
+  }, [schemaId, schemas, version]);
+
+  // Update form data when version changes
+  useEffect(() => {
+    if (schemaId && version > 0) {
       const selectedSchema = schemas.find((s) => s.id === schemaId && s.version === version);
       if (selectedSchema) {
         setSchemaName(selectedSchema.name);
+        setExpiredIn(selectedSchema.expiredIn ?? null);
+        setImageUrl(selectedSchema.imageUrl);
 
         // Initialize attributes from schema
         const initialAttributes: AttributeData[] = selectedSchema.attributes.map((attr, index) => ({
@@ -65,20 +107,15 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
           name: attr.name,
           type: attr.type,
           value: '',
+          required: attr.required,
         }));
         setAttributes(initialAttributes);
-
-        // Get available versions for this schema
-        const versions = schemas
-          .filter((s) => s.id === schemaId)
-          .map((s) => s.version)
-          .sort((a, b) => b - a); // Sort descending
-        setAvailableVersions(versions);
       }
     } else {
       setSchemaName('');
+      setExpiredIn(null);
+      setImageUrl(undefined);
       setAttributes([]);
-      setAvailableVersions([]);
     }
   }, [schemaId, version, schemas]);
 
@@ -112,19 +149,36 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
   const handleSubmit = async () => {
     // Validate required fields
     if (!holderDid.trim()) {
-      alert('Holder DID is required');
+      setInfoModalConfig({
+        title: 'Validation Error',
+        message: 'Holder DID is required',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
     if (!schemaId) {
-      alert('Schema ID is required');
+      setInfoModalConfig({
+        title: 'Validation Error',
+        message: 'Schema ID is required',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
-    // Validate all attributes have values
-    const emptyAttributes = attributes.filter((attr) => !attr.value);
-    if (emptyAttributes.length > 0) {
-      alert(`Please fill in all attributes: ${emptyAttributes.map((a) => a.name).join(', ')}`);
+    // Validate all required attributes have values
+    const emptyRequiredAttributes = attributes.filter(
+      (attr) => attr.required && (!attr.value || attr.value === '')
+    );
+    if (emptyRequiredAttributes.length > 0) {
+      setInfoModalConfig({
+        title: 'Validation Error',
+        message: `Please fill in all required attributes: ${emptyRequiredAttributes.map((a) => a.name).join(', ')}`,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
@@ -159,63 +213,226 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
       id: 'name',
       label: 'NAME',
       sortKey: 'name',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>
+          {row.required && <span className="text-red-500 text-sm">*</span>}
+        </div>
+      ),
     },
     {
       id: 'type',
       label: 'TYPE',
       sortKey: 'type',
       render: (row) => (
-        <ThemedText className="text-sm text-blue-600 capitalize">{row.type}</ThemedText>
+        <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
+          {row.type}
+        </span>
+      ),
+    },
+    {
+      id: 'required',
+      label: 'REQUIRED',
+      sortKey: 'required',
+      render: (row) => (
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+            row.required ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-600'
+          }`}
+        >
+          {row.required ? 'Yes' : 'No'}
+        </span>
       ),
     },
     {
       id: 'value',
       label: 'VALUE',
-      render: (row) => (
-        <div className="flex items-center gap-2">
-          {row.type === 'image' ? (
-            <div className="flex gap-2 items-center">
-              <label className="cursor-pointer">
+      render: (row) => {
+        const renderInputField = () => {
+          switch (row.type.toLowerCase()) {
+            case 'image':
+              return (
+                <div className="flex gap-2 items-center">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(row.id, e)}
+                      className="hidden"
+                    />
+                    <span className="text-blue-500 hover:text-blue-600 text-sm font-medium">
+                      Upload
+                    </span>
+                  </label>
+                  <span className="text-gray-400">/</span>
+                  <button
+                    onClick={() => handleFileView(row.id)}
+                    disabled={!uploadedFiles[row.id]}
+                    className={`text-sm font-medium ${
+                      uploadedFiles[row.id]
+                        ? 'text-blue-500 hover:text-blue-600'
+                        : 'text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    View
+                  </button>
+                  {uploadedFiles[row.id] && (
+                    <span className="text-xs text-gray-500 ml-2">
+                      ({truncateFileName(uploadedFiles[row.id].name)})
+                    </span>
+                  )}
+                </div>
+              );
+
+            case 'boolean':
+              return (
+                <select
+                  value={String(row.value)}
+                  onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select...</option>
+                  <option value="true">True</option>
+                  <option value="false">False</option>
+                </select>
+              );
+
+            case 'date':
+              return (
+                <div className="w-full">
+                  <DatePicker
+                    value={String(row.value) || ''}
+                    onChange={(value) => handleAttributeValueChange(row.id, value)}
+                  />
+                </div>
+              );
+
+            case 'datetime':
+            case 'datetime-local':
+              return (
+                <div className="w-full">
+                  <DateTimePicker
+                    value={String(row.value) || ''}
+                    onChange={(value) => handleAttributeValueChange(row.id, value)}
+                  />
+                </div>
+              );
+
+            case 'time':
+              return (
+                <div className="w-full">
+                  <TimePicker
+                    value={String(row.value) || ''}
+                    onChange={(value) => handleAttributeValueChange(row.id, value)}
+                  />
+                </div>
+              );
+
+            case 'number':
+            case 'integer':
+            case 'float':
+            case 'decimal':
+              return (
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileUpload(row.id, e)}
-                  className="hidden"
+                  type="number"
+                  value={String(row.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || !isNaN(Number(value))) {
+                      handleAttributeValueChange(row.id, value);
+                    }
+                  }}
+                  placeholder={`Enter ${row.name}`}
+                  step={
+                    row.type.toLowerCase() === 'float' || row.type.toLowerCase() === 'decimal'
+                      ? '0.01'
+                      : '1'
+                  }
+                  onKeyPress={(e) => {
+                    const allowDecimal =
+                      row.type.toLowerCase() === 'float' || row.type.toLowerCase() === 'decimal';
+                    if (
+                      !/[\d.]/.test(e.key) ||
+                      (!allowDecimal && e.key === '.') ||
+                      (e.key === '.' && String(row.value).includes('.'))
+                    ) {
+                      e.preventDefault();
+                    }
+                  }}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <span className="text-blue-500 hover:text-blue-600 text-sm font-medium">
-                  Upload
-                </span>
-              </label>
-              <span className="text-gray-400">/</span>
-              <button
-                onClick={() => handleFileView(row.id)}
-                disabled={!uploadedFiles[row.id]}
-                className={`text-sm font-medium ${
-                  uploadedFiles[row.id]
-                    ? 'text-blue-500 hover:text-blue-600'
-                    : 'text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                View
-              </button>
-              {uploadedFiles[row.id] && (
-                <span className="text-xs text-gray-500 ml-2">
-                  ({truncateFileName(uploadedFiles[row.id].name)})
-                </span>
-              )}
-            </div>
-          ) : (
-            <input
-              type={row.type === 'number' ? 'number' : 'text'}
-              value={String(row.value)}
-              onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-              placeholder={`Enter ${row.name}`}
-              className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          )}
-        </div>
-      ),
+              );
+
+            case 'email':
+              return (
+                <input
+                  type="email"
+                  value={String(row.value)}
+                  onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
+                  placeholder={`Enter ${row.name}`}
+                  pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              );
+
+            case 'url':
+            case 'uri':
+              return (
+                <input
+                  type="url"
+                  value={String(row.value)}
+                  onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
+                  placeholder={`Enter ${row.name}`}
+                  pattern="https?://.+"
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              );
+
+            case 'tel':
+            case 'phone':
+              return (
+                <input
+                  type="tel"
+                  value={String(row.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^[\d\s\-+()]*$/.test(value)) {
+                      handleAttributeValueChange(row.id, value);
+                    }
+                  }}
+                  placeholder={`Enter ${row.name}`}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              );
+
+            case 'textarea':
+            case 'text-area':
+            case 'multiline':
+              return (
+                <textarea
+                  value={String(row.value)}
+                  onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
+                  placeholder={`Enter ${row.name}`}
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                />
+              );
+
+            default:
+              return (
+                <input
+                  type="text"
+                  value={String(row.value)}
+                  onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
+                  placeholder={`Enter ${row.name}`}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              );
+          }
+        };
+
+        return <div className="flex items-center gap-2 w-full">{renderInputField()}</div>;
+      },
     },
   ];
 
@@ -264,83 +481,111 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
         </div>
       </div>
 
-      {/* Schema ID */}
-      <div className="mb-6">
-        <ThemedText className="text-sm text-gray-600 mb-2">
-          Schema ID<span className="text-red-500">*</span>
-        </ThemedText>
-        <select
-          value={schemaId}
-          onChange={(e) => setSchemaId(e.target.value)}
-          className={`w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm cursor-pointer bg-white ${!schemaId ? 'text-gray-400' : 'text-gray-900'}`}
-        >
-          <option value="">Select schema</option>
-          {uniqueSchemas.map((schema) => (
-            <option key={schema.id} value={schema.id} className="text-gray-900">
-              {schema.id}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Schema Name (auto-filled) */}
-      <div className="mb-6">
-        <ThemedText className="text-sm text-gray-600 mb-2">Schema Name</ThemedText>
-        <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-          <ThemedText className={`text-sm ${!schemaName ? 'text-gray-400' : 'text-gray-900'}`}>
-            {schemaName || 'Select a schema to see its name'}
+      {/* Schema ID and Schema Name in same row */}
+      <div className="grid grid-cols-2 gap-6 mb-6">
+        {/* Schema ID */}
+        <div>
+          <ThemedText className="text-sm text-gray-600 mb-2">
+            Schema ID<span className="text-red-500">*</span>
           </ThemedText>
+          <select
+            value={schemaId}
+            onChange={(e) => setSchemaId(e.target.value)}
+            className={`w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm cursor-pointer bg-white ${!schemaId ? 'text-gray-400' : 'text-gray-900'}`}
+          >
+            <option value="">Select schema</option>
+            {uniqueSchemas.map((schema) => (
+              <option key={schema.id} value={schema.id} className="text-gray-900">
+                {schema.id}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Schema Name (auto-filled) */}
+        <div>
+          <ThemedText className="text-sm text-gray-600 mb-2">Schema Name</ThemedText>
+          <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <ThemedText className={`text-sm ${!schemaName ? 'text-gray-400' : 'text-gray-900'}`}>
+              {schemaName || 'Select a schema to see its name'}
+            </ThemedText>
+          </div>
         </div>
       </div>
 
-      {/* Version and Status in same row */}
+      {/* Schema Version and Expired In in same row */}
       <div className="grid grid-cols-2 gap-6 mb-6">
-        {/* Version */}
+        {/* Schema Version */}
         <div>
           <ThemedText className="text-sm text-gray-600 mb-2">
-            Version<span className="text-red-500">*</span>
+            Schema Version<span className="text-red-500">*</span>
           </ThemedText>
           <select
             value={version}
             onChange={(e) => setVersion(Number(e.target.value))}
             disabled={!schemaId || availableVersions.length === 0}
-            className={`w-full px-4 py-4 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm cursor-pointer bg-white disabled:bg-gray-50 disabled:cursor-not-allowed ${!schemaName ? 'text-gray-400' : 'text-gray-900'}`}
+            className={`w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm cursor-pointer bg-white disabled:bg-gray-50 disabled:cursor-not-allowed ${!schemaName ? 'text-gray-400' : 'text-gray-900'}`}
           >
             {availableVersions.length > 0 ? (
               availableVersions.map((v) => (
-                <option key={v} value={v}>
-                  {v}
+                <option key={v.version} value={v.version}>
+                  {v.version}
                 </option>
               ))
             ) : (
-              <option>{schemaName || 'Select a schema to see its version'}</option>
+              <option value={0}>{schemaName || 'Select a schema to see its version'}</option>
             )}
           </select>
         </div>
 
-        {/* Status (immutable) */}
+        {/* Expired In (Years) - auto-filled */}
         <div>
-          <ThemedText className="text-sm text-gray-600 mb-2">Status</ThemedText>
+          <ThemedText className="text-sm text-gray-600 mb-2">Expired In (Years)</ThemedText>
           <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <ThemedText className="text-sm text-gray-900">Active</ThemedText>
+            <ThemedText className={`text-sm ${!schemaName ? 'text-gray-400' : 'text-gray-900'}`}>
+              {schemaName
+                ? expiredIn === 0 || expiredIn === null || expiredIn === undefined
+                  ? 'Lifetime'
+                  : expiredIn
+                : 'Select a schema to see expiration'}
+            </ThemedText>
           </div>
         </div>
       </div>
 
+      {/* VC Background Image */}
+      {imageUrl && (
+        <div className="mb-6">
+          <label className="block mb-3">
+            <ThemedText className="text-sm font-semibold text-gray-900">
+              VC Background Image
+            </ThemedText>
+          </label>
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageUrl}
+              alt="VC Background"
+              className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 shadow-md block bg-gray-50"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Attributes Table */}
       {attributes.length > 0 && (
         <div className="mb-6">
-          <ThemedText className="text-sm font-semibold text-gray-900 mb-4">
-            Attributes<span className="text-red-500">*</span>
+          <ThemedText className="text-sm font-medium text-gray-900 mb-4">
+            Attributes ({filteredAttributes.length})
           </ThemedText>
           <DataTable
             data={filteredAttributes}
             columns={attributeColumns}
             searchPlaceholder="Search attributes..."
             onSearch={handleSearch}
-            enableSelection={true}
+            enableSelection={false}
             totalCount={filteredAttributes.length}
-            rowsPerPageOptions={[5, 10, 25]}
+            hideBottomControls={true}
             idKey="id"
           />
         </div>
@@ -351,11 +596,23 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
         <button
           onClick={handleSubmit}
           disabled={isSubmitting}
-          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
+          {isSubmitting && (
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+          )}
           {isSubmitting ? 'ISSUING...' : 'ISSUE CREDENTIAL'}
         </button>
       </div>
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonColor={infoModalConfig.buttonColor}
+      />
     </div>
   );
 }

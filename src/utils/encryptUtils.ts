@@ -3,9 +3,9 @@
  * Web and React Native compatible implementation using ECIES (P-256) and aes-js
  */
 
-import { p256 } from '@noble/curves/nist.js';
-import { sha256, sha512 } from '@noble/hashes/sha2.js';
-import { hmac } from '@noble/hashes/hmac.js';
+import { p256 } from '@noble/curves/p256';
+import { sha256, sha512 } from '@noble/hashes/sha2';
+import { hmac } from '@noble/hashes/hmac';
 import * as aes from 'aes-js';
 
 /**
@@ -175,8 +175,8 @@ export async function encryptWithPublicKey(
       console.log('[Encryption] Detected compressed public key, converting to uncompressed...');
       try {
         const compressedHex = uint8ArrayToHex(publicKeyBytes);
-        // Use P-256 Point to parse compressed key, then export as uncompressed
-        const point = p256.Point.fromHex(compressedHex);
+        // Use P-256 ProjectivePoint to parse compressed key, then export as uncompressed
+        const point = p256.ProjectivePoint.fromHex(compressedHex);
         const uncompressedHex = point.toHex(false); // false = uncompressed
         // Convert back to Uint8Array
         publicKeyBytes = hexToUint8Array(uncompressedHex);
@@ -365,7 +365,8 @@ export async function signWithES256(data: JsonObject, privateKeyHex: string): Pr
     console.log('[Signing] Data hashed');
 
     // Sign the hash using P-256 (returns Uint8Array with compact format: 64 bytes r + s)
-    const signatureBytes = p256.sign(messageHash, privateKeyBytes);
+    const signature = p256.sign(messageHash, privateKeyBytes);
+    const signatureBytes = signature.toCompactRawBytes();
     console.log('[Signing] Data signed');
 
     // Convert signature to base64url

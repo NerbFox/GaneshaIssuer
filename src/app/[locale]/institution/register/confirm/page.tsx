@@ -150,7 +150,7 @@ Keep this information safe and secure!
       };
 
       // Send POST request to register DID
-      const response = await authenticatedPost(buildApiUrl(API_ENDPOINTS.DID.BASE), formData);
+      const response = await authenticatedPost(buildApiUrl(API_ENDPOINTS.DIDS.BASE), formData);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

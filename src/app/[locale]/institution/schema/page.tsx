@@ -11,16 +11,18 @@ import UpdateSchemaForm, {
   SchemaFormData as UpdateSchemaFormData,
 } from '@/components/UpdateSchemaForm';
 import ViewSchemaForm from '@/components/ViewSchemaForm';
+import { DateTimePicker } from '@/components/DateTimePicker';
 import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { authenticatedFetch, authenticatedGet, authenticatedPost } from '@/utils/api-client';
+import InfoModal from '@/components/InfoModal';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 interface Schema {
   id: string;
   schemaName: string;
   attributes: number;
   isActive: boolean;
-  lastUpdated: string;
   expiredIn: number;
   schemaDetails?: {
     properties: Record<string, { type: string }>;
@@ -29,6 +31,8 @@ interface Schema {
   version: number;
   uniqueKey: string; // Composite key: id-version
   image_link?: string; // Optional image URL from API
+  createdAt: string; // Creation timestamp
+  updatedAt: string; // Last update timestamp
 }
 
 interface ApiSchemaResponse {
@@ -65,6 +69,10 @@ export default function SchemaPage() {
   const [filterMaxAttributes, setFilterMaxAttributes] = useState('');
   const [filterMinExpiredIn, setFilterMinExpiredIn] = useState('');
   const [filterMaxExpiredIn, setFilterMaxExpiredIn] = useState('');
+  const [filterCreatedAtStart, setFilterCreatedAtStart] = useState<string>('');
+  const [filterCreatedAtEnd, setFilterCreatedAtEnd] = useState<string>('');
+  const [filterUpdatedAtStart, setFilterUpdatedAtStart] = useState<string>('');
+  const [filterUpdatedAtEnd, setFilterUpdatedAtEnd] = useState<string>('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [showCreateSchemaModal, setShowCreateSchemaModal] = useState(false);
   const [showUpdateSchemaModal, setShowUpdateSchemaModal] = useState(false);
@@ -79,6 +87,25 @@ export default function SchemaPage() {
   const [bulkTogglingAction, setBulkTogglingAction] = useState<'reactivate' | 'deactivate' | null>(
     null
   ); // Track which bulk action is in progress
+  const [bulkRemainingCount, setBulkRemainingCount] = useState(0); // Track remaining schemas in bulk operation
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState({
+    title: '',
+    message: '',
+    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+  });
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    confirmButtonColor?: 'blue' | 'green' | 'red' | 'yellow';
+  }>({
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   const filterModalRef = useRef<HTMLDivElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
@@ -93,7 +120,7 @@ export default function SchemaPage() {
         throw new Error('Institution DID not found. Please log in again.');
       }
 
-      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.BASE, {
+      const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMAS.BASE, {
         issuerDid,
       });
 
@@ -113,9 +140,10 @@ export default function SchemaPage() {
         isActive: schema.isActive,
         version: schema.version,
         expiredIn: schema.schema.expired_in ?? 0,
-        lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'),
         uniqueKey: `${schema.id}-${schema.version}`, // Composite unique key
         image_link: schema.image_link, // Include image link from API
+        createdAt: schema.createdAt,
+        updatedAt: schema.updatedAt,
       }));
 
       // Update schemas state
@@ -153,7 +181,7 @@ export default function SchemaPage() {
           throw new Error('Institution DID not found. Please log in again.');
         }
 
-        const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMA.BASE, {
+        const url = buildApiUrlWithParams(API_ENDPOINTS.SCHEMAS.BASE, {
           issuerDid,
         });
 
@@ -173,9 +201,10 @@ export default function SchemaPage() {
           isActive: schema.isActive,
           version: schema.version,
           expiredIn: schema.schema.expired_in ?? 0,
-          lastUpdated: new Date(schema.updatedAt).toLocaleDateString('en-CA'), // Format as YYYY/MM/DD
           uniqueKey: `${schema.id}-${schema.version}`, // Composite unique key
           image_link: schema.image_link, // Include image link from API
+          createdAt: schema.createdAt,
+          updatedAt: schema.updatedAt,
         }));
 
         setSchemas(transformedSchemas);
@@ -300,6 +329,46 @@ export default function SchemaPage() {
       }
     }
 
+    // Created At date filter
+    if (filterCreatedAtStart || filterCreatedAtEnd) {
+      filtered = filtered.filter((schema) => {
+        const createdDate = new Date(schema.createdAt);
+        const startDate = filterCreatedAtStart ? new Date(filterCreatedAtStart) : null;
+        const endDate = filterCreatedAtEnd ? new Date(filterCreatedAtEnd) : null;
+
+        if (startDate && endDate) {
+          endDate.setHours(23, 59, 59, 999); // Include the entire end date
+          return createdDate >= startDate && createdDate <= endDate;
+        } else if (startDate) {
+          return createdDate >= startDate;
+        } else if (endDate) {
+          endDate.setHours(23, 59, 59, 999);
+          return createdDate <= endDate;
+        }
+        return true;
+      });
+    }
+
+    // Updated At date filter
+    if (filterUpdatedAtStart || filterUpdatedAtEnd) {
+      filtered = filtered.filter((schema) => {
+        const updatedDate = new Date(schema.updatedAt);
+        const startDate = filterUpdatedAtStart ? new Date(filterUpdatedAtStart) : null;
+        const endDate = filterUpdatedAtEnd ? new Date(filterUpdatedAtEnd) : null;
+
+        if (startDate && endDate) {
+          endDate.setHours(23, 59, 59, 999);
+          return updatedDate >= startDate && updatedDate <= endDate;
+        } else if (startDate) {
+          return updatedDate >= startDate;
+        } else if (endDate) {
+          endDate.setHours(23, 59, 59, 999);
+          return updatedDate <= endDate;
+        }
+        return true;
+      });
+    }
+
     setFilteredSchemas(filtered);
   };
 
@@ -314,6 +383,10 @@ export default function SchemaPage() {
     filterMaxAttributes,
     filterMinExpiredIn,
     filterMaxExpiredIn,
+    filterCreatedAtStart,
+    filterCreatedAtEnd,
+    filterUpdatedAtStart,
+    filterUpdatedAtEnd,
     schemas,
   ]);
 
@@ -324,13 +397,31 @@ export default function SchemaPage() {
     setFilterMaxAttributes('');
     setFilterMinExpiredIn('');
     setFilterMaxExpiredIn('');
+    setFilterCreatedAtStart('');
+    setFilterCreatedAtEnd('');
+    setFilterUpdatedAtStart('');
+    setFilterUpdatedAtEnd('');
+  };
+
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (filterStatus !== 'all') count++;
+    if (filterMinAttributes) count++;
+    if (filterMaxAttributes) count++;
+    if (filterMinExpiredIn) count++;
+    if (filterMaxExpiredIn) count++;
+    if (filterCreatedAtStart) count++;
+    if (filterCreatedAtEnd) count++;
+    if (filterUpdatedAtStart) count++;
+    if (filterUpdatedAtEnd) count++;
+    return count;
   };
 
   const handleUpdateSchema = async (schemaId: string, version: number) => {
     try {
       // Fetch the full schema details from API
       const response = await authenticatedGet(
-        buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, version))
+        buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, version))
       );
 
       if (!response.ok) {
@@ -341,7 +432,7 @@ export default function SchemaPage() {
       const schemaData = result.data;
 
       // Find the schema in our list for basic info
-      const schema = schemas.find((s) => s.id === schemaId);
+      const schema = schemas.find((s) => s.id === schemaId && s.version === version);
       if (schema && schemaData) {
         // Add schema details to the schema object
         const schemaWithDetails: Schema = {
@@ -357,7 +448,12 @@ export default function SchemaPage() {
       }
     } catch (error) {
       console.error('Error fetching schema details:', error);
-      alert('Failed to load schema details. Please try again.');
+      setInfoModalConfig({
+        title: 'Error',
+        message: 'Failed to load schema details. Please try again.',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     }
   };
 
@@ -365,7 +461,7 @@ export default function SchemaPage() {
     try {
       // Fetch the full schema details from API
       const response = await authenticatedGet(
-        buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, version))
+        buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, version))
       );
 
       if (!response.ok) {
@@ -376,7 +472,7 @@ export default function SchemaPage() {
       const schemaData = result.data;
 
       // Find the schema in our list for basic info
-      const schema = schemas.find((s) => s.id === schemaId);
+      const schema = schemas.find((s) => s.id === schemaId && s.version === version);
       if (schema && schemaData) {
         // Add schema details to the schema object
         const schemaWithDetails: Schema = {
@@ -392,7 +488,12 @@ export default function SchemaPage() {
       }
     } catch (error) {
       console.error('Error fetching schema details:', error);
-      alert('Failed to load schema details. Please try again.');
+      setInfoModalConfig({
+        title: 'Error',
+        message: 'Failed to load schema details. Please try again.',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
     }
   };
 
@@ -423,30 +524,31 @@ export default function SchemaPage() {
 
       let response: Response;
 
-      // Use FormData if image is provided, otherwise use JSON
-      if (data.image) {
+      // Use FormData if image or image_link is provided, otherwise use JSON
+      if (data.image || data.image_link) {
         const formData = new FormData();
         // Append schema fields separately, not as stringified JSON
         formData.append('schema[type]', payload.schema.type);
         formData.append('schema[expired_in]', String(payload.schema.expired_in));
         formData.append('schema[required]', JSON.stringify(payload.schema.required));
         formData.append('schema[properties]', JSON.stringify(payload.schema.properties));
-        formData.append('image', data.image, data.image.name); // Add filename
 
-        console.log('Updating schema with image:', {
-          schemaId: data.schemaId,
-          imageSize: data.image.size,
-          imageType: data.image.type,
-          imageName: data.image.name,
-          schema: payload.schema,
-        });
+        // Add image file if new image is uploaded
+        if (data.image) {
+          formData.append('image', data.image, data.image.name);
+        }
+
+        // Add image_link if keeping existing image (no new image uploaded)
+        if (data.image_link && !data.image) {
+          formData.append('image_link', data.image_link);
+        }
 
         const token = localStorage.getItem('institutionToken');
         if (!token) {
           throw new Error('No authentication token found. Please log in.');
         }
 
-        response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.UPDATE(data.schemaId)), {
+        response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_ID(data.schemaId)), {
           method: 'PUT',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -455,9 +557,8 @@ export default function SchemaPage() {
           body: formData,
         });
       } else {
-        console.log('Updating schema without image:', payload);
         response = await authenticatedFetch(
-          buildApiUrl(API_ENDPOINTS.SCHEMA.UPDATE(data.schemaId)),
+          buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_ID(data.schemaId)),
           {
             method: 'PUT',
             body: JSON.stringify(payload),
@@ -482,9 +583,12 @@ export default function SchemaPage() {
 
       // Show success message with transaction hash if available
       if (result.transaction_hash) {
-        alert(
-          `Schema updated successfully!\nNew version: ${result.data.version}\nTransaction: ${result.transaction_hash.substring(0, 10)}...`
-        );
+        setInfoModalConfig({
+          title: 'Success',
+          message: `Schema updated successfully!\nNew version: ${result.data.version}\nTransaction: ${result.transaction_hash.substring(0, 10)}...`,
+          buttonColor: 'green',
+        });
+        setShowInfoModal(true);
       }
 
       // Refresh the schema list
@@ -497,12 +601,36 @@ export default function SchemaPage() {
       console.error('Error updating schema:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update schema. Please try again.';
-      alert(errorMessage);
+      setInfoModalConfig({
+        title: 'Error',
+        message: errorMessage,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       throw error; // Re-throw to prevent the form from clearing
     }
   };
 
   const handleToggleStatus = async (schemaId: string, schemaVersion: number) => {
+    const schema = schemas.find((s) => s.id === schemaId && s.version === schemaVersion);
+    if (!schema) return;
+
+    const isCurrentlyActive = schema.isActive === true;
+    const action = isCurrentlyActive ? 'deactivate' : 'reactivate';
+
+    // Show confirmation modal
+    setConfirmModalConfig({
+      title: `Confirm ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+      message: `Are you sure you want to ${action} this schema?\n\nSchema: ${schema.schemaName}\nCurrent Status: ${schema.isActive ? 'Active' : 'Inactive'}`,
+      onConfirm: () => executeToggleStatus(schemaId, schemaVersion),
+      confirmText: action.charAt(0).toUpperCase() + action.slice(1),
+      confirmButtonColor: isCurrentlyActive ? 'red' : 'green',
+    });
+    setShowConfirmModal(true);
+  };
+
+  const executeToggleStatus = async (schemaId: string, schemaVersion: number) => {
+    setShowConfirmModal(false);
     const schemaKey = `${schemaId}-${schemaVersion}`;
 
     try {
@@ -512,22 +640,13 @@ export default function SchemaPage() {
       const isCurrentlyActive = schema.isActive === true;
       const action = isCurrentlyActive ? 'deactivate' : 'reactivate';
 
-      // Show confirmation prompt
-      const confirmed = window.confirm(
-        `Are you sure you want to ${action} this schema?\n\nSchema: ${schema.schemaName}\nCurrent Status: ${schema.isActive ? 'Active' : 'Inactive'}`
-      );
-
-      if (!confirmed) {
-        return; // User cancelled the action
-      }
-
       // Add schema to toggling set
       setTogglingSchemas((prev) => new Set(prev).add(schemaKey));
 
       // Call the appropriate API endpoint
       const endpoint = isCurrentlyActive
-        ? API_ENDPOINTS.SCHEMA.DEACTIVATE(schemaId, schemaVersion)
-        : API_ENDPOINTS.SCHEMA.REACTIVATE(schemaId, schemaVersion);
+        ? API_ENDPOINTS.SCHEMAS.DEACTIVATE(schemaId, schemaVersion)
+        : API_ENDPOINTS.SCHEMAS.REACTIVATE(schemaId, schemaVersion);
 
       const response = await authenticatedFetch(buildApiUrl(endpoint), {
         method: 'PATCH',
@@ -545,9 +664,12 @@ export default function SchemaPage() {
 
       // Show success message with transaction hash if available
       if (result.transaction_hash) {
-        alert(
-          `Schema ${action}d successfully!\nTransaction: ${result.transaction_hash.substring(0, 10)}...`
-        );
+        setInfoModalConfig({
+          title: 'Success',
+          message: `Schema ${action}d successfully!\nTransaction: ${result.transaction_hash.substring(0, 10)}...`,
+          buttonColor: 'green',
+        });
+        setShowInfoModal(true);
       }
     } catch (error) {
       console.error('Error toggling schema status:', error);
@@ -555,7 +677,12 @@ export default function SchemaPage() {
         error instanceof Error
           ? error.message
           : 'Failed to update schema status. Please try again.';
-      alert(errorMessage);
+      setInfoModalConfig({
+        title: 'Error',
+        message: errorMessage,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
 
       // Try to refresh the schema list to ensure correct state
       try {
@@ -577,11 +704,9 @@ export default function SchemaPage() {
     selectedIndices: number[],
     selectedIdValues?: (string | number)[]
   ) => {
-    // Use the ID values directly if provided, otherwise fall back to index mapping
     if (selectedIdValues && selectedIdValues.length > 0) {
       setSelectedSchemaKeys(new Set(selectedIdValues as string[]));
     } else {
-      // Fallback: Convert indices to schema uniqueKeys
       const selectedKeys = new Set(
         selectedIndices.map((index) => filteredSchemas[index]?.uniqueKey).filter(Boolean)
       );
@@ -589,9 +714,18 @@ export default function SchemaPage() {
     }
   };
 
+  const handleUnselectAll = () => {
+    setSelectedSchemaKeys(new Set());
+  };
+
   const handleBulkToggle = async (action: 'reactivate' | 'deactivate') => {
     if (selectedSchemaKeys.size === 0) {
-      alert('Please select at least one schema');
+      setInfoModalConfig({
+        title: 'Validation Error',
+        message: 'Please select at least one schema',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       return;
     }
 
@@ -599,16 +733,31 @@ export default function SchemaPage() {
     const selectedSchemas = schemas.filter((schema) => selectedSchemaKeys.has(schema.uniqueKey));
 
     const actionText = action === 'reactivate' ? 'reactivate' : 'deactivate';
-    const confirmed = window.confirm(
-      `Are you sure you want to ${actionText} ${selectedSchemas.length} schema(s)?`
-    );
+    setConfirmModalConfig({
+      title: `Confirm Bulk ${actionText.charAt(0).toUpperCase() + actionText.slice(1)}`,
+      message: `Are you sure you want to ${actionText} ${selectedSchemas.length} schema(s)?`,
+      onConfirm: () => executeBulkToggle(action),
+      confirmText: actionText.charAt(0).toUpperCase() + actionText.slice(1),
+      confirmButtonColor: action === 'reactivate' ? 'green' : 'red',
+    });
+    setShowConfirmModal(true);
+  };
 
-    if (!confirmed) {
-      return;
-    }
+  const executeBulkToggle = async (action: 'reactivate' | 'deactivate') => {
+    setShowConfirmModal(false);
+
+    // Get selected schemas from uniqueKeys
+    const selectedSchemas = schemas.filter((schema) => selectedSchemaKeys.has(schema.uniqueKey));
+
+    // Clear selection first before processing
+    setSelectedSchemaKeys(new Set());
 
     setIsBulkToggling(true);
     setBulkTogglingAction(action);
+
+    // Add all schemas to the toggling set immediately to show they're queued
+    const allSchemaKeys = selectedSchemas.map((s) => `${s.id}-${s.version}`);
+    setTogglingSchemas(new Set(allSchemaKeys));
 
     const results: {
       success: boolean;
@@ -618,10 +767,15 @@ export default function SchemaPage() {
       reason?: string;
     }[] = [];
 
-    // Process each schema
+    let remainingCount = selectedSchemas.length;
+
+    // Process each schema one by one
     for (const schema of selectedSchemas) {
       const schemaKey = `${schema.id}-${schema.version}`;
       const targetIsActive = action === 'reactivate';
+
+      // Update remaining count
+      setBulkRemainingCount(remainingCount);
 
       // Check if schema is already in the desired state
       if (schema.isActive === targetIsActive) {
@@ -631,18 +785,22 @@ export default function SchemaPage() {
           schema,
           reason: `Already ${targetIsActive ? 'active' : 'inactive'}`,
         });
+        remainingCount--;
+        // Remove from toggling set
+        setTogglingSchemas((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(schemaKey);
+          return newSet;
+        });
         continue;
       }
 
       try {
-        // Add to toggling set
-        setTogglingSchemas((prev) => new Set(prev).add(schemaKey));
-
         // Call the appropriate API endpoint
         const endpoint =
           action === 'deactivate'
-            ? API_ENDPOINTS.SCHEMA.DEACTIVATE(schema.id, schema.version)
-            : API_ENDPOINTS.SCHEMA.REACTIVATE(schema.id, schema.version);
+            ? API_ENDPOINTS.SCHEMAS.DEACTIVATE(schema.id, schema.version)
+            : API_ENDPOINTS.SCHEMAS.REACTIVATE(schema.id, schema.version);
 
         const response = await authenticatedFetch(buildApiUrl(endpoint), {
           method: 'PATCH',
@@ -654,6 +812,9 @@ export default function SchemaPage() {
         }
 
         results.push({ success: true, skipped: false, schema });
+
+        // Refresh schemas after each successful toggle to update status immediately
+        await refreshSchemas();
       } catch (error) {
         results.push({
           success: false,
@@ -662,6 +823,7 @@ export default function SchemaPage() {
           error: error instanceof Error ? error.message : 'Unknown error',
         });
       } finally {
+        remainingCount--;
         // Remove from toggling set
         setTogglingSchemas((prev) => {
           const newSet = new Set(prev);
@@ -670,12 +832,6 @@ export default function SchemaPage() {
         });
       }
     }
-
-    // Refresh schemas to get latest state
-    await refreshSchemas();
-
-    // Clear selection
-    setSelectedSchemaKeys(new Set());
 
     // Show results
     const successCount = results.filter((r) => r.success).length;
@@ -700,10 +856,16 @@ export default function SchemaPage() {
       resultMessage += `\n✗ Failed: ${failCount}\n\nFailed schemas:\n${failedSchemas}`;
     }
 
-    alert(resultMessage);
+    setInfoModalConfig({
+      title: 'Bulk Action Results',
+      message: resultMessage,
+      buttonColor: failCount > 0 ? 'yellow' : 'green',
+    });
+    setShowInfoModal(true);
 
     setIsBulkToggling(false);
     setBulkTogglingAction(null);
+    setBulkRemainingCount(0);
   };
 
   const handleNewSchema = () => {
@@ -756,23 +918,14 @@ export default function SchemaPage() {
         formData.append('schema[required]', JSON.stringify(payload.schema.required));
         formData.append('schema[properties]', JSON.stringify(payload.schema.properties));
         formData.append('issuer_did', issuerDid);
-        formData.append('image', data.image, data.image.name); // Add filename
-
-        console.log('Creating schema with image:', {
-          name: data.schemaName,
-          issuerDid: issuerDid,
-          imageSize: data.image.size,
-          imageType: data.image.type,
-          imageName: data.image.name,
-          schema: payload.schema,
-        });
+        formData.append('image', data.image, data.image.name);
 
         const token = localStorage.getItem('institutionToken');
         if (!token) {
           throw new Error('No authentication token found. Please log in.');
         }
 
-        response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), {
+        response = await fetch(buildApiUrl(API_ENDPOINTS.SCHEMAS.BASE), {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -781,9 +934,7 @@ export default function SchemaPage() {
           body: formData,
         });
       } else {
-        // Send JSON without image field
-        console.log('Creating schema without image:', payload);
-        response = await authenticatedPost(buildApiUrl(API_ENDPOINTS.SCHEMA.CREATE), payload);
+        response = await authenticatedPost(buildApiUrl(API_ENDPOINTS.SCHEMAS.BASE), payload);
       }
 
       if (!response.ok) {
@@ -799,9 +950,6 @@ export default function SchemaPage() {
         throw new Error(errorData.message || 'Failed to create schema');
       }
 
-      const result = await response.json();
-      console.log('Schema created successfully:', result);
-
       // Refresh the schemas list
       await refreshSchemas();
 
@@ -811,7 +959,12 @@ export default function SchemaPage() {
       console.error('Error creating schema:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to create schema. Please try again.';
-      alert(errorMessage);
+      setInfoModalConfig({
+        title: 'Error',
+        message: errorMessage,
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
       // Don't close modal on error, let user fix the issue
       throw error; // Re-throw to prevent the form from clearing
     }
@@ -845,6 +998,7 @@ export default function SchemaPage() {
     {
       id: 'status',
       label: 'STATUS',
+      sortKey: 'isActive',
       render: (row) => (
         <span
           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
@@ -856,10 +1010,40 @@ export default function SchemaPage() {
       ),
     },
     {
-      id: 'lastUpdated',
-      label: 'LAST UPDATED',
-      sortKey: 'lastUpdated',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{row.lastUpdated}</ThemedText>,
+      id: 'createdAt',
+      label: 'CREATED AT',
+      sortKey: 'createdAt',
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">
+          {new Date(row.createdAt).toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+          })}
+        </ThemedText>
+      ),
+    },
+    {
+      id: 'updatedAt',
+      label: 'UPDATED AT',
+      sortKey: 'updatedAt',
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">
+          {new Date(row.updatedAt).toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+          })}
+        </ThemedText>
+      ),
     },
     {
       id: 'action',
@@ -969,18 +1153,33 @@ export default function SchemaPage() {
             columns={columns}
             onFilter={handleFilter}
             filterButtonRef={filterButtonRef}
+            activeFilterCount={getActiveFilterCount()}
             searchPlaceholder="Search..."
             onSearch={handleSearch}
+            defaultSortColumn="createdAt"
+            defaultSortDirection="desc"
             topRightButtons={
-              <div className="flex items-center gap-3">
-                {/* Selection indicator */}
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                {/* Show bulk operation status indicator only when no schemas are selected */}
+                {isBulkToggling && selectedSchemaKeys.size === 0 && (
+                  <>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                      <span className="text-gray-700">
+                        {bulkTogglingAction === 'reactivate' ? 'Reactivating' : 'Deactivating'}{' '}
+                        {bulkRemainingCount} schema(s)...
+                      </span>
+                    </div>
+                    <div className="h-8 w-px bg-gray-300"></div>
+                  </>
+                )}
+
                 {selectedSchemaKeys.size > 0 && (
                   <ThemedText className="text-sm text-gray-700">
                     {selectedSchemaKeys.size} schema(s) selected
                   </ThemedText>
                 )}
 
-                {/* Bulk Action Buttons */}
                 {selectedSchemaKeys.size > 0 && (
                   <>
                     <button
@@ -991,7 +1190,7 @@ export default function SchemaPage() {
                       {isBulkToggling && bulkTogglingAction === 'reactivate' ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                          <span>Reactivating all...</span>
+                          <span>Reactivating {bulkRemainingCount} schema(s)...</span>
                         </>
                       ) : (
                         <>
@@ -1024,7 +1223,7 @@ export default function SchemaPage() {
                       {isBulkToggling && bulkTogglingAction === 'deactivate' ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                          <span>Deactivating all...</span>
+                          <span>Deactivating {bulkRemainingCount} schema(s)...</span>
                         </>
                       ) : (
                         <>
@@ -1046,12 +1245,32 @@ export default function SchemaPage() {
                       )}
                     </button>
 
-                    {/* Separator */}
+                    <div className="h-8 w-px bg-gray-300"></div>
+
+                    <button
+                      onClick={handleUnselectAll}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium cursor-pointer"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                      <span>Unselect All</span>
+                    </button>
+
                     <div className="h-8 w-px bg-gray-300"></div>
                   </>
                 )}
 
-                {/* New Schema Button */}
                 <button
                   onClick={handleNewSchema}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
@@ -1070,6 +1289,7 @@ export default function SchemaPage() {
             }
             enableSelection={true}
             onSelectionChange={handleSelectionChange}
+            selectedIds={selectedSchemaKeys}
             onRowClick={(row) => handleViewSchema(row.id, row.version)}
             totalCount={filteredSchemas.length}
             rowsPerPageOptions={[5, 10, 25, 50, 100]}
@@ -1082,13 +1302,13 @@ export default function SchemaPage() {
       {showFilterModal && (
         <div
           ref={filterModalRef}
-          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 p-6 w-80 z-30"
+          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 w-[640px] z-30 max-h-[85vh] overflow-hidden flex flex-col"
           style={{
             top: `${filterButtonPosition.top}px`,
             left: `${filterButtonPosition.left}px`,
           }}
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
               Filter Schemas
             </ThemedText>
@@ -1107,77 +1327,112 @@ export default function SchemaPage() {
             </button>
           </div>
 
-          {/* Status Filter */}
-          <div className="mb-4">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">Status</ThemedText>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
-            >
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto flex-1 px-6 py-4">
+            <div className="space-y-4">
+              {/* Status Filter */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                    Status
+                  </ThemedText>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) =>
+                      setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')
+                    }
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
+                  >
+                    <option value="all">All</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
 
-          {/* Attribute Count Filter */}
-          <div className="mb-4">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              Number of Attributes
-            </ThemedText>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                value={filterMinAttributes}
-                onChange={(e) => setFilterMinAttributes(e.target.value)}
-                placeholder="Min"
-                min="0"
-                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
-              />
-              <input
-                type="number"
-                value={filterMaxAttributes}
-                onChange={(e) => setFilterMaxAttributes(e.target.value)}
-                placeholder="Max"
-                min="0"
-                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
-              />
-            </div>
-          </div>
+              {/* Attribute Count Filter */}
+              <div>
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Number of Attributes
+                </ThemedText>
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="number"
+                    value={filterMinAttributes}
+                    onChange={(e) => setFilterMinAttributes(e.target.value)}
+                    placeholder="Min"
+                    min="0"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                  />
+                  <input
+                    type="number"
+                    value={filterMaxAttributes}
+                    onChange={(e) => setFilterMaxAttributes(e.target.value)}
+                    placeholder="Max"
+                    min="0"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                  />
+                </div>
+              </div>
 
-          {/* Expired In Filter */}
-          <div className="mb-4">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              Expired In (Years)
-            </ThemedText>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                value={filterMinExpiredIn}
-                onChange={(e) => setFilterMinExpiredIn(e.target.value)}
-                placeholder="Min"
-                min="0"
-                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
-              />
-              <input
-                type="number"
-                value={filterMaxExpiredIn}
-                onChange={(e) => setFilterMaxExpiredIn(e.target.value)}
-                placeholder="Max"
-                min="0"
-                className="w-1/2 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
-              />
+              {/* Expired In Filter */}
+              <div>
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Expired In (Years)
+                </ThemedText>
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="number"
+                    value={filterMinExpiredIn}
+                    onChange={(e) => setFilterMinExpiredIn(e.target.value)}
+                    placeholder="Min"
+                    min="0"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                  />
+                  <input
+                    type="number"
+                    value={filterMaxExpiredIn}
+                    onChange={(e) => setFilterMaxExpiredIn(e.target.value)}
+                    placeholder="Max"
+                    min="0"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                  />
+                </div>
+              </div>
+
+              {/* Created At Date Filter */}
+              <div>
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Created At
+                </ThemedText>
+                <div className="grid grid-cols-2 gap-4">
+                  <DateTimePicker value={filterCreatedAtStart} onChange={setFilterCreatedAtStart} />
+                  <DateTimePicker value={filterCreatedAtEnd} onChange={setFilterCreatedAtEnd} />
+                </div>
+              </div>
+
+              {/* Updated At Date Filter */}
+              <div>
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Updated At
+                </ThemedText>
+                <div className="grid grid-cols-2 gap-4">
+                  <DateTimePicker value={filterUpdatedAtStart} onChange={setFilterUpdatedAtStart} />
+                  <DateTimePicker value={filterUpdatedAtEnd} onChange={setFilterUpdatedAtEnd} />
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Clear Filters Button */}
-          <button
-            onClick={clearFilters}
-            className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium cursor-pointer"
-          >
-            Clear All Filters
-          </button>
+          <div className="px-6 py-4 border-t border-gray-200">
+            <button
+              onClick={clearFilters}
+              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium cursor-pointer"
+            >
+              Clear All Filters
+            </button>
+          </div>
         </div>
       )}
 
@@ -1241,7 +1496,8 @@ export default function SchemaPage() {
               version: selectedSchema.version.toString(),
               expiredIn: selectedSchema.expiredIn,
               isActive: selectedSchema.isActive ? 'Active' : 'Inactive',
-              lastUpdated: selectedSchema.lastUpdated,
+              createdAt: selectedSchema.createdAt,
+              updatedAt: selectedSchema.updatedAt,
               attributes: Object.entries(selectedSchema.schemaDetails.properties).map(
                 ([name, config], index) => ({
                   id: index + 1,
@@ -1256,6 +1512,26 @@ export default function SchemaPage() {
           />
         )}
       </Modal>
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonColor={infoModalConfig.buttonColor}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmModalConfig.onConfirm}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        confirmText={confirmModalConfig.confirmText}
+        confirmButtonColor={confirmModalConfig.confirmButtonColor}
+      />
     </InstitutionLayout>
   );
 }

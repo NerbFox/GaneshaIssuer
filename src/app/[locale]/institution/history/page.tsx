@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
+import Modal from '@/components/Modal';
+import ViewSchemaForm from '@/components/ViewSchemaForm';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { authenticatedGet } from '@/utils/api-client';
@@ -27,7 +29,24 @@ interface SchemaApiResponse {
     id: string;
     name: string;
     version: number;
+    schema: {
+      type: string;
+      required: string[];
+      properties: Record<string, { type: string; description: string }>;
+      expired_in: number;
+    };
+    isActive: boolean;
+    image_link: string | null;
+    createdAt: string;
+    updatedAt: string;
   };
+}
+
+interface SchemaAttribute {
+  name: string;
+  type: string;
+  required: boolean;
+  description?: string;
 }
 
 interface ApiResponse {
@@ -47,6 +66,8 @@ interface HistoryActivity {
   actionType: string;
   status: string;
   schemaName: string;
+  schemaId: string;
+  schemaVersion: number;
 }
 
 export default function HistoryPage() {
@@ -63,6 +84,19 @@ export default function HistoryPage() {
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showSchemaModal, setShowSchemaModal] = useState(false);
+  const [schemaData, setSchemaData] = useState<{
+    id: string;
+    name: string;
+    version: string;
+    status: string;
+    attributes: SchemaAttribute[];
+    image_link: string | null;
+    expired_in: number;
+    created_at?: string;
+    updated_at?: string;
+  } | null>(null);
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -94,7 +128,7 @@ export default function HistoryPage() {
           throw new Error('Institution DID not found. Please log in again.');
         }
 
-        const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIAL.ISSUER_HISTORY, {
+        const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.ISSUER_HISTORY, {
           issuer_did: issuerDid,
         });
 
@@ -159,7 +193,9 @@ export default function HistoryPage() {
             const parsedBody = await parseEncryptedBody(request?.encrypted_body || '');
             const schemaVersion = parsedBody?.schema_version || 1;
 
-            const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMA.DETAIL(schemaId, schemaVersion));
+            const schemaUrl = buildApiUrl(
+              API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion)
+            );
             const schemaResponse = await authenticatedGet(schemaUrl);
             if (schemaResponse.ok) {
               const schemaData: SchemaApiResponse = await schemaResponse.json();
@@ -176,7 +212,14 @@ export default function HistoryPage() {
           requestsData.map(async (request) => {
             const parsedBody = await parseEncryptedBody(request.encrypted_body);
             const schemaId = parsedBody?.schema_id || '';
-            const schemaName = schemaNameMap.get(schemaId) || 'Unknown Schema';
+            const schemaVersion = parsedBody?.schema_version || 1;
+            const baseSchemaName = schemaNameMap.get(schemaId) || 'Unknown Schema';
+
+            // Add version suffix to schema name if it's not unknown
+            const schemaName =
+              baseSchemaName === 'Unknown Schema'
+                ? baseSchemaName
+                : `${baseSchemaName} v${schemaVersion}`;
 
             return {
               id: request.id,
@@ -186,6 +229,8 @@ export default function HistoryPage() {
               actionType: request.status,
               status: request.status,
               schemaName: schemaName,
+              schemaId: schemaId,
+              schemaVersion: schemaVersion,
             };
           })
         );
@@ -341,6 +386,66 @@ export default function HistoryPage() {
     return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
   };
 
+  const handleCopyDid = async (did: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(did);
+      setCopiedId(id);
+      // Reset after 2 seconds
+      setTimeout(() => {
+        setCopiedId(null);
+      }, 2000);
+      console.log('DID copied to clipboard:', did);
+    } catch (err) {
+      console.error('Failed to copy DID:', err);
+    }
+  };
+
+  const handleViewSchema = async (schemaId: string, schemaVersion: number) => {
+    try {
+      const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion));
+      const schemaResponse = await authenticatedGet(schemaUrl);
+
+      if (schemaResponse.ok) {
+        const schemaApiData: SchemaApiResponse = await schemaResponse.json();
+
+        if (schemaApiData.success && schemaApiData.data) {
+          const { id, name, schema, version, isActive, createdAt, updatedAt } = schemaApiData.data;
+
+          // Transform schema properties into attributes array
+          const attributes: SchemaAttribute[] = Object.entries(schema.properties).map(
+            ([key, prop]) => ({
+              name: key,
+              type: prop.type,
+              required: schema.required.includes(key),
+              description: prop.description,
+            })
+          );
+
+          setSchemaData({
+            id: id,
+            name: name,
+            version: version.toString(),
+            status: isActive ? 'Active' : 'Inactive',
+            attributes: attributes,
+            image_link: schemaApiData.data.image_link,
+            expired_in: schema.expired_in,
+            created_at: createdAt,
+            updated_at: updatedAt,
+          });
+
+          setShowSchemaModal(true);
+        } else {
+          throw new Error('Invalid schema response');
+        }
+      } else {
+        throw new Error('Failed to fetch schema details');
+      }
+    } catch (err) {
+      console.error('Error fetching schema details:', err);
+      alert('Failed to load schema details');
+    }
+  };
+
   const columns: Column<HistoryActivity>[] = [
     {
       id: 'date',
@@ -355,14 +460,77 @@ export default function HistoryPage() {
       label: 'HOLDER DID',
       sortKey: 'holderDid',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{truncateDid(row.holderDid)}</ThemedText>
+        <div className="flex items-center gap-2">
+          <ThemedText className="text-sm text-gray-900">{truncateDid(row.holderDid)}</ThemedText>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCopyDid(row.holderDid, row.id);
+            }}
+            className={`relative transition-all duration-200 cursor-pointer ${
+              copiedId === row.id
+                ? 'text-green-500 scale-110'
+                : 'text-blue-500 hover:text-blue-600 hover:scale-110'
+            }`}
+            title={copiedId === row.id ? 'Copied!' : 'Copy to clipboard'}
+          >
+            {copiedId === row.id ? (
+              <svg
+                className="w-4 h-4 animate-[scale-in_0.3s_cubic-bezier(0.68,-0.55,0.265,1.55)]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="w-4 h-4 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+              </svg>
+            )}
+          </button>
+        </div>
       ),
     },
     {
       id: 'schemaName',
       label: 'SCHEMA NAME',
       sortKey: 'schemaName',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{row.schemaName}</ThemedText>,
+      render: (row) => {
+        const isUnknown = row.schemaName === 'Unknown Schema';
+
+        // If unknown schema, just show text without button
+        if (isUnknown || !row.schemaId) {
+          return <ThemedText className="text-sm text-red-600">{row.schemaName}</ThemedText>;
+        }
+
+        return (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewSchema(row.schemaId, row.schemaVersion);
+            }}
+            className="text-sm text-blue-600 hover:text-blue-800 hover:underline text-left cursor-pointer"
+          >
+            {row.schemaName}
+          </button>
+        );
+      },
     },
     {
       id: 'requestType',
@@ -532,6 +700,42 @@ export default function HistoryPage() {
           </div>
         </div>
       )}
+
+      {/* View Schema Modal */}
+      <Modal
+        isOpen={showSchemaModal}
+        onClose={() => {
+          setShowSchemaModal(false);
+          setSchemaData(null);
+        }}
+        title="View Schema"
+      >
+        {schemaData && (
+          <ViewSchemaForm
+            onClose={() => {
+              setShowSchemaModal(false);
+              setSchemaData(null);
+            }}
+            schemaData={{
+              id: schemaData.id,
+              schemaName: schemaData.name,
+              version: schemaData.version,
+              expiredIn: schemaData.expired_in,
+              isActive: schemaData.status,
+              createdAt: schemaData.created_at,
+              updatedAt: schemaData.updated_at || new Date().toISOString(),
+              attributes: schemaData.attributes.map((attr, index) => ({
+                id: index + 1,
+                name: attr.name,
+                type: attr.type,
+                description: attr.description || '',
+                required: attr.required,
+              })),
+              imageUrl: schemaData.image_link || undefined,
+            }}
+          />
+        )}
+      </Modal>
     </InstitutionLayout>
   );
 }

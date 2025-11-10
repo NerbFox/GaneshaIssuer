@@ -44,7 +44,7 @@ export default function InstitutionLoginPage() {
       const wallet = await generateWalletFromMnemonic(words, 'i', '', 0);
 
       // Fetch DID document from API (URL encode the DID)
-      const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DID.DOCUMENT(wallet.did));
+      const didDocumentUrl = buildApiUrl(API_ENDPOINTS.DIDS.DOCUMENT(wallet.did));
       const didResponse = await fetch(didDocumentUrl, {
         method: 'GET',
         headers: {
