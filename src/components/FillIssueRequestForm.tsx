@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ThemedText } from './ThemedText';
 import { DataTable, Column } from './DataTable';
 import { DateTimePicker } from './DateTimePicker';
 import DatePicker from './DatePicker';
 import TimePicker from './TimePicker';
+import CredentialPreview from './CredentialPreview';
+import { AttributePositionData, QRCodePosition } from './AttributePositionEditor';
 
 interface AttributeData {
   id: number;
@@ -27,6 +29,8 @@ interface FillIssueRequestFormProps {
   holderDid?: string;
   requestType?: string; // ISSUANCE, RENEWAL, UPDATE, REVOKE
   initialAttributes?: AttributeData[];
+  attributePositions?: AttributePositionData;
+  qrCodePosition?: QRCodePosition;
   onSubmit: (data: IssueRequestFormData) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
@@ -38,9 +42,7 @@ export interface IssueRequestFormData {
   version: string;
   status: string;
   attributes: AttributeData[];
-  expiredIn?: number;
-  createdAt?: string;
-  updatedAt?: string;
+  pdfBlob?: Blob; // PDF blob for upload
 }
 
 export default function FillIssueRequestForm({
@@ -60,6 +62,8 @@ export default function FillIssueRequestForm({
     { id: 3, name: 'Tempat Lahir', type: 'text', value: '', required: false },
     { id: 4, name: 'Foto', type: 'image', value: '', required: false },
   ],
+  attributePositions,
+  qrCodePosition,
   onSubmit,
   onCancel,
   isSubmitting = false,
@@ -67,6 +71,7 @@ export default function FillIssueRequestForm({
   const [attributes, setAttributes] = useState<AttributeData[]>(initialAttributes);
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<Record<number, File>>({});
+  const previewRef = useRef<HTMLDivElement>(null);
 
   // Store original attributes to detect changes (for UPDATE requests)
   const [originalAttributes] = useState<AttributeData[]>(initialAttributes);
@@ -122,14 +127,107 @@ export default function FillIssueRequestForm({
     }
   };
 
-  const handleSubmit = () => {
-    onSubmit({
-      schemaId,
-      schemaName,
-      version,
-      status,
-      attributes,
-    });
+  const handleSubmit = async () => {
+    try {
+      // Generate PDF with QR placeholder (no QR example)
+      const pdfBlob = await generatePDFBlob();
+
+      if (!pdfBlob) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      // Pass the PDF blob to the parent component
+      onSubmit({
+        schemaId,
+        schemaName,
+        version,
+        status,
+        attributes,
+        pdfBlob, // Include the PDF blob
+      });
+    } catch {
+      alert('Failed to prepare credential. Please try again.');
+    }
+  };
+
+  // Generate PDF Blob (without QR example, just placeholder)
+  const generatePDFBlob = async (): Promise<Blob | null> => {
+    try {
+      // Dynamically import jsPDF and html2canvas
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas'),
+      ]);
+
+      if (!previewRef.current) {
+        return null;
+      }
+
+      // Find the credential container inside the preview
+      const credentialElement = previewRef.current.querySelector(
+        '.credential-container'
+      ) as HTMLElement;
+
+      if (!credentialElement) {
+        return null;
+      }
+
+      // Temporarily hide QR code example for PDF generation
+      // We need to create a clone and modify it
+      const clone = credentialElement.cloneNode(true) as HTMLElement;
+
+      // Find and replace QR code with white placeholder in the clone
+      const qrElements = clone.querySelectorAll('svg');
+      qrElements.forEach((svg) => {
+        // Check if this is the QR code SVG (it has the black rectangles)
+        const hasBlackRects = svg.querySelector('rect[fill="black"]');
+        if (hasBlackRects) {
+          // Replace with white div
+          const whiteDiv = document.createElement('div');
+          whiteDiv.style.width = '100%';
+          whiteDiv.style.height = '100%';
+          whiteDiv.style.backgroundColor = 'white';
+          svg.parentElement?.replaceChild(whiteDiv, svg);
+        }
+      });
+
+      // Temporarily add clone to DOM for html2canvas
+      clone.style.position = 'absolute';
+      clone.style.left = '-9999px';
+      document.body.appendChild(clone);
+
+      // Capture the clone as canvas
+      const canvas = await html2canvas(clone, {
+        scale: 2, // Higher quality
+        useCORS: true, // Allow cross-origin images
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false,
+      });
+
+      // Remove the clone
+      document.body.removeChild(clone);
+
+      // Get canvas dimensions
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+
+      // Create PDF with same aspect ratio as canvas
+      const pdf = new jsPDF({
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth, imgHeight],
+      });
+
+      // Convert canvas to image and add to PDF
+      const imgData = canvas.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+
+      // Return PDF as Blob
+      return pdf.output('blob');
+    } catch {
+      return null;
+    }
   };
 
   // Check if all required fields are filled
@@ -535,21 +633,40 @@ export default function FillIssueRequestForm({
         </div>
       </div>
 
-      {/* VC Background Image */}
+      {/* Credential Preview Section */}
       {imageUrl && (
-        <div className="mb-6">
-          <label className="block mb-3">
-            <ThemedText className="text-sm font-semibold text-gray-900">
-              VC Background Image
-            </ThemedText>
-          </label>
-          <div className="relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl}
-              alt="VC Background"
-              className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 shadow-md block bg-gray-50"
-            />
+        <div className="mb-6 p-4 bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 rounded-lg">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <ThemedText className="text-sm font-semibold text-gray-900 block mb-1">
+                Credential Preview
+              </ThemedText>
+              <ThemedText className="text-xs text-gray-600 block">
+                Preview how the credential will look with the filled attribute values.
+              </ThemedText>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+            <div ref={previewRef}>
+              <CredentialPreview
+                imageUrl={imageUrl}
+                positions={attributePositions || {}}
+                qrPosition={qrCodePosition}
+                showTitle={false}
+                showQRCode={true}
+                sampleData={attributes.reduce(
+                  (acc, attr) => {
+                    // Only use actual value if it exists and is not empty
+                    const displayValue =
+                      attr.value && String(attr.value).trim() !== '' ? String(attr.value) : '';
+                    acc[attr.name] = displayValue;
+                    return acc;
+                  },
+                  {} as Record<string, string>
+                )}
+              />
+            </div>
           </div>
         </div>
       )}

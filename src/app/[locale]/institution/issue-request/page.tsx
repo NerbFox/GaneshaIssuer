@@ -8,6 +8,7 @@ import { DataTable, Column } from '@/components/DataTable';
 import Modal from '@/components/Modal';
 import FillIssueRequestForm, { IssueRequestFormData } from '@/components/FillIssueRequestForm';
 import ViewSchemaForm from '@/components/ViewSchemaForm';
+import { AttributePositionData, QRCodePosition } from '@/components/AttributePositionEditor';
 import { DateTimePicker } from '@/components/DateTimePicker';
 import InfoModal from '@/components/InfoModal';
 import ConfirmationModal from '@/components/ConfirmationModal';
@@ -51,6 +52,8 @@ interface SchemaDefinition {
   required: string[];
   properties: Record<string, SchemaProperty>;
   expired_in: number;
+  attribute_positions?: AttributePositionData;
+  qr_code_position?: QRCodePosition;
 }
 
 interface SchemaApiResponse {
@@ -85,6 +88,8 @@ interface Schema {
   expired_in: number;
   created_at?: string;
   updated_at?: string;
+  attribute_positions?: AttributePositionData;
+  qr_code_position?: QRCodePosition;
 }
 
 interface RejectRequestBody extends Record<string, unknown> {
@@ -646,6 +651,8 @@ export default function IssueRequestPage() {
             expired_in: schema.expired_in,
             created_at: createdAt,
             updated_at: updatedAt,
+            attribute_positions: schema.attribute_positions,
+            qr_code_position: schema.qr_code_position,
           });
 
           setShowSchemaModal(true);
@@ -820,6 +827,8 @@ export default function IssueRequestPage() {
               expired_in: schema.expired_in,
               created_at: createdAt,
               updated_at: updatedAt,
+              attribute_positions: schema.attribute_positions,
+              qr_code_position: schema.qr_code_position,
             });
 
             // Extract current attribute values from decrypted body
@@ -875,6 +884,55 @@ export default function IssueRequestPage() {
 
     try {
       setIsSubmittingCredential(true);
+
+      // Upload PDF if exists
+      let fileId: string | null = null;
+      let fileUrl: string | null = null;
+
+      if (data.pdfBlob) {
+        try {
+          const formData = new FormData();
+          formData.append('file', data.pdfBlob, `credential_${Date.now()}.pdf`);
+
+          const uploadUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.UPLOAD_FILE);
+
+          // Get authentication token
+          const token = localStorage.getItem('institutionToken');
+          if (!token) {
+            throw new Error('No authentication token found');
+          }
+
+          // Upload file using fetch with multipart/form-data
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              // Don't set Content-Type header - browser will set it with boundary
+            },
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            const uploadError = await uploadResponse.json();
+            throw new Error(
+              `Failed to upload PDF: ${uploadError.message || uploadResponse.statusText}`
+            );
+          }
+
+          const uploadResult = await uploadResponse.json();
+
+          if (uploadResult.success && uploadResult.data) {
+            fileId = uploadResult.data.file_id;
+            fileUrl = uploadResult.data.file_url;
+          } else {
+            throw new Error('Invalid upload response format');
+          }
+        } catch (uploadError) {
+          throw new Error(
+            `Failed to upload PDF: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`
+          );
+        }
+      }
 
       const requestType = selectedRequest.type;
       console.log('Processing request type:', requestType);
@@ -1043,6 +1101,8 @@ export default function IssueRequestPage() {
         issuerName: issuerName,
         holderDid: selectedRequest.holder_did,
         credentialData: credentialData,
+        fileId: fileId,
+        fileUrl: fileUrl,
       });
 
       console.log('Created VC (unsigned):', vc);
@@ -1850,6 +1910,8 @@ export default function IssueRequestPage() {
               value: requestAttributes[attr.name] || '',
               required: attr.required,
             }))}
+            attributePositions={schemaData.attribute_positions}
+            qrCodePosition={schemaData.qr_code_position}
             onSubmit={handleIssueCredential}
             onCancel={() => {
               setShowReviewModal(false);
@@ -2100,6 +2162,8 @@ export default function IssueRequestPage() {
                 required: attr.required,
               })),
               imageUrl: schemaData.image_link || undefined,
+              attributePositions: schemaData.attribute_positions,
+              qrCodePosition: schemaData.qr_code_position,
             }}
           />
         )}
