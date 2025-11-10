@@ -1135,7 +1135,10 @@ export default function IssueRequestPage() {
         <div className="flex items-center gap-2">
           <ThemedText className="text-sm text-gray-900">{truncateDid(row.holder_did)}</ThemedText>
           <button
-            onClick={() => handleCopyDid(row.holder_did, row.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCopyDid(row.holder_did, row.id);
+            }}
             className={`relative transition-all duration-200 cursor-pointer ${
               copiedId === row.id
                 ? 'text-green-500 scale-110'
