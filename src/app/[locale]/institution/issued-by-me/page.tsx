@@ -168,6 +168,176 @@ export default function IssuedByMePage() {
 
   const activeCount = credentials.filter((c) => c.status === 'APPROVED').length;
 
+  // Fetch credentials from API
+  const fetchCredentials = async () => {
+    if (!isAuthenticated) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const institutionDID = localStorage.getItem('institutionDID');
+      if (!institutionDID) {
+        throw new Error('Institution DID not found. Please log in again.');
+      }
+
+      // Fetch credentials
+      const credentialsUrl = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.REQUESTS, {
+        type: 'ISSUANCE',
+        issuer_did: institutionDID,
+      });
+
+      const credentialsResponse = await authenticatedGet(credentialsUrl);
+
+      if (!credentialsResponse.ok) {
+        throw new Error('Failed to fetch credentials');
+      }
+
+      const credentialsResult: ApiCredentialResponse = await credentialsResponse.json();
+
+      // Fetch schemas to get schema names
+      const schemasUrl = buildApiUrlWithParams(API_ENDPOINTS.SCHEMAS.BASE, {
+        issuerDid: institutionDID,
+      });
+
+      const schemasResponse = await authenticatedGet(schemasUrl);
+
+      if (!schemasResponse.ok) {
+        throw new Error('Failed to fetch schemas');
+      }
+
+      const schemasResult: SchemaResponse = await schemasResponse.json();
+
+      // Create a map of schema_id to schema name
+      const schemaMap = new Map<string, { name: string; expiredIn: number }>();
+      schemasResult.data.data.forEach((schema) => {
+        schemaMap.set(schema.id, {
+          name: schema.name,
+          expiredIn: schema.schema.expired_in || 5,
+        });
+      });
+
+      // Transform schemas for the form
+      const transformedSchemas = schemasResult.data.data.map((schema) => ({
+        id: schema.id,
+        name: schema.name,
+        version: schema.version,
+        isActive: schema.isActive,
+        expiredIn: schema.schema.expired_in || 0,
+        imageUrl: schema.image_link || undefined,
+        createdAt: schema.createdAt,
+        updatedAt: schema.updatedAt,
+        attributes: Object.entries(schema.schema.properties).map(([key, prop]) => ({
+          name: key,
+          type: prop.type,
+          required: schema.schema.required.includes(key),
+          description: prop.description,
+        })),
+      }));
+      setSchemas(transformedSchemas);
+
+      // Parse and cache all encrypted bodies (store full decrypted data)
+      const parsedBodiesMap = new Map<
+        string,
+        { schema_id: string; schema_version: number } | null
+      >();
+      const decryptedBodiesMap = new Map<string, Record<string, unknown>>();
+
+      const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
+      for (const credential of credentialsResult.data.data) {
+        if (privateKeyHex) {
+          try {
+            const decryptedBody = await decryptWithPrivateKey(
+              credential.encrypted_body,
+              privateKeyHex
+            );
+            // Store schema info for quick access
+            parsedBodiesMap.set(credential.encrypted_body, {
+              schema_id: String(decryptedBody.schema_id || ''),
+              schema_version: Number(decryptedBody.schema_version || 1),
+            });
+            // Store full decrypted body for forms
+            decryptedBodiesMap.set(
+              credential.encrypted_body,
+              decryptedBody as Record<string, unknown>
+            );
+          } catch {
+            // Silently handle decryption error
+            parsedBodiesMap.set(credential.encrypted_body, null);
+          }
+        } else {
+          parsedBodiesMap.set(credential.encrypted_body, null);
+        }
+      }
+
+      // Transform API data to match IssuedCredential interface
+      const transformedCredentials: IssuedCredential[] = credentialsResult.data.data
+        .filter((credential) => credential.status !== 'PENDING' && credential.status !== 'REJECTED') // Filter out PENDING and REJECTED requests
+        .map((credential) => {
+          // Get parsed body from cache
+          const parsedBody = parsedBodiesMap.get(credential.encrypted_body);
+          const schemaId = parsedBody?.schema_id || '';
+          const schemaVersion = parsedBody?.schema_version || 1;
+
+          // Get decrypted body from cache
+          const encryptedBody = decryptedBodiesMap.get(credential.encrypted_body);
+
+          // Get schema name from the map
+          const schemaInfo = schemaMap.get(schemaId);
+          const schemaName = schemaInfo?.name || 'Unknown Schema';
+          const expiredIn = schemaInfo?.expiredIn || 5;
+          const isUnknownSchema = !schemaInfo || !schemaId;
+
+          // Calculate active until date (only if schema is known)
+          let activeUntil: string;
+          let credentialStatus = credential.status;
+
+          if (isUnknownSchema) {
+            // For unknown schemas, set active until to '-'
+            activeUntil = '-';
+          } else {
+            const activeUntilDate = new Date(credential.createdAt);
+            activeUntilDate.setFullYear(activeUntilDate.getFullYear() + expiredIn);
+
+            // Check if credential is expired based on Active Until date
+            const now = new Date();
+            if (credential.status === 'APPROVED' && activeUntilDate < now) {
+              credentialStatus = 'EXPIRED';
+            }
+
+            activeUntil = activeUntilDate.toISOString();
+          }
+
+          return {
+            id: credential.id,
+            holderDid: credential.holder_did,
+            // Don't add version suffix for unknown schemas
+            schemaName: isUnknownSchema
+              ? schemaName
+              : schemaVersion > 0
+                ? `${schemaName} v${schemaVersion}`
+                : schemaName,
+            status: credentialStatus,
+            lastUpdated: credential.updatedAt,
+            activeUntil: activeUntil,
+            schemaId: schemaId,
+            schemaVersion: schemaVersion,
+            encryptedBody: encryptedBody,
+            createdAt: credential.createdAt,
+          };
+        });
+
+      setCredentials(transformedCredentials);
+      setFilteredCredentials(transformedCredentials);
+    } catch (err) {
+      console.error('Error fetching credentials:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      // Keep empty array on error
+      setCredentials([]);
+      setFilteredCredentials([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Check authentication with JWT verification on component mount
   useEffect(() => {
     const checkAuth = async () => {
@@ -180,181 +350,9 @@ export default function IssuedByMePage() {
     checkAuth();
   }, [router]);
 
-  // Fetch credentials from API
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const fetchCredentials = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const institutionDID = localStorage.getItem('institutionDID');
-        if (!institutionDID) {
-          throw new Error('Institution DID not found. Please log in again.');
-        }
-
-        // Fetch credentials
-        const credentialsUrl = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.REQUESTS, {
-          type: 'ISSUANCE',
-          issuer_did: institutionDID,
-        });
-
-        const credentialsResponse = await authenticatedGet(credentialsUrl);
-
-        if (!credentialsResponse.ok) {
-          throw new Error('Failed to fetch credentials');
-        }
-
-        const credentialsResult: ApiCredentialResponse = await credentialsResponse.json();
-
-        // Fetch schemas to get schema names
-        const schemasUrl = buildApiUrlWithParams(API_ENDPOINTS.SCHEMAS.BASE, {
-          issuerDid: institutionDID,
-        });
-
-        const schemasResponse = await authenticatedGet(schemasUrl);
-
-        if (!schemasResponse.ok) {
-          throw new Error('Failed to fetch schemas');
-        }
-
-        const schemasResult: SchemaResponse = await schemasResponse.json();
-
-        // Create a map of schema_id to schema name
-        const schemaMap = new Map<string, { name: string; expiredIn: number }>();
-        schemasResult.data.data.forEach((schema) => {
-          schemaMap.set(schema.id, {
-            name: schema.name,
-            expiredIn: schema.schema.expired_in || 5,
-          });
-        });
-
-        // Transform schemas for the form
-        const transformedSchemas = schemasResult.data.data.map((schema) => ({
-          id: schema.id,
-          name: schema.name,
-          version: schema.version,
-          isActive: schema.isActive,
-          expiredIn: schema.schema.expired_in || 0,
-          imageUrl: schema.image_link || undefined,
-          createdAt: schema.createdAt,
-          updatedAt: schema.updatedAt,
-          attributes: Object.entries(schema.schema.properties).map(([key, prop]) => ({
-            name: key,
-            type: prop.type,
-            required: schema.schema.required.includes(key),
-            description: prop.description,
-          })),
-        }));
-        setSchemas(transformedSchemas);
-
-        // Parse and cache all encrypted bodies (store full decrypted data)
-        const parsedBodiesMap = new Map<
-          string,
-          { schema_id: string; schema_version: number } | null
-        >();
-        const decryptedBodiesMap = new Map<string, Record<string, unknown>>();
-
-        const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
-        for (const credential of credentialsResult.data.data) {
-          if (privateKeyHex) {
-            try {
-              const decryptedBody = await decryptWithPrivateKey(
-                credential.encrypted_body,
-                privateKeyHex
-              );
-              // Store schema info for quick access
-              parsedBodiesMap.set(credential.encrypted_body, {
-                schema_id: String(decryptedBody.schema_id || ''),
-                schema_version: Number(decryptedBody.schema_version || 1),
-              });
-              // Store full decrypted body for forms
-              decryptedBodiesMap.set(
-                credential.encrypted_body,
-                decryptedBody as Record<string, unknown>
-              );
-            } catch {
-              // Silently handle decryption error
-              parsedBodiesMap.set(credential.encrypted_body, null);
-            }
-          } else {
-            parsedBodiesMap.set(credential.encrypted_body, null);
-          }
-        }
-
-        // Transform API data to match IssuedCredential interface
-        const transformedCredentials: IssuedCredential[] = credentialsResult.data.data
-          .filter(
-            (credential) => credential.status !== 'PENDING' && credential.status !== 'REJECTED'
-          ) // Filter out PENDING and REJECTED requests
-          .map((credential) => {
-            // Get parsed body from cache
-            const parsedBody = parsedBodiesMap.get(credential.encrypted_body);
-            const schemaId = parsedBody?.schema_id || '';
-            const schemaVersion = parsedBody?.schema_version || 1;
-
-            // Get decrypted body from cache
-            const encryptedBody = decryptedBodiesMap.get(credential.encrypted_body);
-
-            // Get schema name from the map
-            const schemaInfo = schemaMap.get(schemaId);
-            const schemaName = schemaInfo?.name || 'Unknown Schema';
-            const expiredIn = schemaInfo?.expiredIn || 5;
-            const isUnknownSchema = !schemaInfo || !schemaId;
-
-            // Calculate active until date (only if schema is known)
-            let activeUntil: string;
-            let credentialStatus = credential.status;
-
-            if (isUnknownSchema) {
-              // For unknown schemas, set active until to '-'
-              activeUntil = '-';
-            } else {
-              const activeUntilDate = new Date(credential.createdAt);
-              activeUntilDate.setFullYear(activeUntilDate.getFullYear() + expiredIn);
-
-              // Check if credential is expired based on Active Until date
-              const now = new Date();
-              if (credential.status === 'APPROVED' && activeUntilDate < now) {
-                credentialStatus = 'EXPIRED';
-              }
-
-              activeUntil = activeUntilDate.toISOString();
-            }
-
-            return {
-              id: credential.id,
-              holderDid: credential.holder_did,
-              // Don't add version suffix for unknown schemas
-              schemaName: isUnknownSchema
-                ? schemaName
-                : schemaVersion > 0
-                  ? `${schemaName} v${schemaVersion}`
-                  : schemaName,
-              status: credentialStatus,
-              lastUpdated: credential.updatedAt,
-              activeUntil: activeUntil,
-              schemaId: schemaId,
-              schemaVersion: schemaVersion,
-              encryptedBody: encryptedBody,
-              createdAt: credential.createdAt,
-            };
-          });
-
-        setCredentials(transformedCredentials);
-        setFilteredCredentials(transformedCredentials);
-      } catch (err) {
-        console.error('Error fetching credentials:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        // Keep empty array on error
-        setCredentials([]);
-        setFilteredCredentials([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchCredentials();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   // Close filter modal when clicking outside
@@ -1103,20 +1101,53 @@ export default function IssuedByMePage() {
             onFilter={handleFilter}
             searchPlaceholder="Search..."
             onSearch={handleSearch}
-            topRightButton={{
-              label: 'New Credential',
-              onClick: handleNewCredential,
-              icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-              ),
-            }}
+            topRightButtons={
+              <div className="flex items-center gap-3 justify-end">
+                <button
+                  onClick={fetchCredentials}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                      </svg>
+                      Refresh
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleNewCredential}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  New Credential
+                </button>
+              </div>
+            }
             enableSelection={true}
             totalCount={filteredCredentials.length}
             rowsPerPageOptions={[5, 10, 25, 50, 100]}

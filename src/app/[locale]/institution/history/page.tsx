@@ -103,6 +103,133 @@ export default function HistoryPage() {
   const totalActivities = activities.length;
   const approvedCount = activities.filter((a) => a.actionType === 'APPROVED').length;
 
+  // Fetch history from issuer-history API endpoint
+  const fetchHistory = async () => {
+    if (!isAuthenticated) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const issuerDid = localStorage.getItem('institutionDID');
+      if (!issuerDid) {
+        throw new Error('Institution DID not found. Please log in again.');
+      }
+
+      const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.ISSUER_HISTORY, {
+        issuer_did: issuerDid,
+      });
+
+      const response = await authenticatedGet(url);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch history');
+      }
+
+      const apiResponse: ApiResponse = await response.json();
+
+      // Extract the requests array
+      const requestsData = apiResponse.data.requests;
+
+      // Helper function to parse encrypted_body - attempts decryption with private key
+      const parseEncryptedBody = async (
+        encryptedBody: string
+      ): Promise<{ schema_id: string; schema_version: number } | null> => {
+        // Only decrypt if we have a private key available
+        if (typeof window !== 'undefined') {
+          const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
+          if (privateKeyHex) {
+            try {
+              const decryptedBody = await decryptWithPrivateKey(encryptedBody, privateKeyHex);
+              return {
+                schema_id: String(decryptedBody.schema_id || ''),
+                schema_version: Number(decryptedBody.schema_version || 1),
+              };
+            } catch {
+              // Silently handle decryption error - do nothing
+            }
+          }
+        }
+
+        // If no private key available or not in browser, silently return null
+        return null;
+      };
+
+      // Extract unique schema IDs for batch fetching
+      const schemaIds = new Set<string>();
+      for (const request of requestsData) {
+        const parsedBody = await parseEncryptedBody(request.encrypted_body);
+        if (parsedBody?.schema_id) {
+          schemaIds.add(parsedBody.schema_id);
+        }
+      }
+
+      // Fetch all schemas in parallel
+      const schemaNameMap = new Map<string, string>();
+      const schemaFetchPromises = Array.from(schemaIds).map(async (schemaId) => {
+        try {
+          // Get schema version from encrypted_body or default to version 1
+          const request = await Promise.all(
+            requestsData.map(async (r) => {
+              const parsed = await parseEncryptedBody(r.encrypted_body);
+              return parsed?.schema_id === schemaId ? r : null;
+            })
+          ).then((results) => results.find((r) => r !== null));
+
+          const parsedBody = await parseEncryptedBody(request?.encrypted_body || '');
+          const schemaVersion = parsedBody?.schema_version || 1;
+
+          const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion));
+          const schemaResponse = await authenticatedGet(schemaUrl);
+          if (schemaResponse.ok) {
+            const schemaData: SchemaApiResponse = await schemaResponse.json();
+            schemaNameMap.set(schemaId, schemaData.data.name);
+          }
+        } catch (err) {
+          console.error(`Error fetching schema ${schemaId}:`, err);
+        }
+      });
+      await Promise.all(schemaFetchPromises);
+
+      // Transform to HistoryActivity format
+      const transformedActivities: HistoryActivity[] = await Promise.all(
+        requestsData.map(async (request) => {
+          const parsedBody = await parseEncryptedBody(request.encrypted_body);
+          const schemaId = parsedBody?.schema_id || '';
+          const schemaVersion = parsedBody?.schema_version || 1;
+          const baseSchemaName = schemaNameMap.get(schemaId) || 'Unknown Schema';
+
+          // Add version suffix to schema name if it's not unknown
+          const schemaName =
+            baseSchemaName === 'Unknown Schema'
+              ? baseSchemaName
+              : `${baseSchemaName} v${schemaVersion}`;
+
+          return {
+            id: request.id,
+            date: request.createdAt,
+            holderDid: request.holder_did,
+            requestType: request.request_type,
+            actionType: request.status,
+            status: request.status,
+            schemaName: schemaName,
+            schemaId: schemaId,
+            schemaVersion: schemaVersion,
+          };
+        })
+      );
+
+      console.log('Fetched history:', transformedActivities);
+      setActivities(transformedActivities);
+      setFilteredActivities(transformedActivities);
+    } catch (err) {
+      console.error('Error fetching history:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      setActivities([]);
+      setFilteredActivities([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Check authentication with JWT verification on component mount
   useEffect(() => {
     const checkAuth = async () => {
@@ -115,138 +242,9 @@ export default function HistoryPage() {
     checkAuth();
   }, [router]);
 
-  // Fetch history from issuer-history API endpoint
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const fetchHistory = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const issuerDid = localStorage.getItem('institutionDID');
-        if (!issuerDid) {
-          throw new Error('Institution DID not found. Please log in again.');
-        }
-
-        const url = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.ISSUER_HISTORY, {
-          issuer_did: issuerDid,
-        });
-
-        const response = await authenticatedGet(url);
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch history');
-        }
-
-        const apiResponse: ApiResponse = await response.json();
-
-        // Extract the requests array
-        const requestsData = apiResponse.data.requests;
-
-        // Helper function to parse encrypted_body - attempts decryption with private key
-        const parseEncryptedBody = async (
-          encryptedBody: string
-        ): Promise<{ schema_id: string; schema_version: number } | null> => {
-          // Only decrypt if we have a private key available
-          if (typeof window !== 'undefined') {
-            const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
-            if (privateKeyHex) {
-              try {
-                const decryptedBody = await decryptWithPrivateKey(encryptedBody, privateKeyHex);
-                return {
-                  schema_id: String(decryptedBody.schema_id || ''),
-                  schema_version: Number(decryptedBody.schema_version || 1),
-                };
-              } catch {
-                // Silently handle decryption error - do nothing
-              }
-            }
-          }
-
-          // If no private key available or not in browser, silently return null
-          return null;
-        };
-
-        // Extract unique schema IDs for batch fetching
-        const schemaIds = new Set<string>();
-        for (const request of requestsData) {
-          const parsedBody = await parseEncryptedBody(request.encrypted_body);
-          if (parsedBody?.schema_id) {
-            schemaIds.add(parsedBody.schema_id);
-          }
-        }
-
-        // Fetch all schemas in parallel
-        const schemaNameMap = new Map<string, string>();
-        const schemaFetchPromises = Array.from(schemaIds).map(async (schemaId) => {
-          try {
-            // Get schema version from encrypted_body or default to version 1
-            const request = await Promise.all(
-              requestsData.map(async (r) => {
-                const parsed = await parseEncryptedBody(r.encrypted_body);
-                return parsed?.schema_id === schemaId ? r : null;
-              })
-            ).then((results) => results.find((r) => r !== null));
-
-            const parsedBody = await parseEncryptedBody(request?.encrypted_body || '');
-            const schemaVersion = parsedBody?.schema_version || 1;
-
-            const schemaUrl = buildApiUrl(
-              API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion)
-            );
-            const schemaResponse = await authenticatedGet(schemaUrl);
-            if (schemaResponse.ok) {
-              const schemaData: SchemaApiResponse = await schemaResponse.json();
-              schemaNameMap.set(schemaId, schemaData.data.name);
-            }
-          } catch (err) {
-            console.error(`Error fetching schema ${schemaId}:`, err);
-          }
-        });
-        await Promise.all(schemaFetchPromises);
-
-        // Transform to HistoryActivity format
-        const transformedActivities: HistoryActivity[] = await Promise.all(
-          requestsData.map(async (request) => {
-            const parsedBody = await parseEncryptedBody(request.encrypted_body);
-            const schemaId = parsedBody?.schema_id || '';
-            const schemaVersion = parsedBody?.schema_version || 1;
-            const baseSchemaName = schemaNameMap.get(schemaId) || 'Unknown Schema';
-
-            // Add version suffix to schema name if it's not unknown
-            const schemaName =
-              baseSchemaName === 'Unknown Schema'
-                ? baseSchemaName
-                : `${baseSchemaName} v${schemaVersion}`;
-
-            return {
-              id: request.id,
-              date: request.createdAt,
-              holderDid: request.holder_did,
-              requestType: request.request_type,
-              actionType: request.status,
-              status: request.status,
-              schemaName: schemaName,
-              schemaId: schemaId,
-              schemaVersion: schemaVersion,
-            };
-          })
-        );
-
-        console.log('Fetched history:', transformedActivities);
-        setActivities(transformedActivities);
-        setFilteredActivities(transformedActivities);
-      } catch (err) {
-        console.error('Error fetching history:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        setActivities([]);
-        setFilteredActivities([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   // Close filter modal when clicking outside
@@ -613,6 +611,32 @@ export default function HistoryPage() {
             onFilter={handleFilter}
             searchPlaceholder="Search..."
             onSearch={handleSearch}
+            topRightButtons={
+              <button
+                onClick={fetchHistory}
+                disabled={isLoading}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Refreshing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      />
+                    </svg>
+                    Refresh
+                  </>
+                )}
+              </button>
+            }
             enableSelection={true}
             totalCount={filteredActivities.length}
             rowsPerPageOptions={[5, 10, 25, 50, 100]}
