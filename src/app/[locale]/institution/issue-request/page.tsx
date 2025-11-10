@@ -87,6 +87,49 @@ interface Schema {
   updated_at?: string;
 }
 
+interface RejectRequestBody extends Record<string, unknown> {
+  request_id: string;
+  action: 'REJECTED';
+}
+
+interface IssueRequestBody extends Record<string, unknown> {
+  request_id: string;
+  action: 'APPROVED';
+  vc_id: string;
+  schema_id: string;
+  schema_version: number;
+  vc_hash: string;
+  encrypted_body: string;
+  expired_at: string | null;
+}
+
+interface UpdateRequestBody extends Record<string, unknown> {
+  request_id: string;
+  action: 'APPROVED';
+  vc_id: string;
+  new_vc_id: string;
+  vc_type: string;
+  schema_id: string;
+  schema_version: number;
+  new_vc_hash: string;
+  encrypted_body: string;
+  expired_at: string | null;
+}
+
+interface RenewRequestBody extends Record<string, unknown> {
+  request_id: string;
+  action: 'APPROVED';
+  vc_id: string;
+  encrypted_body: string;
+  expired_at: string | null;
+}
+
+interface RevokeRequestBody extends Record<string, unknown> {
+  request_id: string;
+  action: 'APPROVED';
+  vc_id: string;
+}
+
 export default function IssueRequestPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<IssueRequest[]>([]);
@@ -114,6 +157,7 @@ export default function IssueRequestPage() {
   const [requestAttributes, setRequestAttributes] = useState<
     Record<string, string | number | boolean>
   >({});
+  const [currentVcId, setCurrentVcId] = useState<string | null>(null); // For UPDATE, RENEWAL, REVOKE requests
   const [schemaNames, setSchemaNames] = useState<Map<string, string>>(new Map());
   const [schemaExpiredIns, setSchemaExpiredIns] = useState<Map<string, number>>(new Map());
   const [schemaIsActive, setSchemaIsActive] = useState<Map<string, boolean>>(new Map());
@@ -153,6 +197,7 @@ export default function IssueRequestPage() {
       if (privateKeyHex) {
         try {
           const decryptedBody = await decryptWithPrivateKey(encryptedBody, privateKeyHex);
+          console.log('decryptedBody', decryptedBody);
           return {
             schema_id: String(decryptedBody.schema_id || ''),
             schema_version: Number(decryptedBody.schema_version || 1),
@@ -234,6 +279,7 @@ export default function IssueRequestPage() {
         { schema_id: string; schema_version: number } | null
       >();
       for (const request of allRequests) {
+        console.log('request.type', request.type);
         const parsedBody = await parseEncryptedBody(request.encrypted_body);
         parsedBodiesMap.set(request.encrypted_body, parsedBody);
       }
@@ -543,17 +589,11 @@ export default function IssueRequestPage() {
     selectedIdValues?: (string | number)[]
   ) => {
     if (selectedIdValues) {
-      // Filter out requests with inactive schemas
+      // Allow selection of all requests (including those with inactive/unknown schemas)
+      // Users can now reject requests even if the schema is inactive or unknown
       const validIds = selectedIdValues.filter((id) => {
         const request = filteredRequests.find((r) => r.id === String(id));
-        if (!request) return false;
-
-        const parsedBody = getCachedParsedBody(request.encrypted_body);
-        const schemaId = parsedBody?.schema_id || '';
-        const isActive = schemaIsActive.get(schemaId);
-
-        // Only allow selection if schema is active
-        return isActive === true;
+        return request !== undefined;
       });
 
       setSelectedRequestIds(new Set(validIds.map(String)));
@@ -647,22 +687,39 @@ export default function IssueRequestPage() {
           continue;
         }
 
-        // Get parsed body to extract schema info (not used but kept for potential future use)
-        // const parsedBody = getCachedParsedBody(request.encrypted_body);
-        const vcId = `vc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const expiredIn = 157680000; // Default 5 years
+        const requestType = request.type;
 
-        const requestBody = {
-          request_id: request.id,
-          issuer_did: request.issuer_did,
-          holder_did: request.holder_did,
-          action: 'REJECTED',
-          request_type: request.type,
-          vc_id: vcId,
-          expired_in: expiredIn,
-        };
+        // Determine which API endpoint to use based on request type
+        let rejectUrl: string;
+        let requestBody: RejectRequestBody;
 
-        const rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUE_VC);
+        if (requestType === 'UPDATE') {
+          requestBody = {
+            request_id: request.id,
+            action: 'REJECTED',
+          };
+          rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.UPDATE_VC);
+        } else if (requestType === 'RENEWAL') {
+          requestBody = {
+            request_id: request.id,
+            action: 'REJECTED',
+          };
+          rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.RENEW_VC);
+        } else if (requestType === 'REVOKE') {
+          requestBody = {
+            request_id: request.id,
+            action: 'REJECTED',
+          };
+          rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.REVOKE_VC);
+        } else {
+          // ISSUANCE
+          requestBody = {
+            request_id: request.id,
+            action: 'REJECTED',
+          };
+          rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUE_VC);
+        }
+
         const response = await authenticatedPost(rejectUrl, requestBody);
         if (response.ok) {
           successCount++;
@@ -700,20 +757,40 @@ export default function IssueRequestPage() {
       // Fetch schema data
       setIsLoadingSchema(true);
       try {
-        // Parse encrypted_body to get schema_id and schema_version
-        const parsedBody = await parseEncryptedBody(request.encrypted_body);
-
-        if (!parsedBody) {
-          throw new Error('Failed to parse encrypted_body');
+        // Decrypt the full encrypted_body to get all data including attributes
+        let fullDecryptedBody: Record<string, unknown> | null = null;
+        if (typeof window !== 'undefined') {
+          const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
+          if (privateKeyHex) {
+            try {
+              fullDecryptedBody = await decryptWithPrivateKey(
+                request.encrypted_body,
+                privateKeyHex
+              );
+              console.log('Full decrypted body:', fullDecryptedBody);
+            } catch (err) {
+              console.error('Failed to decrypt encrypted_body:', err);
+              throw new Error('Failed to decrypt encrypted_body');
+            }
+          } else {
+            throw new Error('Institution signing private key not found');
+          }
         }
 
-        const { schema_id: schemaId, schema_version: schemaVersion } = parsedBody;
+        if (!fullDecryptedBody) {
+          throw new Error('Failed to decrypt encrypted_body');
+        }
+
+        const schemaId = fullDecryptedBody.schema_id;
+        const schemaVersion = fullDecryptedBody.schema_version;
 
         console.log('Parsed schema ID:', schemaId);
         console.log('Parsed schema version:', schemaVersion);
 
         // Fetch schema details using parsed schema_id and schema_version
-        const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion));
+        const schemaUrl = buildApiUrl(
+          API_ENDPOINTS.SCHEMAS.BY_VERSION(String(schemaId), Number(schemaVersion))
+        );
         const schemaResponse = await authenticatedGet(schemaUrl);
 
         if (schemaResponse.ok) {
@@ -745,8 +822,36 @@ export default function IssueRequestPage() {
               updated_at: updatedAt,
             });
 
-            // Set empty attributes for now - you can fetch actual values from another endpoint
-            setRequestAttributes({});
+            // Extract current attribute values from decrypted body
+            // For UPDATE, RENEWAL, and REVOKE requests, pre-populate with current values
+            const currentAttributes: Record<string, string | number | boolean> = {};
+            if (
+              fullDecryptedBody.attributes &&
+              typeof fullDecryptedBody.attributes === 'object' &&
+              fullDecryptedBody.attributes !== null
+            ) {
+              const attrs = fullDecryptedBody.attributes as Record<string, unknown>;
+              Object.keys(attrs).forEach((key) => {
+                const value = attrs[key];
+                if (
+                  typeof value === 'string' ||
+                  typeof value === 'number' ||
+                  typeof value === 'boolean'
+                ) {
+                  currentAttributes[key] = value;
+                }
+              });
+            }
+            console.log('Current attributes from decrypted body:', currentAttributes);
+            setRequestAttributes(currentAttributes);
+
+            // Store the current vc_id for UPDATE, RENEWAL, REVOKE requests
+            if (fullDecryptedBody.vc_id && typeof fullDecryptedBody.vc_id === 'string') {
+              console.log('Current VC ID from decrypted body:', fullDecryptedBody.vc_id);
+              setCurrentVcId(fullDecryptedBody.vc_id);
+            } else {
+              setCurrentVcId(null);
+            }
           } else {
             throw new Error('Invalid schema response');
           }
@@ -771,6 +876,59 @@ export default function IssueRequestPage() {
     try {
       setIsSubmittingCredential(true);
 
+      const requestType = selectedRequest.type;
+      console.log('Processing request type:', requestType);
+
+      // For REVOKE requests, we don't need to create a new VC
+      if (requestType === 'REVOKE') {
+        if (!currentVcId) {
+          throw new Error('Missing VC ID for revocation');
+        }
+
+        const requestBody = {
+          request_id: selectedRequest.id,
+          action: 'APPROVED',
+          vc_id: currentVcId,
+        };
+
+        console.log('Revoke request body:', requestBody);
+
+        const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.REVOKE_VC);
+        const response = await authenticatedPost(revokeUrl, requestBody);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Error response:', errorData);
+          throw new Error(errorData.message || `Failed to revoke credential (${response.status})`);
+        }
+
+        const result = await response.json();
+        console.log('Revoke VC result:', result);
+
+        if (result.success) {
+          setInfoModalConfig({
+            title: 'Success',
+            message: `Credential revoked successfully!`,
+            buttonColor: 'green',
+          });
+          setShowInfoModal(true);
+
+          // Remove the request from the list
+          setRequests((prev) => prev.filter((request) => request.id !== selectedRequest.id));
+          setFilteredRequests((prev) =>
+            prev.filter((request) => request.id !== selectedRequest.id)
+          );
+
+          // Close modal
+          setShowReviewModal(false);
+          setSchemaData(null);
+          setRequestAttributes({});
+          setCurrentVcId(null);
+        }
+        return;
+      }
+
+      // For UPDATE, RENEWAL, and ISSUANCE requests, we need to create a new VC
       // Convert form attributes to credential data
       const credentialData: Record<string, string | number | boolean> = {};
       data.attributes.forEach((attr) => {
@@ -852,8 +1010,8 @@ export default function IssueRequestPage() {
 
       // Generate unique vc_id with timestamp and random component
       const timestamp = Date.now();
-      const vcId = `${schemaData.id}:${schemaData.version}:${selectedRequest.holder_did}:${timestamp}`;
-      console.log('Generated unique VC ID:', vcId);
+      const newVcId = `${schemaData.id}:${schemaData.version}:${selectedRequest.holder_did}:${timestamp}`;
+      console.log('Generated unique VC ID:', newVcId);
 
       // Calculate expired_at based on schemaData.expired_in (in years)
       const now = new Date();
@@ -877,7 +1035,7 @@ export default function IssueRequestPage() {
 
       // Create Verifiable Credential
       const vc = createVC({
-        id: vcId,
+        id: newVcId,
         vcType: schemaData.name.replace(/\s+/g, ''), // Remove spaces for type name
         issuerDid: selectedRequest.issuer_did,
         expiredAt: expiredAt,
@@ -893,7 +1051,7 @@ export default function IssueRequestPage() {
       const signedVC = await signVCWithStoredKey(vc);
       console.log('Signed VC with proof:', signedVC);
 
-      // Hash the original VC (before signing)
+      // Hash the signed VC
       const vcHash = hashVC(signedVC);
       console.log('VC Hash:', vcHash);
 
@@ -906,26 +1064,68 @@ export default function IssueRequestPage() {
       console.log('Encrypted body (encrypted signed VC):', encryptedBody);
       console.log('Encrypted body length:', encryptedBody.length);
 
-      // Prepare request body
-      const requestBody = {
-        request_id: selectedRequest.id,
-        action: 'APPROVED',
-        vc_id: vcId,
-        schema_id: schemaData.id,
-        schema_version: parseInt(schemaData.version),
-        vc_hash: vcHash,
-        encrypted_body: encryptedBody, // Encrypted signed VC using holder's public key (ECIES)
-        expired_at: expiredAt, // ISO datetime string or null for lifetime credentials
-      };
+      // Route to appropriate API based on request type
+      let apiUrl: string;
+      let requestBody: IssueRequestBody | UpdateRequestBody | RenewRequestBody | RevokeRequestBody;
 
-      console.log('Request body:', requestBody);
+      if (requestType === 'UPDATE') {
+        if (!currentVcId) {
+          throw new Error('Missing current VC ID for update');
+        }
 
-      // Send POST request to issue VC
-      const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUE_VC);
-      console.log('Sending request to:', issueUrl);
-      console.log('Request body:', requestBody);
+        // Extract vc_type from schema name (remove spaces and version info)
+        const vcType = schemaData.name.replace(/\s+/g, '').replace(/v\d+$/, '');
 
-      const response = await authenticatedPost(issueUrl, requestBody);
+        requestBody = {
+          request_id: selectedRequest.id,
+          action: 'APPROVED',
+          vc_id: currentVcId, // Old VC ID
+          new_vc_id: newVcId,
+          vc_type: vcType,
+          schema_id: schemaData.id,
+          schema_version: parseInt(schemaData.version),
+          new_vc_hash: vcHash,
+          encrypted_body: encryptedBody,
+          expired_at: expiredAt,
+        };
+
+        apiUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.UPDATE_VC);
+        console.log('UPDATE VC - Request body:', requestBody);
+      } else if (requestType === 'RENEWAL') {
+        if (!currentVcId) {
+          throw new Error('Missing current VC ID for renewal');
+        }
+
+        requestBody = {
+          request_id: selectedRequest.id,
+          action: 'APPROVED',
+          vc_id: currentVcId, // Existing VC ID to renew
+          encrypted_body: encryptedBody,
+          expired_at: expiredAt,
+        };
+
+        apiUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.RENEW_VC);
+        console.log('RENEW VC - Request body:', requestBody);
+      } else {
+        // ISSUANCE (default)
+        requestBody = {
+          request_id: selectedRequest.id,
+          action: 'APPROVED',
+          vc_id: newVcId,
+          schema_id: schemaData.id,
+          schema_version: parseInt(schemaData.version),
+          vc_hash: vcHash,
+          encrypted_body: encryptedBody,
+          expired_at: expiredAt,
+        };
+
+        apiUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUE_VC);
+        console.log('ISSUE VC - Request body:', requestBody);
+      }
+
+      // Send POST request
+      console.log('Sending request to:', apiUrl);
+      const response = await authenticatedPost(apiUrl, requestBody);
 
       console.log('Response status:', response.status);
       console.log('Response statusText:', response.statusText);
@@ -940,16 +1140,19 @@ export default function IssueRequestPage() {
           throw new Error(`Validation failed:\n${validationErrors}`);
         }
 
-        throw new Error(errorData.message || `Failed to issue credential (${response.status})`);
+        throw new Error(errorData.message || `Failed to process credential (${response.status})`);
       }
 
       const result = await response.json();
-      console.log('Issue VC result:', result);
+      console.log('API result:', result);
 
       if (result.success) {
+        const actionWord =
+          requestType === 'UPDATE' ? 'updated' : requestType === 'RENEWAL' ? 'renewed' : 'issued';
+
         setInfoModalConfig({
           title: 'Success',
-          message: `Credential issued successfully!`,
+          message: `Credential ${actionWord} successfully!`,
           buttonColor: 'green',
         });
         setShowInfoModal(true);
@@ -958,16 +1161,17 @@ export default function IssueRequestPage() {
         setRequests((prev) => prev.filter((request) => request.id !== selectedRequest.id));
         setFilteredRequests((prev) => prev.filter((request) => request.id !== selectedRequest.id));
 
-        // Close modal
+        // Close modal and reset state
         setShowReviewModal(false);
         setSchemaData(null);
         setRequestAttributes({});
+        setCurrentVcId(null);
       }
     } catch (err) {
-      console.error('Error issuing credential:', err);
+      console.error('Error processing credential:', err);
       setInfoModalConfig({
         title: 'Error',
-        message: `Failed to issue credential: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        message: `Failed to process credential: ${err instanceof Error ? err.message : 'Unknown error'}`,
         buttonColor: 'red',
       });
       setShowInfoModal(true);
@@ -1006,44 +1210,47 @@ export default function IssueRequestPage() {
     try {
       setIsLoading(true);
 
-      // Generate unique vc_id for rejection tracking
-      const timestamp = Date.now();
-      const randomComponent = Math.random().toString(36).substring(2, 10);
-      const parsedBody = await parseEncryptedBody(request.encrypted_body);
-      const schemaId = parsedBody?.schema_id || 'unknown';
-      const schemaVersion = parsedBody?.schema_version || 1;
-      const vcId = `${schemaId}:${request.holder_did}:${timestamp}:${randomComponent}`;
+      const requestType = request.type;
+      console.log('Rejecting request type:', requestType);
 
-      console.log('Generated unique VC ID for rejection:', vcId);
+      // Determine which API endpoint to use based on request type
+      let rejectUrl: string;
+      let requestBody: RejectRequestBody;
 
-      // Fetch schema details to get expired_in
-      let expiredIn = 0; // Default lifetime
-      try {
-        const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion));
-        const schemaResponse = await authenticatedGet(schemaUrl);
-
-        if (schemaResponse.ok) {
-          const schemaApiData: SchemaApiResponse = await schemaResponse.json();
-          if (schemaApiData.success && schemaApiData.data) {
-            expiredIn = schemaApiData.data.schema.expired_in;
-            console.log('Fetched expired_in from schema:', expiredIn);
-          }
-        }
-      } catch (schemaError) {
-        console.warn('Failed to fetch schema for expired_in, using default:', schemaError);
+      if (requestType === 'UPDATE') {
+        // For UPDATE rejections, use the UPDATE_VC endpoint
+        requestBody = {
+          request_id: request.id,
+          action: 'REJECTED',
+        };
+        rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.UPDATE_VC);
+      } else if (requestType === 'RENEWAL') {
+        // For RENEWAL rejections, use the RENEW_VC endpoint
+        requestBody = {
+          request_id: request.id,
+          action: 'REJECTED',
+        };
+        rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.RENEW_VC);
+      } else if (requestType === 'REVOKE') {
+        // For REVOKE rejections, use the REVOKE_VC endpoint
+        requestBody = {
+          request_id: request.id,
+          action: 'REJECTED',
+        };
+        rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.REVOKE_VC);
+      } else {
+        // For ISSUANCE rejections, use the ISSUE_VC endpoint (existing behavior)
+        requestBody = {
+          request_id: request.id,
+          action: 'REJECTED',
+        };
+        rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUE_VC);
       }
 
-      // Prepare rejection request body
-      const requestBody = {
-        request_id: request.id,
-        action: 'REJECTED',
-        vc_id: vcId,
-      };
-
       console.log('Rejection request body:', requestBody);
+      console.log('Rejection URL:', rejectUrl);
 
       // Send rejection request to API
-      const rejectUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUE_VC);
       const response = await authenticatedPost(rejectUrl, requestBody);
 
       if (!response.ok) {
@@ -1128,7 +1335,7 @@ export default function IssueRequestPage() {
 
   const columns: Column<IssueRequest>[] = [
     {
-      id: 'holder_did',
+      id: 'holderDid',
       label: 'HOLDER DID',
       sortKey: 'holder_did',
       render: (row) => (
@@ -1180,7 +1387,7 @@ export default function IssueRequestPage() {
       ),
     },
     {
-      id: 'encrypted_body',
+      id: 'schemaName',
       label: 'SCHEMA NAME',
       sortKey: 'encrypted_body',
       render: (row) => {
@@ -1212,8 +1419,8 @@ export default function IssueRequestPage() {
       },
     },
     {
-      id: 'request_type',
-      label: 'TYPE',
+      id: 'requestType',
+      label: 'REQUEST TYPE',
       sortKey: 'type',
       render: (row) => (
         <span
@@ -1224,7 +1431,7 @@ export default function IssueRequestPage() {
       ),
     },
     {
-      id: 'createdAt',
+      id: 'requestedAt',
       label: 'REQUESTED AT',
       sortKey: 'createdAt',
       render: (row) => (
@@ -1232,7 +1439,7 @@ export default function IssueRequestPage() {
       ),
     },
     {
-      id: 'activeUntil',
+      id: 'expiredAt',
       label: 'EXPIRED AT',
       sortKey: 'createdAt',
       render: (row) => {
@@ -1275,17 +1482,22 @@ export default function IssueRequestPage() {
         const schemaId = parsedBody?.schema_id || '';
         const isSchemaActive = schemaIsActive.get(schemaId);
 
-        // For non-ISSUANCE types, no action buttons
-        if (row.type !== 'ISSUANCE') {
-          return null;
-        }
-
-        // Hide buttons completely if schema is inactive or unknown
+        // If schema is inactive or unknown, show only REJECT button
         if (isSchemaActive === false || isSchemaActive === undefined) {
-          return null;
+          return (
+            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => handleReject(row.id)}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={row.status !== 'PENDING'}
+              >
+                REJECT
+              </button>
+            </div>
+          );
         }
 
-        // For ISSUANCE type with active schema, show REVIEW and REJECT buttons
+        // For active schema, show both REVIEW and REJECT buttons
         return (
           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
             <button
@@ -1600,9 +1812,18 @@ export default function IssueRequestPage() {
             setShowReviewModal(false);
             setSchemaData(null);
             setRequestAttributes({});
+            setCurrentVcId(null);
           }
         }}
-        title="Review Issue Request"
+        title={
+          selectedRequest?.type === 'RENEWAL'
+            ? 'Review Renew Request'
+            : selectedRequest?.type === 'UPDATE'
+              ? 'Review Update Request'
+              : selectedRequest?.type === 'REVOKE'
+                ? 'Review Revoke Request'
+                : 'Review Issue Request'
+        }
         maxWidth="1000px"
       >
         {isLoadingSchema ? (
@@ -1621,6 +1842,7 @@ export default function IssueRequestPage() {
             updatedAt={schemaData.updated_at}
             imageUrl={schemaData.image_link || undefined}
             holderDid={selectedRequest.holder_did}
+            requestType={selectedRequest.type}
             initialAttributes={schemaData.attributes.map((attr, index) => ({
               id: index + 1,
               name: attr.name,
@@ -1633,6 +1855,7 @@ export default function IssueRequestPage() {
               setShowReviewModal(false);
               setSchemaData(null);
               setRequestAttributes({});
+              setCurrentVcId(null);
             }}
             isSubmitting={isSubmittingCredential}
           />
@@ -1767,6 +1990,7 @@ export default function IssueRequestPage() {
 
               {(() => {
                 const parsedBody = getCachedParsedBody(selectedRequest.encrypted_body);
+                console.log('parsedBody', parsedBody);
                 const schemaId = parsedBody?.schema_id || '';
                 const schemaName = schemaNames.get(schemaId) || 'Unknown Schema';
                 const expiredIn = schemaExpiredIns.get(schemaId);
