@@ -496,6 +496,7 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
           onSelectionChange={handleSelectionChange}
           totalCount={displayAttributes.length}
           hideBottomControls={true}
+          rowsPerPageOptions={[1000]}
           idKey="id"
         />
       </div>

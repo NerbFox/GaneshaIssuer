@@ -211,6 +211,7 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
           enableSelection={false}
           totalCount={schemaData.attributes.length}
           hideBottomControls={true}
+          rowsPerPageOptions={[1000]}
           idKey="id"
         />
       </div>

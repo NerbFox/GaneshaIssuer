@@ -1383,6 +1383,7 @@ export default function MyCredentialPage() {
                           idKey="id"
                           hideTopControls={true}
                           hideBottomControls={true}
+                          rowsPerPageOptions={[1000]}
                         />
                       </div>
 
@@ -1399,6 +1400,7 @@ export default function MyCredentialPage() {
                           idKey="id"
                           hideTopControls={true}
                           hideBottomControls={true}
+                          rowsPerPageOptions={[1000]}
                         />
                       </div>
                     </div>
