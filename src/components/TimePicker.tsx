@@ -5,9 +5,10 @@ import { useState, useEffect } from 'react';
 interface TimePickerProps {
   value: string; // HH:MM format
   onChange: (value: string) => void;
+  disabled?: boolean;
 }
 
-export default function TimePicker({ value, onChange }: TimePickerProps) {
+export default function TimePicker({ value, onChange, disabled = false }: TimePickerProps) {
   const [displayTime, setDisplayTime] = useState('');
 
   useEffect(() => {
@@ -112,11 +113,14 @@ export default function TimePicker({ value, onChange }: TimePickerProps) {
           onKeyDown={handleKeyDown}
           placeholder="00:00"
           maxLength={5}
-          className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          disabled={disabled}
+          className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+            disabled ? 'bg-gray-50 cursor-not-allowed' : ''
+          }`}
         />
 
         {/* Clear Button */}
-        {value && (
+        {value && !disabled && (
           <button
             type="button"
             onClick={handleClearTime}

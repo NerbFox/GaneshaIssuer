@@ -5,9 +5,10 @@ import { useRef, useState } from 'react';
 interface DatePickerProps {
   value: string; // ISO date string (YYYY-MM-DD)
   onChange: (value: string) => void;
+  disabled?: boolean;
 }
 
-export default function DatePicker({ value, onChange }: DatePickerProps) {
+export default function DatePicker({ value, onChange, disabled = false }: DatePickerProps) {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -47,7 +48,12 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
             onChange={handleDateChange}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full"
+            disabled={disabled}
+            className={`w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              disabled
+                ? 'bg-gray-50 cursor-not-allowed'
+                : 'cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 hover:[&::-webkit-calendar-picker-indicator]:opacity-100'
+            } [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full`}
             style={{
               colorScheme: 'light',
               color: isFocused ? '#111827' : 'transparent',
@@ -68,7 +74,7 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
         </div>
 
         {/* Clear Button */}
-        {value && (
+        {value && !disabled && (
           <button
             type="button"
             onClick={handleClearDate}

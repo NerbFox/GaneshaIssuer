@@ -6,12 +6,14 @@ interface DateTimePickerProps {
   value: string; // ISO format: YYYY-MM-DDTHH:MM
   onChange: (value: string) => void;
   className?: string;
+  disabled?: boolean;
 }
 
 export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   value,
   onChange,
   className = '',
+  disabled = false,
 }) => {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [displayTime, setDisplayTime] = useState('');
@@ -166,7 +168,12 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
           onChange={handleDateChange}
           onFocus={() => setIsDateFocused(true)}
           onBlur={() => setIsDateFocused(false)}
-          className="w-full px-3 py-2 pr-8 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-8 [&::-webkit-calendar-picker-indicator]:h-full"
+          disabled={disabled}
+          className={`w-full px-3 py-2 pr-8 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+            disabled
+              ? 'bg-gray-50 cursor-not-allowed'
+              : 'cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 hover:[&::-webkit-calendar-picker-indicator]:opacity-100'
+          } [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-8 [&::-webkit-calendar-picker-indicator]:h-full`}
           style={{
             colorScheme: 'light',
             color: isDateFocused ? '#111827' : 'transparent',
@@ -185,7 +192,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
           </div>
         )}
         {/* Clear button overlay */}
-        {value && (
+        {value && !disabled && (
           <button
             type="button"
             onClick={handleClearDateTime}
@@ -219,24 +226,29 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
             }
           }}
           placeholder="00:00"
-          className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
+          disabled={disabled}
+          className={`w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 ${
+            disabled ? 'bg-gray-50 cursor-not-allowed' : ''
+          }`}
         />
-        <button
-          type="button"
-          onClick={handleTimeClick}
-          className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-blue-500 focus:outline-none"
-          aria-label="Set current time"
-          title="Set current time"
-        >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8v4l2.5 2.5M12 22a10 10 0 100-20 10 10 0 000 20z"
-            />
-          </svg>
-        </button>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={handleTimeClick}
+            className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-blue-500 focus:outline-none"
+            aria-label="Set current time"
+            title="Set current time"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l2.5 2.5M12 22a10 10 0 100-20 10 10 0 000 20z"
+              />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );
