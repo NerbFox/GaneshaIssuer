@@ -25,6 +25,7 @@ interface FillIssueRequestFormProps {
   updatedAt?: string;
   imageUrl?: string;
   holderDid?: string;
+  requestType?: string; // ISSUANCE, RENEWAL, UPDATE, REVOKE
   initialAttributes?: AttributeData[];
   onSubmit: (data: IssueRequestFormData) => void;
   onCancel: () => void;
@@ -52,6 +53,7 @@ export default function FillIssueRequestForm({
   updatedAt,
   imageUrl,
   holderDid,
+  requestType = 'ISSUANCE',
   initialAttributes = [
     { id: 1, name: 'NIK', type: 'text', value: '', required: true },
     { id: 2, name: 'Nama', type: 'text', value: '', required: true },
@@ -65,6 +67,31 @@ export default function FillIssueRequestForm({
   const [attributes, setAttributes] = useState<AttributeData[]>(initialAttributes);
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<Record<number, File>>({});
+
+  // Store original attributes to detect changes (for UPDATE requests)
+  const [originalAttributes] = useState<AttributeData[]>(initialAttributes);
+
+  // Determine if fields should be disabled based on request type
+  // RENEWAL: all fields disabled (attributes and amount unchangeable)
+  // REVOKE: all fields disabled (attributes and amount unchangeable)
+  // UPDATE: fields are editable but amount is unchangeable
+  // ISSUANCE: all fields editable (default behavior)
+  const isFieldsDisabled = requestType === 'RENEWAL' || requestType === 'REVOKE';
+
+  // Check if attributes have changed (for UPDATE requests)
+  const hasAttributesChanged = () => {
+    if (requestType !== 'UPDATE') {
+      return true; // For non-UPDATE requests, always allow submission
+    }
+
+    // Compare current attributes with original attributes
+    return attributes.some((attr) => {
+      const original = originalAttributes.find((o) => o.id === attr.id);
+      if (!original) return true; // New attribute added
+      // Convert both values to strings for comparison
+      return String(attr.value) !== String(original.value);
+    });
+  };
 
   const handleAttributeValueChange = (id: number, value: string) => {
     setAttributes(attributes.map((attr) => (attr.id === id ? { ...attr, value } : attr)));
@@ -110,7 +137,11 @@ export default function FillIssueRequestForm({
     const missingRequired = attributes.filter(
       (attr) => attr.required && (!attr.value || attr.value === '')
     );
-    return missingRequired.length > 0 || isSubmitting;
+
+    // For UPDATE requests, also check if any attributes have changed
+    const noChanges = requestType === 'UPDATE' && !hasAttributesChanged();
+
+    return missingRequired.length > 0 || isSubmitting || noChanges;
   };
 
   const handleSearch = (value: string) => {
@@ -162,14 +193,21 @@ export default function FillIssueRequestForm({
             case 'image':
               return (
                 <div className="flex gap-2 items-center">
-                  <label className="cursor-pointer">
+                  <label className={isFieldsDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(e) => handleFileUpload(row.id, e)}
                       className="hidden"
+                      disabled={isFieldsDisabled}
                     />
-                    <span className="text-blue-500 hover:text-blue-600 text-sm font-medium">
+                    <span
+                      className={`text-sm font-medium ${
+                        isFieldsDisabled
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-blue-500 hover:text-blue-600'
+                      }`}
+                    >
                       Upload
                     </span>
                   </label>
@@ -198,7 +236,10 @@ export default function FillIssueRequestForm({
                 <select
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   <option value="">Select...</option>
                   <option value="true">True</option>
@@ -212,6 +253,7 @@ export default function FillIssueRequestForm({
                   <DatePicker
                     value={String(row.value) || ''}
                     onChange={(value) => handleAttributeValueChange(row.id, value)}
+                    disabled={isFieldsDisabled}
                   />
                 </div>
               );
@@ -223,6 +265,7 @@ export default function FillIssueRequestForm({
                   <DateTimePicker
                     value={String(row.value) || ''}
                     onChange={(value) => handleAttributeValueChange(row.id, value)}
+                    disabled={isFieldsDisabled}
                   />
                 </div>
               );
@@ -233,6 +276,7 @@ export default function FillIssueRequestForm({
                   <TimePicker
                     value={String(row.value) || ''}
                     onChange={(value) => handleAttributeValueChange(row.id, value)}
+                    disabled={isFieldsDisabled}
                   />
                 </div>
               );
@@ -270,7 +314,10 @@ export default function FillIssueRequestForm({
                       e.preventDefault();
                     }
                   }}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  }`}
                 />
               );
 
@@ -282,7 +329,10 @@ export default function FillIssueRequestForm({
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
                   placeholder={`Enter ${row.name}`}
                   pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  }`}
                 />
               );
 
@@ -295,7 +345,10 @@ export default function FillIssueRequestForm({
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
                   placeholder={`Enter ${row.name}`}
                   pattern="https?://.+"
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  }`}
                 />
               );
 
@@ -313,7 +366,10 @@ export default function FillIssueRequestForm({
                     }
                   }}
                   placeholder={`Enter ${row.name}`}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  }`}
                 />
               );
 
@@ -326,7 +382,10 @@ export default function FillIssueRequestForm({
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
                   placeholder={`Enter ${row.name}`}
                   rows={3}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  }`}
                 />
               );
 
@@ -338,7 +397,10 @@ export default function FillIssueRequestForm({
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
                   placeholder={`Enter ${row.name}`}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  }`}
                 />
               );
           }
@@ -355,38 +417,33 @@ export default function FillIssueRequestForm({
 
   return (
     <div className="px-8 py-6">
-      {/* Holder DID - Highlighted Important Information */}
+      {/* DID Prefix and Holder DID in same row */}
       {holderDid && (
-        <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 mt-0.5">
-              <svg
-                className="h-6 w-6 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <label className="block mb-1">
-                <ThemedText className="text-sm font-semibold text-blue-900">
-                  Holder DID (Credential Recipient)
-                </ThemedText>
-              </label>
-              <div className="w-full px-4 py-3 bg-white border border-blue-200 rounded-lg text-sm text-gray-900 font-mono break-all">
-                {holderDid}
-              </div>
-              <p className="mt-2 text-xs text-blue-700">
-                ⚠️ This credential will be issued to the holder identified by this DID
-              </p>
-            </div>
+        <div className="grid grid-cols-2 gap-6 mb-6">
+          {/* DID Prefix */}
+          <div>
+            <ThemedText className="text-sm text-gray-600 mb-2">
+              DID Prefix<span className="text-red-500">*</span>
+            </ThemedText>
+            <input
+              type="text"
+              value="did:dcert:"
+              disabled
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-900 cursor-not-allowed"
+            />
+          </div>
+
+          {/* Holder DID */}
+          <div>
+            <ThemedText className="text-sm text-gray-600 mb-2">
+              Holder DID<span className="text-red-500">*</span>
+            </ThemedText>
+            <input
+              type="text"
+              value={holderDid.replace('did:dcert:', '')}
+              disabled
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-900 cursor-not-allowed"
+            />
           </div>
         </div>
       )}
@@ -413,10 +470,10 @@ export default function FillIssueRequestForm({
           </div>
         </div>
 
-        {/* Version */}
+        {/* Schema Version */}
         <div>
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Version</ThemedText>
+            <ThemedText className="text-sm font-medium text-gray-700">Schema Version</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {version}
@@ -476,22 +533,6 @@ export default function FillIssueRequestForm({
               : '-'}
           </div>
         </div>
-
-        {/* Status - Full width on last row */}
-        <div className="col-span-2">
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
-          </label>
-          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-            <span
-              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-              }`}
-            >
-              {status}
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* VC Background Image */}
@@ -535,24 +576,41 @@ export default function FillIssueRequestForm({
       </div>
 
       {/* Action Buttons */}
-      <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
-        <button
-          onClick={onCancel}
-          disabled={isSubmitting}
-          className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          CANCEL
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={isSubmitDisabled()}
-          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          {isSubmitting && (
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-          )}
-          {isSubmitting ? 'ISSUING...' : 'ISSUE CREDENTIAL'}
-        </button>
+      <div className="pt-4 border-t border-gray-200">
+        {/* Warning message for UPDATE requests with no changes */}
+        {requestType === 'UPDATE' && !hasAttributesChanged() && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <ThemedText className="text-sm text-yellow-800">
+              ⚠️ No changes detected in attributes. Please modify at least one attribute to update
+              the credential.
+            </ThemedText>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-4">
+          <button
+            onClick={onCancel}
+            disabled={isSubmitting}
+            className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            CANCEL
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitDisabled()}
+            title={
+              requestType === 'UPDATE' && !hasAttributesChanged()
+                ? 'No changes detected in attributes'
+                : undefined
+            }
+            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isSubmitting && (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            )}
+            {isSubmitting ? 'ISSUING...' : 'ISSUE CREDENTIAL'}
+          </button>
+        </div>
       </div>
     </div>
   );
