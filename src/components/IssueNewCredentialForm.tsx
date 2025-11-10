@@ -16,6 +16,7 @@ interface Schema {
   id: string;
   name: string;
   version: number;
+  isActive: boolean;
   attributes: {
     name: string;
     type: string;
@@ -75,9 +76,9 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
         }));
         setAttributes(initialAttributes);
 
-        // Get available versions for this schema
+        // Get available versions for this schema (only active versions)
         const versions = schemas
-          .filter((s) => s.id === schemaId)
+          .filter((s) => s.id === schemaId && s.isActive)
           .map((s) => s.version)
           .sort((a, b) => b - a); // Sort descending
         setAvailableVersions(versions);
