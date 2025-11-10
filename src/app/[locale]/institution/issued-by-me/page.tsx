@@ -13,11 +13,12 @@ import UpdateCredentialForm, { UpdateCredentialFormData } from '@/components/Upd
 import ViewCredentialForm from '@/components/ViewCredentialForm';
 import ViewSchemaForm from '@/components/ViewSchemaForm';
 import ConfirmationModal from '@/components/ConfirmationModal';
-import InfoModal from '@/components/InfoModal';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
-import { decryptWithPrivateKey } from '@/utils/encryptUtils';
+import { decryptWithPrivateKey, encryptWithPublicKey } from '@/utils/encryptUtils';
+import { createVC, hashVC } from '@/utils/vcUtils';
+import { signVCWithStoredKey } from '@/utils/vcSigner';
 
 interface IssuedCredential {
   id: string;
@@ -68,6 +69,7 @@ interface SchemaResponse {
       issuer_did: string;
       issuer_name: string;
       isActive: boolean;
+      image_link?: string | null;
       createdAt: string;
       updatedAt: string;
     }[];
@@ -141,18 +143,16 @@ export default function IssuedByMePage() {
     message: '',
     onConfirm: () => {},
   });
-  const [showInfoModal, setShowInfoModal] = useState(false);
-  const [infoModalConfig, setInfoModalConfig] = useState({
-    title: '',
-    message: '',
-    buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
-  });
   const [schemas, setSchemas] = useState<
     {
       id: string;
       name: string;
       version: number;
       isActive: boolean;
+      expiredIn?: number;
+      imageUrl?: string;
+      createdAt?: string;
+      updatedAt?: string;
       attributes: {
         name: string;
         type: string;
@@ -235,6 +235,10 @@ export default function IssuedByMePage() {
           name: schema.name,
           version: schema.version,
           isActive: schema.isActive,
+          expiredIn: schema.schema.expired_in || 0,
+          imageUrl: schema.image_link || undefined,
+          createdAt: schema.createdAt,
+          updatedAt: schema.updatedAt,
           attributes: Object.entries(schema.schema.properties).map(([key, prop]) => ({
             name: key,
             type: prop.type,
@@ -695,23 +699,151 @@ export default function IssuedByMePage() {
   const handleIssueCredential = async (data: IssueNewCredentialFormData) => {
     try {
       console.log('Issuing new credential:', data);
-      // TODO: Implement API call to issue credential
-      // For now, just close the modal
-      setInfoModalConfig({
-        title: 'Success',
-        message: `Credential will be issued to:\nHolder DID: ${data.holderDid}\nSchema: ${data.schemaName} v${data.version}`,
-        buttonColor: 'green',
+
+      // Step 1: Get issuer information from localStorage
+      const issuerDid = localStorage.getItem('institutionDID');
+      const institutionDataStr = localStorage.getItem('institutionData');
+
+      if (!issuerDid || !institutionDataStr) {
+        throw new Error('Issuer information not found. Please log in again.');
+      }
+
+      const institutionData = JSON.parse(institutionDataStr);
+      const institutionName = institutionData.name;
+
+      if (!institutionName) {
+        throw new Error('Institution name not found. Please log in again.');
+      }
+
+      // Step 2: Fetch holder's DID document to get their public key
+      const holderDidUrl = buildApiUrl(API_ENDPOINTS.DIDS.DOCUMENT(data.holderDid));
+      const holderDidResponse = await authenticatedGet(holderDidUrl);
+
+      if (!holderDidResponse.ok) {
+        throw new Error('Failed to fetch holder DID document. Please check the holder DID.');
+      }
+
+      const holderDidDoc = await holderDidResponse.json();
+      console.log('holderDidDoc', holderDidDoc);
+
+      // Extract public key from DID document (use keyId to get the public key)
+      const holderPublicKey = holderDidDoc.data?.[holderDidDoc.data?.keyId];
+      if (!holderPublicKey) {
+        throw new Error('Holder public key not found in DID document');
+      }
+
+      // Step 3: Fetch schema details to get image link and expiration
+      const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(data.schemaId, data.version));
+      const schemaResponse = await authenticatedGet(schemaUrl);
+
+      if (!schemaResponse.ok) {
+        throw new Error('Failed to fetch schema details');
+      }
+
+      const schemaData = await schemaResponse.json();
+      const imageLink = schemaData.data?.image_link || null;
+      const expiredIn = schemaData.data?.schema?.expired_in || 5;
+
+      // Calculate expiration date
+      const now = new Date();
+      const expiredAt = new Date(now);
+      expiredAt.setFullYear(expiredAt.getFullYear() + expiredIn);
+
+      // Step 4: Transform attributes into credential data format
+      const credentialData: Record<string, string | number | boolean> = {};
+      data.attributes.forEach((attr) => {
+        credentialData[attr.name] = attr.value;
       });
-      setShowInfoModal(true);
+
+      // Step 5: Create a unique VC ID (using UUID format with timestamp)
+      const vcId = `vc:${Date.now()}:${Math.random().toString(36).substring(2, 15)}`;
+
+      // Step 6: Create the Verifiable Credential
+      const vc = createVC({
+        id: vcId,
+        vcType: data.schemaName.replace(/\s+/g, ''), // Remove spaces for VC type
+        issuerDid: issuerDid,
+        issuerName: institutionName,
+        holderDid: data.holderDid,
+        credentialData: credentialData,
+        validFrom: now.toISOString(),
+        expiredAt: expiredAt.toISOString(),
+        imageLink: imageLink,
+      });
+
+      console.log('Created VC:', vc);
+
+      // Step 7: Sign the VC with stored keys
+      const signedVC = await signVCWithStoredKey(vc);
+      console.log('Signed VC:', signedVC);
+
+      // Step 8: Hash the VC (returns 64-character hex without 0x prefix)
+      const vcHashWithoutPrefix = hashVC(signedVC);
+      const vcHash = `0x${vcHashWithoutPrefix}`;
+      console.log('VC Hash:', vcHash);
+
+      // Step 9: Create encrypted body with schema information
+      const bodyToEncrypt = {
+        schema_id: data.schemaId,
+        schema_version: data.version,
+        issuer_did: issuerDid,
+        holder_did: data.holderDid,
+        ...credentialData,
+      };
+
+      // Step 10: Encrypt the body with holder's public key
+      const encryptedBody = await encryptWithPublicKey(bodyToEncrypt, holderPublicKey);
+      console.log('Encrypted body length:', encryptedBody.length);
+
+      // Step 11: Call the API to issue the credential
+      const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.ISSUE_VC);
+      const issueResponse = await authenticatedPost(issueUrl, {
+        issuer_did: issuerDid,
+        holder_did: data.holderDid,
+        vc_id: vcId,
+        vc_type: data.schemaName.replace(/\s+/g, ''),
+        schema_id: data.schemaId,
+        schema_version: data.version,
+        vc_hash: vcHash,
+        encrypted_body: encryptedBody,
+        expiredAt: expiredAt.toISOString(),
+      });
+
+      if (!issueResponse.ok) {
+        const errorData = await issueResponse.json();
+        throw new Error(errorData.message || 'Failed to issue credential');
+      }
+
+      const responseData = await issueResponse.json();
+      console.log('Issue credential response:', responseData);
+
+      // Show success message and close the modal
       setShowIssueModal(false);
+      setConfirmationConfig({
+        title: 'Success',
+        message: `Credential has been issued successfully!\n\nThe holder can now claim this credential.`,
+        confirmText: 'OK',
+        confirmButtonColor: 'green',
+        onConfirm: () => {
+          setShowConfirmation(false);
+          // Refresh the credentials list
+          window.location.reload();
+        },
+      });
+      setShowConfirmation(true);
     } catch (error) {
       console.error('Error issuing credential:', error);
-      setInfoModalConfig({
+      setShowIssueModal(false);
+      setConfirmationConfig({
         title: 'Error',
-        message: `Failed to issue credential: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        buttonColor: 'red',
+        message: `Failed to issue credential: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again.`,
+        confirmText: 'OK',
+        confirmButtonColor: 'red',
+        onConfirm: () => {
+          setShowConfirmation(false);
+        },
       });
-      setShowInfoModal(true);
+      setShowConfirmation(true);
       throw error;
     }
   };
@@ -1232,15 +1364,6 @@ export default function IssuedByMePage() {
         message={confirmationConfig.message}
         confirmText={confirmationConfig.confirmText}
         confirmButtonColor={confirmationConfig.confirmButtonColor}
-      />
-
-      {/* Info Modal */}
-      <InfoModal
-        isOpen={showInfoModal}
-        onClose={() => setShowInfoModal(false)}
-        title={infoModalConfig.title}
-        message={infoModalConfig.message}
-        buttonColor={infoModalConfig.buttonColor}
       />
 
       {/* View Schema Modal */}
