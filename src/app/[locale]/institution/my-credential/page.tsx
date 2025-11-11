@@ -21,6 +21,127 @@ import { ViewCredential } from '@/components/ViewCredential';
 import { validateVCComprehensive } from '@/utils/vcValidator';
 import { hashVC } from '@/utils/vcUtils';
 import InfoModal from '@/components/InfoModal';
+import { authenticatedPost } from '@/utils/api-client';
+
+/**
+ * Renew-specific credential data
+ * Prepared from VerifiableCredential for renewal request
+ */
+interface VCRenewCredentialData {
+  // VC Identification
+  vc_id: string;
+
+  // Schema Information (derived from credential type)
+  schema_id: string;
+  schema_version: number;
+  schema_name: string;
+
+  // Credential Subject Data - all dynamic fields
+  attributes: {
+    [key: string]: string | number | boolean;
+  };
+
+  // Mandatory Subject Fields
+  id: string; // Subject DID
+
+  // Validity Period
+  valid_from: string;
+  expiration_date: string | null;
+
+  // VC Metadata
+  vc_type: string[];
+  vc_context: string[];
+
+  // Issuer Information
+  issuer: string;
+  issuer_name: string;
+
+  // Renewal specific
+  renewal_reason: string;
+
+  // Optional image reference
+  image_link?: string | null;
+}
+
+/**
+ * Update-specific credential data
+ * Prepared from VerifiableCredential for update request
+ */
+interface VCUpdateCredentialData {
+  // VC Identification
+  vc_id: string;
+
+  // Schema Information (derived from credential type)
+  schema_id: string;
+  schema_version: number;
+  schema_name: string;
+
+  // Credential Subject Data - all dynamic fields
+  attributes: {
+    [key: string]: string | number | boolean;
+  };
+
+  // Mandatory Subject Fields
+  id: string; // Subject DID
+
+  // Validity Period
+  valid_from: string;
+  expiration_date: string | null;
+
+  // VC Metadata
+  vc_type: string[];
+  vc_context: string[];
+
+  // Issuer Information
+  issuer: string;
+  issuer_name: string;
+
+  // Update specific
+  update_reason: string;
+
+  // Optional image reference
+  image_link?: string | null;
+}
+
+/**
+ * Revoke-specific credential data
+ * Prepared from VerifiableCredential for revocation request
+ */
+interface VCRevokeCredentialData {
+  // VC Identification
+  vc_id: string;
+
+  // Schema Information (derived from credential type)
+  schema_id: string;
+  schema_version: number;
+  schema_name: string;
+
+  // Credential Subject Data - all dynamic fields
+  attributes: {
+    [key: string]: string | number | boolean;
+  };
+
+  // Mandatory Subject Fields
+  id: string; // Subject DID
+
+  // Validity Period
+  valid_from: string;
+  expiration_date: string | null;
+
+  // VC Metadata
+  vc_type: string[];
+  vc_context: string[];
+
+  // Issuer Information
+  issuer: string;
+  issuer_name: string;
+
+  // Revoke specific
+  revocation_reason: string;
+
+  // Optional image reference
+  image_link?: string | null;
+}
 
 interface Credential {
   id: string;
@@ -102,6 +223,27 @@ export default function MyCredentialPage() {
   // View Credential Modal
   const [showViewCredentialModal, setShowViewCredentialModal] = useState(false);
   const [selectedCredential, setSelectedCredential] = useState<VerifiableCredential | null>(null);
+
+  // Renew Credential Modal
+  const [showRenewModal, setShowRenewModal] = useState(false);
+  const [renewingCredential, setRenewingCredential] = useState<VerifiableCredential | null>(null);
+  const [renewalReason, setRenewalReason] = useState('');
+  const [isRenewing, setIsRenewing] = useState(false);
+
+  // Update Credential Modal
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [updatingCredential, setUpdatingCredential] = useState<VerifiableCredential | null>(null);
+  const [updatedAttributes, setUpdatedAttributes] = useState<{
+    [key: string]: string | number | boolean;
+  }>({});
+  const [updateReason, setUpdateReason] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Revoke Credential Modal
+  const [showRevokeModal, setShowRevokeModal] = useState(false);
+  const [revokingCredential, setRevokingCredential] = useState<VerifiableCredential | null>(null);
+  const [revocationReason, setRevocationReason] = useState('');
+  const [isRevoking, setIsRevoking] = useState(false);
 
   // Upload VC Modal
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -247,19 +389,580 @@ export default function MyCredentialPage() {
     // TODO: Implement present credential
   };
 
-  const handleUpdate = (id: string) => {
-    console.log('Update credential:', id);
-    // TODO: Implement update credential
+  const handleUpdate = async (id: string) => {
+    try {
+      console.log('Update credential:', id);
+
+      // Fetch the full VC from IndexedDB
+      const vc = await getVCById(id);
+
+      if (!vc) {
+        setInfoModalConfig({
+          title: 'Credential Not Found',
+          message: 'The requested credential could not be found in storage.',
+          buttonColor: 'red',
+        });
+        setShowInfoModal(true);
+        return;
+      }
+
+      // Extract attributes (excluding 'id' field)
+      const credentialSubject = vc.credentialSubject;
+      const { ...attributes } = credentialSubject;
+
+      setUpdatingCredential(vc);
+      setUpdatedAttributes(attributes as { [key: string]: string | number | boolean });
+      setUpdateReason('');
+      setShowUpdateModal(true);
+    } catch (error) {
+      console.error('Error loading credential for update:', error);
+      setInfoModalConfig({
+        title: 'Error Loading Credential',
+        message: 'Failed to load credential details. Please try again.',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
+    }
   };
 
-  const handleRevoke = (id: string) => {
-    console.log('Revoke credential:', id);
-    // TODO: Implement revoke credential
+  const handleRevoke = async (id: string) => {
+    try {
+      console.log('Revoke credential:', id);
+
+      // Fetch the full VC from IndexedDB
+      const vc = await getVCById(id);
+
+      if (!vc) {
+        setInfoModalConfig({
+          title: 'Credential Not Found',
+          message: 'The requested credential could not be found in storage.',
+          buttonColor: 'red',
+        });
+        setShowInfoModal(true);
+        return;
+      }
+
+      setRevokingCredential(vc);
+      setRevocationReason('');
+      setShowRevokeModal(true);
+    } catch (error) {
+      console.error('Error loading credential for revocation:', error);
+      setInfoModalConfig({
+        title: 'Error Loading Credential',
+        message: 'Failed to load credential details. Please try again.',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
+    }
   };
 
-  const handleRenew = (id: string) => {
-    console.log('Renew credential:', id);
-    // TODO: Implement renew credential
+  const handleRenew = async (id: string) => {
+    try {
+      console.log('Renew credential:', id);
+
+      // Fetch the full VC from IndexedDB
+      const vc = await getVCById(id);
+
+      if (!vc) {
+        setInfoModalConfig({
+          title: 'Credential Not Found',
+          message: 'The requested credential could not be found in storage.',
+          buttonColor: 'red',
+        });
+        setShowInfoModal(true);
+        return;
+      }
+
+      setRenewingCredential(vc);
+      setRenewalReason('');
+      setShowRenewModal(true);
+    } catch (error) {
+      console.error('Error loading credential for renewal:', error);
+      setInfoModalConfig({
+        title: 'Error Loading Credential',
+        message: 'Failed to load credential details. Please try again.',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
+    }
+  };
+
+  const handleSubmitRenew = async () => {
+    if (!renewingCredential || !renewalReason.trim()) {
+      setInfoModalConfig({
+        title: 'Missing Information',
+        message: 'Please provide a reason for renewal.',
+        buttonColor: 'yellow',
+      });
+      setShowInfoModal(true);
+      return;
+    }
+
+    setIsRenewing(true);
+
+    try {
+      // Get holder DID from localStorage
+      const holderDid = localStorage.getItem('institutionDID');
+
+      if (!holderDid) {
+        throw new Error('Missing holder DID');
+      }
+
+      // Fetch issuer's DID document to get public key
+      const issuerDid = renewingCredential.issuer;
+      console.log('Fetching DID document for issuer:', issuerDid);
+
+      const didDocResponse = await fetch(buildApiUrl(API_ENDPOINTS.DIDS.DOCUMENT(issuerDid)));
+
+      if (!didDocResponse.ok) {
+        throw new Error('Failed to fetch issuer DID document');
+      }
+
+      const didDocData = await didDocResponse.json();
+
+      if (!didDocData.success || !didDocData.data) {
+        throw new Error('Invalid DID document response');
+      }
+
+      // Extract public key from DID document
+      const keyId = didDocData.data.keyId;
+      const issuerPublicKey = didDocData.data[keyId];
+
+      if (!issuerPublicKey) {
+        throw new Error('Public key not found in DID document');
+      }
+
+      console.log('Issuer public key retrieved from DID document');
+
+      // Extract credential subject attributes (excluding 'id' field)
+      const credentialSubject = renewingCredential.credentialSubject;
+      const { id: subjectId, ...rawAttributes } = credentialSubject;
+
+      // Convert attributes to proper types
+      const attributes: { [key: string]: string | number | boolean } = {};
+      Object.entries(rawAttributes).forEach(([key, value]) => {
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+          attributes[key] = value;
+        } else if (value !== null && value !== undefined) {
+          // Convert other types to string
+          attributes[key] = String(value);
+        }
+      });
+
+      // Extract schema ID and version from VC id
+      // Format: {schema_id}:{schema_version}:{holder_did}:{timestamp}
+      const vcIdParts = renewingCredential.id.split(':');
+      let schemaId = 'Unknown';
+      let schemaVersion = 1;
+
+      if (vcIdParts.length >= 2) {
+        schemaId = vcIdParts[0];
+        schemaVersion = parseInt(vcIdParts[1], 10) || 1;
+      }
+
+      // Get schema name from the credential type
+      const schemaName = Array.isArray(renewingCredential.type)
+        ? renewingCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown'
+        : 'Unknown';
+
+      // Prepare renewal data according to VCRenewCredentialData interface
+      const renewalData: VCRenewCredentialData = {
+        vc_id: renewingCredential.id,
+        schema_id: schemaId,
+        schema_version: schemaVersion,
+        schema_name: schemaName,
+        attributes: attributes,
+        id: subjectId,
+        valid_from: renewingCredential.validFrom,
+        expiration_date: renewingCredential.expiredAt,
+        vc_type: Array.isArray(renewingCredential.type)
+          ? renewingCredential.type
+          : [renewingCredential.type],
+        vc_context: Array.isArray(renewingCredential['@context'])
+          ? renewingCredential['@context']
+          : [renewingCredential['@context']],
+        issuer: renewingCredential.issuer,
+        issuer_name: renewingCredential.issuerName,
+        renewal_reason: renewalReason.trim(),
+        image_link: renewingCredential.imageLink || null,
+      };
+
+      console.log('Renewal data prepared:', renewalData);
+
+      // Encrypt the renewal data
+      const encryptedBody = await encryptWithPublicKey(
+        renewalData as unknown as Record<string, string | number | boolean | null>,
+        issuerPublicKey
+      );
+
+      console.log('Renewal data encrypted');
+
+      // Prepare the request payload
+      const requestPayload = {
+        issuer_did: renewingCredential.issuer,
+        holder_did: holderDid,
+        encrypted_body: encryptedBody,
+      };
+
+      console.log('Sending renewal request...');
+
+      // Send the renewal request
+      const response = await authenticatedPost(
+        buildApiUrl(API_ENDPOINTS.CREDENTIALS.RENEW_REQUEST),
+        requestPayload
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to submit renewal request: ${response.statusText}`
+        );
+      }
+
+      const responseData = await response.json();
+      console.log('Renewal request submitted successfully:', responseData);
+
+      // Close the modal and show success message
+      setShowRenewModal(false);
+      setRenewingCredential(null);
+      setRenewalReason('');
+
+      setInfoModalConfig({
+        title: 'Renewal Request Submitted',
+        message:
+          'Your credential renewal request has been submitted successfully. The issuer will review your request.',
+        buttonColor: 'green',
+      });
+      setShowInfoModal(true);
+    } catch (error) {
+      console.error('Error submitting renewal request:', error);
+      setInfoModalConfig({
+        title: 'Renewal Request Failed',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to submit renewal request. Please try again.',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
+    } finally {
+      setIsRenewing(false);
+    }
+  };
+
+  const handleSubmitUpdate = async () => {
+    if (!updatingCredential || !updateReason.trim()) {
+      setInfoModalConfig({
+        title: 'Missing Information',
+        message: 'Please provide a reason for update.',
+        buttonColor: 'yellow',
+      });
+      setShowInfoModal(true);
+      return;
+    }
+
+    setIsUpdating(true);
+
+    try {
+      // Get holder DID from localStorage
+      const holderDid = localStorage.getItem('institutionDID');
+
+      if (!holderDid) {
+        throw new Error('Missing holder DID');
+      }
+
+      // Fetch issuer's DID document to get public key
+      const issuerDid = updatingCredential.issuer;
+      console.log('Fetching DID document for issuer:', issuerDid);
+
+      const didDocResponse = await fetch(buildApiUrl(API_ENDPOINTS.DIDS.DOCUMENT(issuerDid)));
+
+      if (!didDocResponse.ok) {
+        throw new Error('Failed to fetch issuer DID document');
+      }
+
+      const didDocData = await didDocResponse.json();
+
+      if (!didDocData.success || !didDocData.data) {
+        throw new Error('Invalid DID document response');
+      }
+
+      // Extract public key from DID document
+      const keyId = didDocData.data.keyId;
+      const issuerPublicKey = didDocData.data[keyId];
+
+      if (!issuerPublicKey) {
+        throw new Error('Public key not found in DID document');
+      }
+
+      console.log('Issuer public key retrieved from DID document');
+
+      // Use the updated attributes from state
+      const attributes: { [key: string]: string | number | boolean } = { ...updatedAttributes };
+
+      // Extract schema ID and version from VC id
+      // Format: {schema_id}:{schema_version}:{holder_did}:{timestamp}
+      const vcIdParts = updatingCredential.id.split(':');
+      let schemaId = 'Unknown';
+      let schemaVersion = 1;
+
+      if (vcIdParts.length >= 2) {
+        schemaId = vcIdParts[0];
+        schemaVersion = parseInt(vcIdParts[1], 10) || 1;
+      }
+
+      // Get schema name from the credential type
+      const schemaName = Array.isArray(updatingCredential.type)
+        ? updatingCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown'
+        : 'Unknown';
+
+      // Prepare update data according to VCUpdateCredentialData interface
+      const updateData: VCUpdateCredentialData = {
+        vc_id: updatingCredential.id,
+        schema_id: schemaId,
+        schema_version: schemaVersion,
+        schema_name: schemaName,
+        attributes: attributes,
+        id: updatingCredential.credentialSubject.id,
+        valid_from: updatingCredential.validFrom,
+        expiration_date: updatingCredential.expiredAt,
+        vc_type: Array.isArray(updatingCredential.type)
+          ? updatingCredential.type
+          : [updatingCredential.type],
+        vc_context: Array.isArray(updatingCredential['@context'])
+          ? updatingCredential['@context']
+          : [updatingCredential['@context']],
+        issuer: updatingCredential.issuer,
+        issuer_name: updatingCredential.issuerName,
+        update_reason: updateReason.trim(),
+        image_link: updatingCredential.imageLink || null,
+      };
+
+      console.log('Update data prepared:', updateData);
+
+      // Encrypt the update data
+      const encryptedBody = await encryptWithPublicKey(
+        updateData as unknown as Record<string, string | number | boolean | null>,
+        issuerPublicKey
+      );
+
+      console.log('Update data encrypted');
+
+      // Prepare the request payload
+      const requestPayload = {
+        issuer_did: updatingCredential.issuer,
+        holder_did: holderDid,
+        encrypted_body: encryptedBody,
+      };
+
+      console.log('Sending update request...');
+
+      // Send the update request
+      const response = await authenticatedPost(
+        buildApiUrl(API_ENDPOINTS.CREDENTIALS.UPDATE_REQUEST),
+        requestPayload
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to submit update request: ${response.statusText}`
+        );
+      }
+
+      const responseData = await response.json();
+      console.log('Update request submitted successfully:', responseData);
+
+      // Close the modal and show success message
+      setShowUpdateModal(false);
+      setUpdatingCredential(null);
+      setUpdatedAttributes({});
+      setUpdateReason('');
+
+      setInfoModalConfig({
+        title: 'Update Request Submitted',
+        message:
+          'Your credential update request has been submitted successfully. The issuer will review your request.',
+        buttonColor: 'green',
+      });
+      setShowInfoModal(true);
+    } catch (error) {
+      console.error('Error submitting update request:', error);
+      setInfoModalConfig({
+        title: 'Update Request Failed',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to submit update request. Please try again.',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSubmitRevoke = async () => {
+    if (!revokingCredential || !revocationReason.trim()) {
+      setInfoModalConfig({
+        title: 'Missing Information',
+        message: 'Please provide a reason for revocation.',
+        buttonColor: 'yellow',
+      });
+      setShowInfoModal(true);
+      return;
+    }
+
+    setIsRevoking(true);
+
+    try {
+      // Get holder DID from localStorage
+      const holderDid = localStorage.getItem('institutionDID');
+
+      if (!holderDid) {
+        throw new Error('Missing holder DID');
+      }
+
+      // Fetch issuer's DID document to get public key
+      const issuerDid = revokingCredential.issuer;
+      console.log('Fetching DID document for issuer:', issuerDid);
+
+      const didDocResponse = await fetch(buildApiUrl(API_ENDPOINTS.DIDS.DOCUMENT(issuerDid)));
+
+      if (!didDocResponse.ok) {
+        throw new Error('Failed to fetch issuer DID document');
+      }
+
+      const didDocData = await didDocResponse.json();
+
+      if (!didDocData.success || !didDocData.data) {
+        throw new Error('Invalid DID document response');
+      }
+
+      // Extract public key from DID document
+      const keyId = didDocData.data.keyId;
+      const issuerPublicKey = didDocData.data[keyId];
+
+      if (!issuerPublicKey) {
+        throw new Error('Public key not found in DID document');
+      }
+
+      console.log('Issuer public key retrieved from DID document');
+
+      // Extract credential subject attributes (excluding 'id' field)
+      const credentialSubject = revokingCredential.credentialSubject;
+      const { id: subjectId, ...rawAttributes } = credentialSubject;
+
+      // Convert attributes to proper types
+      const attributes: { [key: string]: string | number | boolean } = {};
+      Object.entries(rawAttributes).forEach(([key, value]) => {
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+          attributes[key] = value;
+        } else if (value !== null && value !== undefined) {
+          // Convert other types to string
+          attributes[key] = String(value);
+        }
+      });
+
+      // Extract schema ID and version from VC id
+      // Format: {schema_id}:{schema_version}:{holder_did}:{timestamp}
+      const vcIdParts = revokingCredential.id.split(':');
+      let schemaId = 'Unknown';
+      let schemaVersion = 1;
+
+      if (vcIdParts.length >= 2) {
+        schemaId = vcIdParts[0];
+        schemaVersion = parseInt(vcIdParts[1], 10) || 1;
+      }
+
+      // Get schema name from the credential type
+      const schemaName = Array.isArray(revokingCredential.type)
+        ? revokingCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown'
+        : 'Unknown';
+
+      // Prepare revocation data according to VCRevokeCredentialData interface
+      const revocationData: VCRevokeCredentialData = {
+        vc_id: revokingCredential.id,
+        schema_id: schemaId,
+        schema_version: schemaVersion,
+        schema_name: schemaName,
+        attributes: attributes,
+        id: subjectId,
+        valid_from: revokingCredential.validFrom,
+        expiration_date: revokingCredential.expiredAt,
+        vc_type: Array.isArray(revokingCredential.type)
+          ? revokingCredential.type
+          : [revokingCredential.type],
+        vc_context: Array.isArray(revokingCredential['@context'])
+          ? revokingCredential['@context']
+          : [revokingCredential['@context']],
+        issuer: revokingCredential.issuer,
+        issuer_name: revokingCredential.issuerName,
+        revocation_reason: revocationReason.trim(),
+        image_link: revokingCredential.imageLink || null,
+      };
+
+      console.log('Revocation data prepared:', revocationData);
+
+      // Encrypt the revocation data
+      const encryptedBody = await encryptWithPublicKey(
+        revocationData as unknown as Record<string, string | number | boolean | null>,
+        issuerPublicKey
+      );
+
+      console.log('Revocation data encrypted');
+
+      // Prepare the request payload
+      const requestPayload = {
+        issuer_did: revokingCredential.issuer,
+        holder_did: holderDid,
+        encrypted_body: encryptedBody,
+      };
+
+      console.log('Sending revocation request...');
+
+      // Send the revocation request
+      const response = await authenticatedPost(
+        buildApiUrl(API_ENDPOINTS.CREDENTIALS.REVOKE_REQUEST),
+        requestPayload
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to submit revocation request: ${response.statusText}`
+        );
+      }
+
+      const responseData = await response.json();
+      console.log('Revocation request submitted successfully:', responseData);
+
+      // Close the modal and show success message
+      setShowRevokeModal(false);
+      setRevokingCredential(null);
+      setRevocationReason('');
+
+      setInfoModalConfig({
+        title: 'Revocation Request Submitted',
+        message:
+          'Your credential revocation request has been submitted successfully. The issuer will review your request.',
+        buttonColor: 'green',
+      });
+      setShowInfoModal(true);
+    } catch (error) {
+      console.error('Error submitting revocation request:', error);
+      setInfoModalConfig({
+        title: 'Revocation Request Failed',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to submit revocation request. Please try again.',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
+    } finally {
+      setIsRevoking(false);
+    }
   };
 
   const handleDownload = async (id: string) => {
@@ -1028,48 +1731,44 @@ export default function MyCredentialPage() {
       id: 'action',
       label: 'ACTION',
       render: (row) => {
-        // Check if credential is expired
-        const isExpired = row.expiryDate !== 'N/A' && new Date(row.expiryDate) < new Date();
-
         return (
           <div className="flex gap-2">
-            {isExpired ? (
-              // If expired, only show Renew button
-              <button
-                onClick={() => handleRenew(row.id)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-              >
-                RENEW
-              </button>
-            ) : (
-              // If not expired, show Present, Update, Revoke, and Download buttons
-              <>
-                <button
-                  onClick={() => handlePresent(row.id)}
-                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
-                >
-                  PRESENT
-                </button>
-                <button
-                  onClick={() => handleUpdate(row.id)}
-                  className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm font-medium"
-                >
-                  UPDATE
-                </button>
-                <button
-                  onClick={() => handleRevoke(row.id)}
-                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
-                >
-                  REVOKE
-                </button>
-                <button
-                  onClick={() => handleDownload(row.id)}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-                >
-                  DOWNLOAD
-                </button>
-              </>
-            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePresent(row.id);
+              }}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
+            >
+              PRESENT
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUpdate(row.id);
+              }}
+              className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm font-medium"
+            >
+              UPDATE
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRenew(row.id);
+              }}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+            >
+              RENEW
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRevoke(row.id);
+              }}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
+            >
+              REVOKE
+            </button>
           </div>
         );
       },
@@ -1457,6 +2156,7 @@ export default function MyCredentialPage() {
               setShowViewCredentialModal(false);
               setSelectedCredential(null);
             }}
+            onDownload={() => handleDownload(selectedCredential.id)}
           />
         )}
       </Modal>
@@ -1688,6 +2388,743 @@ export default function MyCredentialPage() {
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* Renew Credential Modal */}
+      <Modal
+        isOpen={showRenewModal}
+        onClose={() => {
+          setShowRenewModal(false);
+          setRenewingCredential(null);
+          setRenewalReason('');
+        }}
+        title="Renew Credential"
+        maxWidth="900px"
+      >
+        {renewingCredential && (
+          <div className="px-8 py-6">
+            {/* Credential Information Grid */}
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              {/* Credential ID */}
+              <div className="col-span-2">
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">
+                    Credential ID
+                  </ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                  {renewingCredential.id}
+                </div>
+              </div>
+
+              {/* Credential Type */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">
+                    Credential Type
+                  </ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {Array.isArray(renewingCredential.type)
+                    ? renewingCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown'
+                    : renewingCredential.type}
+                </div>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    Active
+                  </span>
+                </div>
+              </div>
+
+              {/* Valid From */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Valid From</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {new Date(renewingCredential.validFrom).toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false,
+                  })}
+                </div>
+              </div>
+
+              {/* Expired At */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {renewingCredential.expiredAt
+                    ? new Date(renewingCredential.expiredAt).toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false,
+                      })
+                    : 'Never'}
+                </div>
+              </div>
+
+              {/* Issuer Name */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Issuer Name</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {renewingCredential.issuerName}
+                </div>
+              </div>
+
+              {/* Issuer DID */}
+              <div className="col-span-2">
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                  {renewingCredential.issuer}
+                </div>
+              </div>
+
+              {/* Holder DID */}
+              <div className="col-span-2">
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                  {renewingCredential.credentialSubject.id}
+                </div>
+              </div>
+            </div>
+
+            {/* Credential Image */}
+            {renewingCredential.imageLink && (
+              <div className="mb-6">
+                <label className="block mb-3">
+                  <ThemedText className="text-sm font-semibold text-gray-900">
+                    VC Background Image
+                  </ThemedText>
+                </label>
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={renewingCredential.imageLink}
+                    alt="VC Background"
+                    className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 shadow-md block bg-gray-50"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Credential Attributes Section */}
+            {Object.keys(renewingCredential.credentialSubject).filter((key) => key !== 'id')
+              .length > 0 && (
+              <div className="mb-6">
+                <div className="mb-4">
+                  <ThemedText className="text-sm font-semibold text-gray-900">
+                    Credential Attributes (
+                    {
+                      Object.keys(renewingCredential.credentialSubject).filter(
+                        (key) => key !== 'id'
+                      ).length
+                    }
+                    )
+                  </ThemedText>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="space-y-4">
+                    {Object.entries(renewingCredential.credentialSubject)
+                      .filter(([key]) => key !== 'id')
+                      .map(([key, value], index) => (
+                        <div key={index} className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block mb-1">
+                              <ThemedText className="text-xs font-medium text-gray-600">
+                                {key}
+                              </ThemedText>
+                            </label>
+                          </div>
+                          <div>
+                            <div className="px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-900">
+                              {String(value)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Renewal Reason Input */}
+            <div className="mb-6">
+              <label className="block mb-2">
+                <ThemedText className="text-sm font-medium text-gray-700">
+                  Reason for Renewal <span className="text-red-500">*</span>
+                </ThemedText>
+              </label>
+              <textarea
+                value={renewalReason}
+                onChange={(e) => setRenewalReason(e.target.value)}
+                placeholder="Please provide a detailed reason for renewing this credential..."
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none min-h-[150px] text-sm text-gray-900"
+                disabled={isRenewing}
+              />
+              {renewalReason.trim() === '' && (
+                <ThemedText className="text-xs text-gray-500 mt-1">
+                  This field is required
+                </ThemedText>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowRenewModal(false);
+                  setRenewingCredential(null);
+                  setRenewalReason('');
+                }}
+                disabled={isRenewing}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={handleSubmitRenew}
+                disabled={isRenewing || !renewalReason.trim()}
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
+              >
+                {isRenewing ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Submitting...
+                  </span>
+                ) : (
+                  'RENEW VC'
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Update Credential Modal */}
+      <Modal
+        isOpen={showUpdateModal}
+        onClose={() => {
+          setShowUpdateModal(false);
+          setUpdatingCredential(null);
+          setUpdatedAttributes({});
+          setUpdateReason('');
+        }}
+        title="Update Credential"
+        maxWidth="900px"
+      >
+        {updatingCredential && (
+          <div className="px-8 py-6">
+            {/* Credential Information Grid */}
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              {/* Credential ID */}
+              <div className="col-span-2">
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">
+                    Credential ID
+                  </ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                  {updatingCredential.id}
+                </div>
+              </div>
+
+              {/* Credential Type */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">
+                    Credential Type
+                  </ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {Array.isArray(updatingCredential.type)
+                    ? updatingCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown'
+                    : updatingCredential.type}
+                </div>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    Active
+                  </span>
+                </div>
+              </div>
+
+              {/* Valid From */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Valid From</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {new Date(updatingCredential.validFrom).toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false,
+                  })}
+                </div>
+              </div>
+
+              {/* Expired At */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {updatingCredential.expiredAt
+                    ? new Date(updatingCredential.expiredAt).toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false,
+                      })
+                    : 'Never'}
+                </div>
+              </div>
+
+              {/* Issuer Name */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Issuer Name</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {updatingCredential.issuerName}
+                </div>
+              </div>
+
+              {/* Issuer DID */}
+              <div className="col-span-2">
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                  {updatingCredential.issuer}
+                </div>
+              </div>
+
+              {/* Holder DID */}
+              <div className="col-span-2">
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                  {updatingCredential.credentialSubject.id}
+                </div>
+              </div>
+            </div>
+
+            {/* Credential Image */}
+            {updatingCredential.imageLink && (
+              <div className="mb-6">
+                <label className="block mb-3">
+                  <ThemedText className="text-sm font-semibold text-gray-900">
+                    VC Background Image
+                  </ThemedText>
+                </label>
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={updatingCredential.imageLink}
+                    alt="VC Background"
+                    className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 shadow-md block bg-gray-50"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Editable Credential Attributes Section */}
+            {Object.keys(updatedAttributes).length > 0 && (
+              <div className="mb-6">
+                <div className="mb-4">
+                  <ThemedText className="text-sm font-semibold text-gray-900">
+                    Credential Attributes ({Object.keys(updatedAttributes).length}) - Editable
+                  </ThemedText>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="space-y-4">
+                    {Object.entries(updatedAttributes).map(([key, value], index) => (
+                      <div key={index} className="grid grid-cols-2 gap-4">
+                        <div className="flex items-center">
+                          <label className="block">
+                            <ThemedText className="text-xs font-medium text-gray-600">
+                              {key}
+                            </ThemedText>
+                          </label>
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            value={String(value)}
+                            onChange={(e) => {
+                              const newValue = e.target.value;
+                              setUpdatedAttributes((prev) => ({
+                                ...prev,
+                                [key]: newValue,
+                              }));
+                            }}
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            disabled={isUpdating}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Update Reason Input */}
+            <div className="mb-6">
+              <label className="block mb-2">
+                <ThemedText className="text-sm font-medium text-gray-700">
+                  Reason for Update <span className="text-red-500">*</span>
+                </ThemedText>
+              </label>
+              <textarea
+                value={updateReason}
+                onChange={(e) => setUpdateReason(e.target.value)}
+                placeholder="Please provide a detailed reason for updating this credential..."
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none min-h-[150px] text-sm text-gray-900"
+                disabled={isUpdating}
+              />
+              {updateReason.trim() === '' && (
+                <ThemedText className="text-xs text-gray-500 mt-1">
+                  This field is required
+                </ThemedText>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowUpdateModal(false);
+                  setUpdatingCredential(null);
+                  setUpdatedAttributes({});
+                  setUpdateReason('');
+                }}
+                disabled={isUpdating}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={handleSubmitUpdate}
+                disabled={isUpdating || !updateReason.trim()}
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
+              >
+                {isUpdating ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Submitting...
+                  </span>
+                ) : (
+                  'UPDATE VC'
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Revoke Credential Modal */}
+      <Modal
+        isOpen={showRevokeModal}
+        onClose={() => {
+          setShowRevokeModal(false);
+          setRevokingCredential(null);
+          setRevocationReason('');
+        }}
+        title="Revoke Credential"
+        maxWidth="900px"
+      >
+        {revokingCredential && (
+          <div className="px-8 py-6">
+            {/* Credential Information Grid */}
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              {/* Credential ID */}
+              <div className="col-span-2">
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">
+                    Credential ID
+                  </ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                  {revokingCredential.id}
+                </div>
+              </div>
+
+              {/* Credential Type */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">
+                    Credential Type
+                  </ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {Array.isArray(revokingCredential.type)
+                    ? revokingCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown'
+                    : revokingCredential.type}
+                </div>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    Active
+                  </span>
+                </div>
+              </div>
+
+              {/* Valid From */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Valid From</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {new Date(revokingCredential.validFrom).toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false,
+                  })}
+                </div>
+              </div>
+
+              {/* Expired At */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {revokingCredential.expiredAt
+                    ? new Date(revokingCredential.expiredAt).toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false,
+                      })
+                    : 'Never'}
+                </div>
+              </div>
+
+              {/* Issuer Name */}
+              <div>
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Issuer Name</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  {revokingCredential.issuerName}
+                </div>
+              </div>
+
+              {/* Issuer DID */}
+              <div className="col-span-2">
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                  {revokingCredential.issuer}
+                </div>
+              </div>
+
+              {/* Holder DID */}
+              <div className="col-span-2">
+                <label className="block mb-2">
+                  <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
+                </label>
+                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                  {revokingCredential.credentialSubject.id}
+                </div>
+              </div>
+            </div>
+
+            {/* Credential Image */}
+            {revokingCredential.imageLink && (
+              <div className="mb-6">
+                <label className="block mb-3">
+                  <ThemedText className="text-sm font-semibold text-gray-900">
+                    VC Background Image
+                  </ThemedText>
+                </label>
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={revokingCredential.imageLink}
+                    alt="VC Background"
+                    className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 shadow-md block bg-gray-50"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Credential Attributes Section */}
+            {Object.keys(revokingCredential.credentialSubject).filter((key) => key !== 'id')
+              .length > 0 && (
+              <div className="mb-6">
+                <div className="mb-4">
+                  <ThemedText className="text-sm font-semibold text-gray-900">
+                    Credential Attributes (
+                    {
+                      Object.keys(revokingCredential.credentialSubject).filter(
+                        (key) => key !== 'id'
+                      ).length
+                    }
+                    )
+                  </ThemedText>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="space-y-4">
+                    {Object.entries(revokingCredential.credentialSubject)
+                      .filter(([key]) => key !== 'id')
+                      .map(([key, value], index) => (
+                        <div key={index} className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block mb-1">
+                              <ThemedText className="text-xs font-medium text-gray-600">
+                                {key}
+                              </ThemedText>
+                            </label>
+                          </div>
+                          <div>
+                            <div className="px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-900">
+                              {String(value)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Warning Message */}
+            <div className="mb-6">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 text-red-600 flex-shrink-0"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <ThemedText className="text-sm font-semibold text-red-800">
+                      Warning: This action cannot be undone
+                    </ThemedText>
+                  </div>
+                  <ThemedText className="text-xs text-red-700">
+                    Revoking this credential will permanently invalidate it. The credential will no
+                    longer be valid for verification purposes.
+                  </ThemedText>
+                </div>
+              </div>
+            </div>
+
+            {/* Revocation Reason Input */}
+            <div className="mb-6">
+              <label className="block mb-2">
+                <ThemedText className="text-sm font-medium text-gray-700">
+                  Reason for Revocation <span className="text-red-500">*</span>
+                </ThemedText>
+              </label>
+              <textarea
+                value={revocationReason}
+                onChange={(e) => setRevocationReason(e.target.value)}
+                placeholder="Please provide a detailed reason for revoking this credential..."
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none min-h-[150px] text-sm text-gray-900"
+                disabled={isRevoking}
+              />
+              {revocationReason.trim() === '' && (
+                <ThemedText className="text-xs text-gray-500 mt-1">
+                  This field is required
+                </ThemedText>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowRevokeModal(false);
+                  setRevokingCredential(null);
+                  setRevocationReason('');
+                }}
+                disabled={isRevoking}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={handleSubmitRevoke}
+                disabled={isRevoking || !revocationReason.trim()}
+                className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
+              >
+                {isRevoking ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Submitting...
+                  </span>
+                ) : (
+                  'REVOKE VC'
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Info Modal */}

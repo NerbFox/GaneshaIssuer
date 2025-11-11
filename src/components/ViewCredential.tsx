@@ -28,9 +28,14 @@ interface ViewCredentialProps {
     };
   };
   onClose: () => void;
+  onDownload?: () => void;
 }
 
-export const ViewCredential: React.FC<ViewCredentialProps> = ({ credentialData, onClose }) => {
+export const ViewCredential: React.FC<ViewCredentialProps> = ({
+  credentialData,
+  onClose,
+  onDownload,
+}) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString('en-US', {
@@ -270,6 +275,28 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({ credentialData, 
 
       {/* Action Buttons */}
       <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
+        {onDownload && (
+          <button
+            onClick={onDownload}
+            className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer flex items-center gap-2"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            DOWNLOAD
+          </button>
+        )}
         <button
           onClick={onClose}
           className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
