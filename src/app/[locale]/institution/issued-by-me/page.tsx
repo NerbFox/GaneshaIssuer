@@ -25,29 +25,31 @@ interface IssuedCredential {
   holderDid: string;
   schemaName: string;
   status: string;
-  lastUpdated: string;
   activeUntil: string;
   schemaId: string;
   schemaVersion: number;
   encryptedBody?: Record<string, unknown>;
   createdAt: string;
+  vcId?: string;
 }
 
 interface ApiCredentialResponse {
   success: boolean;
   message: string;
   data: {
-    message: string;
     count: number;
-    data: {
+    requests: {
       id: string;
+      history_type: string;
+      request_type: string;
       encrypted_body: string;
       issuer_did: string;
       holder_did: string;
       status: string;
+      vc_id?: string;
+      new_vc_id?: string;
+      transaction_hash?: string;
       createdAt: string;
-      updatedAt: string;
-      deletedAt: string | null;
     }[];
   };
 }
@@ -179,9 +181,8 @@ export default function IssuedByMePage() {
         throw new Error('Institution DID not found. Please log in again.');
       }
 
-      // Fetch credentials
-      const credentialsUrl = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.REQUESTS, {
-        type: 'ISSUANCE',
+      // Fetch credentials using issuer-history endpoint
+      const credentialsUrl = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.ISSUER_HISTORY, {
         issuer_did: institutionDID,
       });
 
@@ -242,7 +243,7 @@ export default function IssuedByMePage() {
       const decryptedBodiesMap = new Map<string, Record<string, unknown>>();
 
       const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
-      for (const credential of credentialsResult.data.data) {
+      for (const credential of credentialsResult.data.requests) {
         if (privateKeyHex) {
           try {
             const decryptedBody = await decryptWithPrivateKey(
@@ -269,8 +270,13 @@ export default function IssuedByMePage() {
       }
 
       // Transform API data to match IssuedCredential interface
-      const transformedCredentials: IssuedCredential[] = credentialsResult.data.data
-        .filter((credential) => credential.status !== 'PENDING' && credential.status !== 'REJECTED') // Filter out PENDING and REJECTED requests
+      const transformedCredentials: IssuedCredential[] = credentialsResult.data.requests
+        .filter(
+          (credential) =>
+            credential.status !== 'PENDING' &&
+            credential.status !== 'REJECTED' &&
+            (credential.request_type === 'ISSUANCE' || !credential.request_type)
+        ) // Filter out PENDING and REJECTED, and only show ISSUANCE type
         .map((credential) => {
           // Get parsed body from cache
           const parsedBody = parsedBodiesMap.get(credential.encrypted_body);
@@ -316,12 +322,12 @@ export default function IssuedByMePage() {
                 ? `${schemaName} v${schemaVersion}`
                 : schemaName,
             status: credentialStatus,
-            lastUpdated: credential.updatedAt,
             activeUntil: activeUntil,
             schemaId: schemaId,
             schemaVersion: schemaVersion,
             encryptedBody: encryptedBody,
             createdAt: credential.createdAt,
+            vcId: credential.vc_id,
           };
         });
 
@@ -442,52 +448,130 @@ export default function IssuedByMePage() {
     try {
       console.log('Updating credential:', data);
 
-      // Step 1: Revoke the old credential
-      console.log('Revoking old credential:', data.credentialId);
-      const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.REVOKE_VC);
+      // Get issuer information
       const issuerDid = localStorage.getItem('institutionDID');
-      const revokeResponse = await authenticatedPost(revokeUrl, {
-        issuer_did: issuerDid,
-        vc_id: data.credentialId,
-      });
+      const institutionDataStr = localStorage.getItem('institutionData');
 
-      if (!revokeResponse.ok) {
-        throw new Error('Failed to revoke old credential');
+      if (!issuerDid || !institutionDataStr) {
+        throw new Error('Issuer information not found. Please log in again.');
       }
 
-      // Step 2: Issue a new credential with updated data
-      console.log('Issuing new credential with updated data:', data);
-      const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.ISSUE_VC);
+      const institutionData = JSON.parse(institutionDataStr);
+      const institutionName = institutionData.name;
 
-      // Transform attributes into the format expected by the API
-      const attributesObject: Record<string, string | number | boolean> = {};
+      if (!institutionName) {
+        throw new Error('Institution name not found. Please log in again.');
+      }
+
+      // Find the credential to get the vcId
+      const credential = credentials.find((c) => c.id === data.credentialId);
+      if (!credential || !credential.vcId) {
+        throw new Error('Credential not found or missing VC ID.');
+      }
+
+      // Fetch holder's DID document to get their public key
+      const holderDidUrl = buildApiUrl(API_ENDPOINTS.DIDS.DOCUMENT(data.holderDid));
+      const holderDidResponse = await authenticatedGet(holderDidUrl);
+
+      if (!holderDidResponse.ok) {
+        throw new Error('Failed to fetch holder DID document.');
+      }
+
+      const holderDidDoc = await holderDidResponse.json();
+      const holderPublicKey = holderDidDoc.data?.[holderDidDoc.data?.keyId];
+      if (!holderPublicKey) {
+        throw new Error('Holder public key not found in DID document');
+      }
+
+      // Fetch schema details
+      const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(data.schemaId, data.version));
+      const schemaResponse = await authenticatedGet(schemaUrl);
+
+      if (!schemaResponse.ok) {
+        throw new Error('Failed to fetch schema details');
+      }
+
+      const schemaData = await schemaResponse.json();
+      const imageLink = schemaData.data?.image_link || null;
+      const expiredIn = schemaData.data?.schema?.expired_in || 5;
+
+      // Calculate expiration date
+      const now = new Date();
+      const expiredAt = new Date(now);
+      expiredAt.setFullYear(expiredAt.getFullYear() + expiredIn);
+
+      // Transform attributes into credential data format
+      const credentialData: Record<string, string | number | boolean> = {};
       data.attributes.forEach((attr) => {
-        attributesObject[attr.name] = attr.value;
+        credentialData[attr.name] = attr.value;
       });
 
-      const issueResponse = await authenticatedPost(issueUrl, {
-        holder_did: data.holderDid,
+      // Create a unique new VC ID
+      const newVcId = `vc:${Date.now()}:${Math.random().toString(36).substring(2, 15)}`;
+
+      // Create the new Verifiable Credential
+      const vc = createVC({
+        id: newVcId,
+        vcType: data.schemaName.replace(/\s+v\d+$/, '').replace(/\s+/g, ''), // Remove version suffix and spaces
+        issuerDid: issuerDid,
+        issuerName: institutionName,
+        holderDid: data.holderDid,
+        credentialData: credentialData,
+        validFrom: now.toISOString(),
+        expiredAt: expiredAt.toISOString(),
+        imageLink: imageLink,
+      });
+
+      // Sign the VC
+      const signedVC = await signVCWithStoredKey(vc);
+
+      // Hash the VC
+      const vcHashWithoutPrefix = hashVC(signedVC);
+      const vcHash = `0x${vcHashWithoutPrefix}`;
+
+      // Create encrypted body
+      const bodyToEncrypt = {
         schema_id: data.schemaId,
         schema_version: data.version,
-        ...attributesObject,
+        issuer_did: issuerDid,
+        holder_did: data.holderDid,
+        ...credentialData,
+      };
+
+      // Encrypt with holder's public key
+      const encryptedBody = await encryptWithPublicKey(bodyToEncrypt, holderPublicKey);
+
+      // Call the update-vc API
+      const updateUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.UPDATE_VC);
+      const updateResponse = await authenticatedPost(updateUrl, {
+        issuer_did: issuerDid,
+        holder_did: data.holderDid,
+        old_vc_id: credential.vcId,
+        new_vc_id: newVcId,
+        vc_type: data.schemaName.replace(/\s+v\d+$/, '').replace(/\s+/g, ''),
+        schema_id: data.schemaId,
+        schema_version: data.version,
+        new_vc_hash: vcHash,
+        encrypted_body: encryptedBody,
+        expiredAt: expiredAt.toISOString(),
       });
 
-      if (!issueResponse.ok) {
-        throw new Error('Failed to issue new credential');
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json();
+        throw new Error(errorData.message || 'Failed to update credential');
       }
 
-      // Show success confirmation and close the modal
+      // Show success confirmation
       setShowUpdateModal(false);
       setSelectedCredential(null);
       setConfirmationConfig({
         title: 'Update Credential',
-        message: `The old credential has been revoked and a new credential has been issued.\n\nThe holder will receive the updated credential.`,
+        message: `The credential has been updated successfully.\n\nThe holder can claim the updated credential.`,
         confirmText: 'OK',
         confirmButtonColor: 'green',
         onConfirm: () => {
           setShowConfirmation(false);
-          // Refresh the credentials list to show updated data
-          window.location.reload();
+          fetchCredentials();
         },
       });
       setShowConfirmation(true);
@@ -511,6 +595,20 @@ export default function IssuedByMePage() {
     const credential = credentials.find((c) => c.id === id);
     if (!credential) return;
 
+    if (!credential.vcId) {
+      setConfirmationConfig({
+        title: 'Error',
+        message: 'Credential VC ID not found. Cannot revoke this credential.',
+        confirmText: 'OK',
+        confirmButtonColor: 'red',
+        onConfirm: () => {
+          setShowConfirmation(false);
+        },
+      });
+      setShowConfirmation(true);
+      return;
+    }
+
     setConfirmationConfig({
       title: 'Revoke Credential',
       message: `Are you sure you want to revoke this credential?\n\nThis action cannot be undone.`,
@@ -518,21 +616,31 @@ export default function IssuedByMePage() {
       confirmButtonColor: 'red',
       onConfirm: async () => {
         try {
-          console.log('Revoke credential:', id);
+          console.log('Revoke credential:', credential.vcId);
           const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.REVOKE_VC);
           const issuerDid = localStorage.getItem('institutionDID');
           const revokeResponse = await authenticatedPost(revokeUrl, {
             issuer_did: issuerDid,
-            vc_id: id,
+            vc_id: credential.vcId,
           });
 
           if (!revokeResponse.ok) {
-            throw new Error('Failed to revoke credential');
+            const errorData = await revokeResponse.json();
+            throw new Error(errorData.message || 'Failed to revoke credential');
           }
 
           setShowConfirmation(false);
-          // Refresh the credentials list
-          window.location.reload();
+          setConfirmationConfig({
+            title: 'Success',
+            message: 'Credential has been revoked successfully.',
+            confirmText: 'OK',
+            confirmButtonColor: 'green',
+            onConfirm: () => {
+              setShowConfirmation(false);
+              fetchCredentials();
+            },
+          });
+          setShowConfirmation(true);
         } catch (error) {
           console.error('Error revoking credential:', error);
           setShowConfirmation(false);
@@ -556,6 +664,20 @@ export default function IssuedByMePage() {
     const credential = credentials.find((c) => c.id === id);
     if (!credential) return;
 
+    if (!credential.vcId) {
+      setConfirmationConfig({
+        title: 'Error',
+        message: 'Credential VC ID not found. Cannot renew this credential.',
+        confirmText: 'OK',
+        confirmButtonColor: 'red',
+        onConfirm: () => {
+          setShowConfirmation(false);
+        },
+      });
+      setShowConfirmation(true);
+      return;
+    }
+
     setConfirmationConfig({
       title: 'Renew Credential',
       message: `Are you sure you want to renew this credential?\n\nA new credential with the same data will be issued.`,
@@ -563,40 +685,92 @@ export default function IssuedByMePage() {
       confirmButtonColor: 'blue',
       onConfirm: async () => {
         try {
-          console.log('Renew credential:', id);
-          const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.RENEW_VC);
+          console.log('Renew credential:', credential.vcId);
 
-          // Transform attributes into the format expected by the API
-          const attributesObject: Record<string, string | number | boolean> = {};
+          // Get issuer information
+          const issuerDid = localStorage.getItem('institutionDID');
+          if (!issuerDid) {
+            throw new Error('Issuer DID not found. Please log in again.');
+          }
+
+          // Fetch holder's DID document to get their public key
+          const holderDidUrl = buildApiUrl(API_ENDPOINTS.DIDS.DOCUMENT(credential.holderDid));
+          const holderDidResponse = await authenticatedGet(holderDidUrl);
+
+          if (!holderDidResponse.ok) {
+            throw new Error('Failed to fetch holder DID document.');
+          }
+
+          const holderDidDoc = await holderDidResponse.json();
+          const holderPublicKey = holderDidDoc.data?.[holderDidDoc.data?.keyId];
+          if (!holderPublicKey) {
+            throw new Error('Holder public key not found in DID document');
+          }
+
+          // Fetch schema details to get expiration
+          const schemaUrl = buildApiUrl(
+            API_ENDPOINTS.SCHEMAS.BY_VERSION(credential.schemaId, credential.schemaVersion)
+          );
+          const schemaResponse = await authenticatedGet(schemaUrl);
+
+          if (!schemaResponse.ok) {
+            throw new Error('Failed to fetch schema details');
+          }
+
+          const schemaData = await schemaResponse.json();
+          const expiredIn = schemaData.data?.schema?.expired_in || 5;
+
+          // Calculate new expiration date
+          const now = new Date();
+          const expiredAt = new Date(now);
+          expiredAt.setFullYear(expiredAt.getFullYear() + expiredIn);
+
+          // Transform attributes into credential data format
+          const credentialData: Record<string, string | number | boolean> = {};
           if (credential.encryptedBody) {
             Object.entries(credential.encryptedBody).forEach(([key, value]) => {
               if (!['schema_id', 'schema_version', 'issuer_did', 'holder_did'].includes(key)) {
-                attributesObject[key] = value as string | number | boolean;
+                credentialData[key] = value as string | number | boolean;
               }
             });
           }
 
-          const issueResponse = await authenticatedPost(issueUrl, {
-            holder_did: credential.holderDid,
+          // Create encrypted body
+          const bodyToEncrypt = {
             schema_id: credential.schemaId,
             schema_version: credential.schemaVersion,
-            ...attributesObject,
+            issuer_did: issuerDid,
+            holder_did: credential.holderDid,
+            ...credentialData,
+          };
+
+          // Encrypt with holder's public key
+          const encryptedBody = await encryptWithPublicKey(bodyToEncrypt, holderPublicKey);
+
+          // Call the renew-vc API
+          const renewUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.RENEW_VC);
+          const renewResponse = await authenticatedPost(renewUrl, {
+            issuer_did: issuerDid,
+            holder_did: credential.holderDid,
+            vc_id: credential.vcId,
+            encrypted_body: encryptedBody,
+            expiredAt: expiredAt.toISOString(),
           });
 
-          if (!issueResponse.ok) {
-            throw new Error('Failed to renew credential');
+          if (!renewResponse.ok) {
+            const errorData = await renewResponse.json();
+            throw new Error(errorData.message || 'Failed to renew credential');
           }
 
           setShowConfirmation(false);
           setConfirmationConfig({
             title: 'Renew Credential',
-            message: `A new credential has been issued successfully.\n\nThe holder will receive the renewed credential.`,
+            message: `The credential has been renewed successfully.\n\nThe holder can claim the renewed credential.`,
             confirmText: 'OK',
             confirmButtonColor: 'green',
             onConfirm: () => {
               setShowConfirmation(false);
-              // Refresh the credentials list
-              window.location.reload();
+              fetchCredentials();
             },
           });
           setShowConfirmation(true);
@@ -981,11 +1155,11 @@ export default function IssuedByMePage() {
       ),
     },
     {
-      id: 'lastUpdated',
-      label: 'LAST UPDATED',
-      sortKey: 'lastUpdated',
+      id: 'createdAt',
+      label: 'CREATED AT',
+      sortKey: 'createdAt',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{formatDate(row.lastUpdated)}</ThemedText>
+        <ThemedText className="text-sm text-gray-900">{formatDate(row.createdAt)}</ThemedText>
       ),
     },
     {
@@ -1257,7 +1431,6 @@ export default function IssuedByMePage() {
               status: selectedCredential.status,
               issuedAt: selectedCredential.createdAt,
               activeUntil: selectedCredential.activeUntil,
-              lastUpdated: selectedCredential.lastUpdated,
               schemaIsActive: (() => {
                 // Find the schema with the selected credential's version to check if it's active
                 const credentialSchema = schemas.find(
@@ -1342,7 +1515,6 @@ export default function IssuedByMePage() {
               status: selectedCredential.status,
               issuedAt: selectedCredential.createdAt,
               activeUntil: selectedCredential.activeUntil,
-              lastUpdated: selectedCredential.lastUpdated,
               attributes: (() => {
                 // Find the schema with the selected credential's version to get attribute types
                 const credentialSchema = schemas.find(
