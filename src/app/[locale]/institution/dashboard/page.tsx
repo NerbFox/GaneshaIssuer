@@ -37,7 +37,7 @@ interface RecentActivity {
   date: string;
   holderDid: string;
   requestType: string;
-  actionType: string;
+  actionType: string | null;
   schemaName: string;
 }
 
@@ -287,7 +287,7 @@ export default function InstitutionPage() {
     return did.substring(0, maxLength) + '...';
   };
 
-  const getActionIcon = (actionType: string) => {
+  const getActionIcon = (actionType: string | null | undefined) => {
     switch (actionType) {
       case 'APPROVED':
         return '✅';
@@ -412,7 +412,7 @@ export default function InstitutionPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900">
                         {getRequestTypeLabel(activity.requestType)} request{' '}
-                        {activity.actionType.toLowerCase()} for{' '}
+                        {activity.actionType?.toLowerCase() || 'processed'} for{' '}
                         <span className="text-blue-600">{activity.schemaName}</span>
                       </p>
                       <p className="text-xs text-gray-500">
