@@ -54,6 +54,9 @@ export const API_ENDPOINTS = {
     CREDENTIALS_FROM_DB: `${CREDENTIALS_PATH}/credentials-from-db`, // GET holder's issued VCs from DB
     STATUS: (vcId: string) => `${CREDENTIALS_PATH}/${vcId}/status`,
 
+    // File upload for credential documents
+    UPLOAD_FILE: `${CREDENTIALS_PATH}/file`,
+
     // Process credential requests (Approve/Reject)
     ISSUE_VC: `${CREDENTIALS_PATH}/issue-vc`,
     REVOKE_VC: `${CREDENTIALS_PATH}/revoke-vc`,

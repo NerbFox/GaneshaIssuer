@@ -2,6 +2,8 @@
 
 import { ThemedText } from './ThemedText';
 import { DataTable, Column } from './DataTable';
+import CredentialPreview from './CredentialPreview';
+import { AttributePositionData, QRCodePosition } from './AttributePositionEditor';
 
 interface Attribute {
   id: number;
@@ -23,6 +25,8 @@ interface ViewSchemaFormProps {
     updatedAt: string;
     attributes: Attribute[];
     imageUrl?: string;
+    attributePositions?: AttributePositionData;
+    qrCodePosition?: QRCodePosition;
   };
 }
 
@@ -177,22 +181,39 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
         </div>
       </div>
 
-      {/* VC Background Image */}
+      {/* Credential Template with Positioned Attributes */}
       {schemaData.imageUrl && (
         <div className="mb-6">
-          <label className="block mb-3">
-            <ThemedText className="text-sm font-semibold text-gray-900">
-              VC Background Image
-            </ThemedText>
-          </label>
-          <div className="relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={schemaData.imageUrl}
-              alt="VC Background"
-              className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 shadow-md block bg-gray-50"
+          {schemaData.attributePositions &&
+          Object.keys(schemaData.attributePositions).length > 0 ? (
+            <CredentialPreview
+              imageUrl={schemaData.imageUrl}
+              positions={schemaData.attributePositions}
+              qrPosition={schemaData.qrCodePosition}
+              sampleData={Object.fromEntries(
+                schemaData.attributes.map((attr) => [attr.name, `[${attr.name}]`])
+              )}
             />
-          </div>
+          ) : (
+            <>
+              <label className="block mb-3">
+                <ThemedText className="text-sm font-semibold text-gray-900">
+                  Credential Template
+                </ThemedText>
+              </label>
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={schemaData.imageUrl}
+                  alt="Credential Template"
+                  className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 shadow-md block bg-gray-50"
+                />
+              </div>
+              <ThemedText className="text-xs text-gray-500 mt-2">
+                No attribute positions configured for this schema.
+              </ThemedText>
+            </>
+          )}
         </div>
       )}
 
@@ -211,6 +232,7 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
           enableSelection={false}
           totalCount={schemaData.attributes.length}
           hideBottomControls={true}
+          rowsPerPageOptions={[1000]}
           idKey="id"
         />
       </div>

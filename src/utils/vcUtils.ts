@@ -15,6 +15,8 @@ export interface VerifiableCredential {
   validFrom: string;
   expiredAt: string | null;
   imageLink: string | null;
+  fileId?: string | null;
+  fileUrl?: string | null;
   credentialSubject: {
     id: string;
     [key: string]: string | number | boolean;
@@ -30,6 +32,8 @@ export interface VerifiableCredentialDB {
   validFrom: string;
   expiredAt: string | null;
   imageLink: string | null;
+  fileId?: string | null;
+  fileUrl?: string | null;
   credentialSubject: {
     id: string;
     [key: string]: string | number | boolean;
@@ -50,6 +54,8 @@ export function createVC(params: {
   validFrom?: string;
   imageLink: string | null;
   expiredAt: string | null;
+  fileId?: string | null;
+  fileUrl?: string | null;
 }): VerifiableCredential {
   const {
     id,
@@ -61,9 +67,11 @@ export function createVC(params: {
     expiredAt,
     imageLink,
     issuerName,
+    fileId,
+    fileUrl,
   } = params;
 
-  return {
+  const vc: VerifiableCredential = {
     '@context': [
       'https://www.w3.org/ns/credentials/v2',
       'https://www.w3.org/ns/credentials/examples/v2',
@@ -80,6 +88,16 @@ export function createVC(params: {
       ...credentialData,
     },
   };
+
+  // Add file references if provided
+  if (fileId) {
+    vc.fileId = fileId;
+  }
+  if (fileUrl) {
+    vc.fileUrl = fileUrl;
+  }
+
+  return vc;
 }
 
 /**

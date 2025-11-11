@@ -11,6 +11,7 @@ import UpdateSchemaForm, {
   SchemaFormData as UpdateSchemaFormData,
 } from '@/components/UpdateSchemaForm';
 import ViewSchemaForm from '@/components/ViewSchemaForm';
+import { AttributePositionData, QRCodePosition } from '@/components/AttributePositionEditor';
 import { DateTimePicker } from '@/components/DateTimePicker';
 import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 import { redirectIfJWTInvalid } from '@/utils/auth';
@@ -27,6 +28,8 @@ interface Schema {
   schemaDetails?: {
     properties: Record<string, { type: string }>;
     required: string[];
+    attribute_positions?: AttributePositionData;
+    qr_code_position?: QRCodePosition;
   };
   version: number;
   uniqueKey: string; // Composite key: id-version
@@ -47,6 +50,8 @@ interface ApiSchemaResponse {
         required: string[];
         properties: Record<string, unknown>;
         expired_in?: number;
+        attribute_positions?: AttributePositionData;
+        qr_code_position?: QRCodePosition;
       };
       issuer_did: string;
       version: number;
@@ -440,6 +445,8 @@ export default function SchemaPage() {
           schemaDetails: {
             properties: schemaData.schema.properties,
             required: schemaData.schema.required,
+            attribute_positions: schemaData.schema.attribute_positions,
+            qr_code_position: schemaData.schema.qr_code_position,
           },
           image_link: schemaData.image_link, // Include image link from API
         };
@@ -480,6 +487,8 @@ export default function SchemaPage() {
           schemaDetails: {
             properties: schemaData.schema.properties,
             required: schemaData.schema.required,
+            attribute_positions: schemaData.schema.attribute_positions,
+            qr_code_position: schemaData.schema.qr_code_position,
           },
           image_link: schemaData.image_link, // Include image link from API
         };
@@ -519,6 +528,10 @@ export default function SchemaPage() {
           properties,
           required,
           expired_in: data.expiredIn,
+          // Include attribute positions if configured
+          ...(data.attributePositions && { attribute_positions: data.attributePositions }),
+          // Include QR code position if configured
+          ...(data.qrCodePosition && { qr_code_position: data.qrCodePosition }),
         },
       };
 
@@ -532,6 +545,14 @@ export default function SchemaPage() {
         formData.append('schema[expired_in]', String(payload.schema.expired_in));
         formData.append('schema[required]', JSON.stringify(payload.schema.required));
         formData.append('schema[properties]', JSON.stringify(payload.schema.properties));
+        // Include attribute positions if configured
+        if (data.attributePositions) {
+          formData.append('schema[attribute_positions]', JSON.stringify(data.attributePositions));
+        }
+        // Include QR code position if configured
+        if (data.qrCodePosition) {
+          formData.append('schema[qr_code_position]', JSON.stringify(data.qrCodePosition));
+        }
 
         // Add image file if new image is uploaded
         if (data.image) {
@@ -902,6 +923,10 @@ export default function SchemaPage() {
           properties,
           required,
           expired_in: data.expiredIn,
+          // Include attribute positions if configured
+          ...(data.attributePositions && { attribute_positions: data.attributePositions }),
+          // Include QR code position if configured
+          ...(data.qrCodePosition && { qr_code_position: data.qrCodePosition }),
         },
         issuer_did: issuerDid,
       };
@@ -917,6 +942,14 @@ export default function SchemaPage() {
         formData.append('schema[expired_in]', String(payload.schema.expired_in));
         formData.append('schema[required]', JSON.stringify(payload.schema.required));
         formData.append('schema[properties]', JSON.stringify(payload.schema.properties));
+        // Include attribute positions if configured
+        if (data.attributePositions) {
+          formData.append('schema[attribute_positions]', JSON.stringify(data.attributePositions));
+        }
+        // Include QR code position if configured
+        if (data.qrCodePosition) {
+          formData.append('schema[qr_code_position]', JSON.stringify(data.qrCodePosition));
+        }
         formData.append('issuer_did', issuerDid);
         formData.append('image', data.image, data.image.name);
 
@@ -1272,6 +1305,43 @@ export default function SchemaPage() {
                 )}
 
                 <button
+                  onClick={async () => {
+                    setIsLoading(true);
+                    try {
+                      await refreshSchemas();
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                      </svg>
+                      Refresh
+                    </>
+                  )}
+                </button>
+
+                <button
                   onClick={handleNewSchema}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
                 >
@@ -1508,6 +1578,8 @@ export default function SchemaPage() {
                 })
               ),
               imageUrl: selectedSchema.image_link,
+              attributePositions: selectedSchema.schemaDetails.attribute_positions,
+              qrCodePosition: selectedSchema.schemaDetails.qr_code_position,
             }}
           />
         )}

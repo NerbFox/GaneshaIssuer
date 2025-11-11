@@ -586,6 +586,7 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
             enableSelection={false}
             totalCount={filteredAttributes.length}
             hideBottomControls={true}
+            rowsPerPageOptions={[1000]}
             idKey="id"
           />
         </div>
