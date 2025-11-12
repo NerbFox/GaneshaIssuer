@@ -880,9 +880,17 @@ export default function IssueRequestPage() {
 
             // Store the current vc_id for UPDATE, RENEWAL, REVOKE requests
             if (fullDecryptedBody.vc_id && typeof fullDecryptedBody.vc_id === 'string') {
-              console.log('Current VC ID from decrypted body:', fullDecryptedBody.vc_id);
+              console.log(
+                '✓ Current VC ID extracted from decrypted body:',
+                fullDecryptedBody.vc_id
+              );
+              console.log('  VC ID length:', fullDecryptedBody.vc_id.length);
+              console.log('  VC ID parts:', fullDecryptedBody.vc_id.split(':').length);
               setCurrentVcId(fullDecryptedBody.vc_id);
             } else {
+              console.warn('✗ VC ID not found in decrypted body or invalid type');
+              console.warn('  fullDecryptedBody.vc_id:', fullDecryptedBody.vc_id);
+              console.warn('  typeof:', typeof fullDecryptedBody.vc_id);
               setCurrentVcId(null);
             }
           } else {
@@ -1090,10 +1098,45 @@ export default function IssueRequestPage() {
         );
       }
 
-      // Generate unique vc_id with timestamp and random component
+      // For RENEWAL, keep the same VC ID. For UPDATE and ISSUANCE, generate a new one.
       const timestamp = Date.now();
       const newVcId = `${schemaData.id}:${schemaData.version}:${selectedRequest.holder_did}:${timestamp}`;
-      console.log('Generated unique VC ID:', newVcId);
+
+      // Determine which VC ID to use
+      let vcIdToUse: string;
+      if (requestType === 'RENEWAL') {
+        // For RENEWAL, we must use the existing VC ID (VC ID should not change)
+        if (!currentVcId) {
+          throw new Error(
+            'Missing current VC ID for renewal.\n\n' +
+              'The renewal request does not contain a valid VC ID. ' +
+              'This could mean:\n' +
+              '1. The original credential was not properly stored\n' +
+              '2. The encrypted body is missing the vc_id field\n' +
+              '3. The credential was never issued to the blockchain\n\n' +
+              'Please check the renewal request data.'
+          );
+        }
+
+        // Validate VC ID format (should be: schema_id:version:holder_did:timestamp)
+        const vcIdParts = currentVcId.split(':');
+        if (vcIdParts.length < 4) {
+          console.warn('⚠️ Warning: VC ID has unexpected format:', currentVcId);
+          console.warn('   Expected format: schema_id:version:holder_did:timestamp');
+          console.warn('   Got parts:', vcIdParts);
+        }
+
+        vcIdToUse = currentVcId;
+        console.log('✓ RENEWAL: Using existing VC ID (VC ID will NOT change):', vcIdToUse);
+        console.log('  Schema ID:', vcIdParts[0] || 'N/A');
+        console.log('  Version:', vcIdParts[1] || 'N/A');
+        console.log('  Holder DID:', vcIdParts[2] || 'N/A');
+        console.log('  Timestamp:', vcIdParts[3] || 'N/A');
+      } else {
+        // For UPDATE and ISSUANCE, generate a new VC ID
+        vcIdToUse = newVcId;
+        console.log('✓ Generated new VC ID:', vcIdToUse);
+      }
 
       // Calculate expired_at based on schemaData.expired_in (in years)
       const now = new Date();
@@ -1117,7 +1160,7 @@ export default function IssueRequestPage() {
 
       // Create Verifiable Credential
       const vc = createVC({
-        id: newVcId,
+        id: vcIdToUse, // Use existing VC ID for RENEWAL, new VC ID for UPDATE/ISSUANCE
         vcType: schemaData.name.replace(/\s+/g, ''), // Remove spaces for type name
         issuerDid: selectedRequest.issuer_did,
         expiredAt: expiredAt,
@@ -1209,14 +1252,42 @@ export default function IssueRequestPage() {
 
       // Send POST request
       console.log('Sending request to:', apiUrl);
+      console.log('Request body:', JSON.stringify(requestBody, null, 2));
       const response = await authenticatedPost(apiUrl, requestBody);
 
       console.log('Response status:', response.status);
       console.log('Response statusText:', response.statusText);
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData: { message?: string; errors?: unknown };
+        const contentType = response.headers.get('content-type');
+
+        try {
+          if (contentType && contentType.includes('application/json')) {
+            errorData = await response.json();
+          } else {
+            // Response is not JSON, try to get text
+            const errorText = await response.text();
+            errorData = { message: errorText || `HTTP ${response.status}: ${response.statusText}` };
+          }
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+          errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
+        }
+
         console.error('Error response:', errorData);
+        console.error('Full error details:', JSON.stringify(errorData, null, 2));
+
+        // For renewal errors, provide specific guidance
+        if (requestType === 'RENEWAL' && errorData.message?.includes('VC not found')) {
+          throw new Error(
+            `Blockchain renewal failed: VC not found in blockchain.\n\n` +
+              `This could mean:\n` +
+              `1. The VC was never issued to the blockchain\n` +
+              `2. The VC has been revoked\n` +
+              `3. The VC ID in the request doesn't match blockchain records`
+          );
+        }
 
         // Check if there are validation errors
         if (errorData.errors) {
