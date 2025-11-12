@@ -69,6 +69,8 @@ export const API_ENDPOINTS = {
     CONFIRM: `${CREDENTIALS_PATH}/confirm`,
     CLAIM_BATCH: `${CREDENTIALS_PATH}/claim-batch`,
     CONFIRM_BATCH: `${CREDENTIALS_PATH}/confirm-batch`,
+    CLAIM_COMBINED_BATCH: `${CREDENTIALS_PATH}/claim-combined-batch`,
+    CONFIRM_COMBINED_BATCH: `${CREDENTIALS_PATH}/confirm-combined-batch`,
 
     // Admin operations
     ADMIN_RESET_STUCK: `${CREDENTIALS_PATH}/admin/reset-stuck`,

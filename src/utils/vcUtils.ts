@@ -38,7 +38,7 @@ export interface VerifiableCredentialDB {
     id: string;
     [key: string]: string | number | boolean;
   };
-  request_id: string;
+  claimId: string;
 }
 
 /**
