@@ -19,7 +19,8 @@ export interface VerifiableCredential {
   validFrom: string;
   expiredAt: string | null;
   imageLink: string | null;
-  request_id?: string; // Request ID from the claim batch API
+  claimId?: string; // Request ID from the claim batch API
+  source?: string;
   credentialSubject: {
     id: string;
     [key: string]: unknown;
@@ -105,14 +106,30 @@ export const storeVCBatch = async (vcs: VerifiableCredential[]): Promise<string[
     const db = await openDB();
     const storedIds: string[] = [];
 
+    // Validate all VCs have required 'id' field before attempting to store
+    const invalidVCs: number[] = [];
+    vcs.forEach((vc, index) => {
+      if (!vc || !vc.id) {
+        invalidVCs.push(index);
+        console.error(`[IndexedDB] VC at index ${index} is missing required 'id' field:`, vc);
+      }
+    });
+
+    if (invalidVCs.length > 0) {
+      throw new Error(
+        `${invalidVCs.length} VC(s) missing required 'id' field at indices: ${invalidVCs.join(', ')}`
+      );
+    }
+
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([STORE_NAME], 'readwrite');
       const objectStore = transaction.objectStore(STORE_NAME);
 
       let completed = 0;
       let hasError = false;
+      const errors: string[] = [];
 
-      vcs.forEach((vc) => {
+      vcs.forEach((vc, index) => {
         const request = objectStore.put(vc);
 
         request.onsuccess = () => {
@@ -127,6 +144,8 @@ export const storeVCBatch = async (vcs: VerifiableCredential[]): Promise<string[
 
         request.onerror = () => {
           hasError = true;
+          const errorMsg = `VC at index ${index} (id: ${vc.id}): ${request.error?.message}`;
+          errors.push(errorMsg);
           console.error(`[IndexedDB] Failed to store VC: ${vc.id}`, request.error);
         };
       });
@@ -138,7 +157,7 @@ export const storeVCBatch = async (vcs: VerifiableCredential[]): Promise<string[
       transaction.oncomplete = () => {
         db.close();
         if (hasError) {
-          reject(new Error('Some VCs failed to store'));
+          reject(new Error(`Some VCs failed to store: ${errors.join('; ')}`));
         }
       };
     });
@@ -249,12 +268,14 @@ export const areVCsStored = async (
 
 /**
  * Get VCs by request IDs
- * Returns array of request_ids that have been successfully stored
+ * Returns array of objects containing claimId and source for successfully stored VCs
  */
-export const getVCsByRequestIds = async (requestIds: string[]): Promise<string[]> => {
+export const getVCsByRequestIds = async (
+  claimIds: string[]
+): Promise<Array<{ claimId: string; source: string }>> => {
   try {
     const db = await openDB();
-    const storedRequestIds: string[] = [];
+    const storedRequestData: Array<{ claimId: string; source: string }> = [];
 
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([STORE_NAME], 'readonly');
@@ -264,15 +285,18 @@ export const getVCsByRequestIds = async (requestIds: string[]): Promise<string[]
       getAllRequest.onsuccess = () => {
         const allVCs: VerifiableCredential[] = getAllRequest.result || [];
 
-        // Filter VCs that have matching request_ids
-        requestIds.forEach((requestId) => {
-          const found = allVCs.find((vc) => vc.request_id === requestId);
-          if (found) {
-            storedRequestIds.push(requestId);
+        // Filter VCs that have matching claimIds
+        claimIds.forEach((claimId) => {
+          const found = allVCs.find((vc) => vc.claimId === claimId);
+          if (found && found.source) {
+            storedRequestData.push({
+              claimId: claimId,
+              source: found.source,
+            });
           }
         });
 
-        resolve(storedRequestIds);
+        resolve(storedRequestData);
       };
 
       getAllRequest.onerror = () => {
@@ -294,12 +318,13 @@ export const getVCsByRequestIds = async (requestIds: string[]): Promise<string[]
  */
 export const areVCsStoredByRequestIds = async (
   requestIds: string[]
-): Promise<{ stored: string[]; missing: string[] }> => {
+): Promise<{ items: Array<{ claimId: string; source: string }>; missing: string[] }> => {
   try {
-    const storedRequestIds = await getVCsByRequestIds(requestIds);
-    const missing = requestIds.filter((id) => !storedRequestIds.includes(id));
+    const storedRequestData = await getVCsByRequestIds(requestIds);
+    const storedClaimIds = storedRequestData.map((item) => item.claimId);
+    const missing = requestIds.filter((id) => !storedClaimIds.includes(id));
 
-    return { stored: storedRequestIds, missing };
+    return { items: storedRequestData, missing };
   } catch (error) {
     console.error('[IndexedDB] Error checking VCs by request IDs:', error);
     throw error;

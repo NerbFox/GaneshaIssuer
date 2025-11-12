@@ -984,13 +984,13 @@ export default function MyCredentialPage() {
         return;
       }
 
-      // Create a copy of the VC without the request_id field
-      const { request_id, ...vcWithoutRequestId } = vc;
+      // Create a copy of the VC without the claimIdfield
+      const { claimId, ...vcWithoutRequestId } = vc;
 
-      // Convert VC to JSON string with pretty formatting (without request_id)
+      // Convert VC to JSON string with pretty formatting (without claimId)
       const jsonString = JSON.stringify(vcWithoutRequestId, null, 2);
-      console.log('request_id:', request_id);
-      console.log('vc without request_id download:', vcWithoutRequestId);
+      console.log('claimId:', claimId);
+      console.log('vc without claimId download:', vcWithoutRequestId);
 
       // Create a blob and download link
       const blob = new Blob([jsonString], { type: 'application/json' });
@@ -1186,7 +1186,7 @@ export default function MyCredentialPage() {
       if (result.success) {
         setInfoModalConfig({
           title: 'Request Successful',
-          message: `Credential request successful!\n\nRequest ID: ${result.data.request_id}\nStatus: ${result.data.status}`,
+          message: `Credential request successful!\n\nRequest ID: ${result.data.claimId}\nStatus: ${result.data.status}`,
           buttonColor: 'green',
         });
         setShowInfoModal(true);
@@ -1237,7 +1237,7 @@ export default function MyCredentialPage() {
       while (hasMore) {
         console.log('[VC Claim] Claiming batch...');
 
-        const url = buildApiUrl(API_ENDPOINTS.CREDENTIALS.CLAIM_BATCH);
+        const url = buildApiUrl(API_ENDPOINTS.CREDENTIALS.CLAIM_COMBINED_BATCH);
 
         const response = await fetch(url, {
           method: 'POST',
@@ -1273,7 +1273,7 @@ export default function MyCredentialPage() {
         if (claimed_vcs && claimed_vcs.length > 0) {
           for (const claimedVC of claimed_vcs) {
             try {
-              console.log(`[VC Claim] Decrypting VC: ${claimedVC.request_id}`);
+              console.log(`[VC Claim] Decrypting VC: ${claimedVC.claimId}`);
 
               // Decrypt the encrypted body
               const decryptedData = await decryptWithPrivateKey(
@@ -1281,21 +1281,31 @@ export default function MyCredentialPage() {
                 privateKey
               );
 
+              console.log(`[VC Claim] Decrypted data for ${claimedVC.claimId}:`, decryptedData);
+
               // The decrypted data should be a VerifiableCredential
               const vc = decryptedData as unknown as VerifiableCredential;
 
-              // Attach the request_id to the VC for later confirmation
-              vc.request_id = claimedVC.request_id;
+              // Validate that the VC has required fields
+              if (!vc || typeof vc !== 'object') {
+                throw new Error('Decrypted data is not a valid object');
+              }
+
+              if (!vc.id) {
+                console.error('[VC Claim] Decrypted VC is missing id field:', vc);
+                throw new Error('Decrypted VC is missing required "id" field');
+              }
+
+              // Attach the claimId and source to the VC for later confirmation
+              vc.claimId = claimedVC.claimId;
+              vc.source = claimedVC.source;
 
               console.log(
-                `[VC Claim] Decrypted VC successfully: ${vc.id} (request_id: ${claimedVC.request_id})`
+                `[VC Claim] Decrypted VC successfully: ${vc.id} (claimId: ${claimedVC.claimId}) from ${claimedVC.source}`
               );
               allDecryptedVCs.push(vc);
             } catch (decryptError) {
-              console.error(
-                `[VC Claim] Failed to decrypt VC ${claimedVC.request_id}:`,
-                decryptError
-              );
+              console.error(`[VC Claim] Failed to decrypt VC ${claimedVC.claimId}:`, decryptError);
               // Continue with other VCs even if one fails
             }
           }
@@ -1320,7 +1330,9 @@ export default function MyCredentialPage() {
    * Confirm VCs batch after storing them in IndexedDB
    * Step 4: Confirm that VCs have been received and stored
    */
-  const confirmVCBatch = async (requestIds: string[]): Promise<boolean> => {
+  const confirmVCBatch = async (
+    items: Array<{ claimId: string; source: string }>
+  ): Promise<boolean> => {
     try {
       const holderDid = localStorage.getItem('institutionDID');
       const token = localStorage.getItem('institutionToken');
@@ -1333,18 +1345,18 @@ export default function MyCredentialPage() {
         throw new Error('Authentication token not found');
       }
 
-      if (requestIds.length === 0) {
+      if (items.length === 0) {
         console.log('[VC Confirm] No VCs to confirm');
         return true;
       }
 
-      console.log(`[VC Confirm] Confirming ${requestIds.length} VCs...`);
-      console.log('[VC Confirm] Request IDs:', requestIds);
+      console.log(`[VC Confirm] Confirming ${items.length} VCs...`);
+      console.log('[VC Confirm] Items with sources:', items);
 
-      const url = buildApiUrl(API_ENDPOINTS.CREDENTIALS.CONFIRM_BATCH);
+      const url = buildApiUrl(API_ENDPOINTS.CREDENTIALS.CONFIRM_COMBINED_BATCH);
 
       const requestBody = {
-        request_ids: requestIds,
+        items: items,
         holder_did: holderDid,
       };
 
@@ -1413,16 +1425,16 @@ export default function MyCredentialPage() {
       const storedIds = await storeVCBatch(decryptedVCs);
       console.log(`[VC Flow] Stored ${storedIds.length} VCs in IndexedDB`);
 
-      // Collect request_ids from the decrypted VCs
-      const requestIds = decryptedVCs
-        .filter((vc) => vc.request_id) // Only VCs that have request_id
-        .map((vc) => vc.request_id!);
+      // Collect claimId from the decrypted VCs
+      const claimIds = decryptedVCs
+        .filter((vc) => vc.claimId) // Only VCs that have claimId
+        .map((vc) => vc.claimId!);
 
-      console.log('[VC Flow] Request IDs to verify:', requestIds);
+      console.log('[VC Flow] Request IDs to verify:', claimIds);
 
-      // Verify all VCs are stored by checking request_ids
-      const { stored, missing } = await areVCsStoredByRequestIds(requestIds);
-      console.log(`[VC Flow] Verification: ${stored.length} stored, ${missing.length} missing`);
+      // Verify all VCs are stored by checking claimIds
+      const { items, missing } = await areVCsStoredByRequestIds(claimIds);
+      console.log(`[VC Flow] Verification: ${items.length} stored, ${missing.length} missing`);
 
       if (missing.length > 0) {
         console.warn('[VC Flow] Some VCs failed to store:', missing);
@@ -1430,15 +1442,15 @@ export default function MyCredentialPage() {
       }
 
       // Step 4: Confirm VCs batch (only if we actually stored VCs)
-      if (stored.length > 0) {
+      if (items.length > 0) {
         console.log('[VC Flow] Confirming VCs with API...');
-        const confirmed = await confirmVCBatch(stored);
+        const confirmed = await confirmVCBatch(items);
 
         if (confirmed) {
           console.log('[VC Flow] All VCs confirmed successfully');
           setInfoModalConfig({
             title: 'Success',
-            message: `Successfully claimed and stored ${stored.length} new credential(s)!`,
+            message: `Successfully claimed and stored ${items.length} new credential(s)!`,
             buttonColor: 'green',
           });
           setShowInfoModal(true);
