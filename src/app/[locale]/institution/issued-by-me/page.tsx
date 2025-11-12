@@ -16,7 +16,7 @@ import ConfirmationModal from '@/components/ConfirmationModal';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
-import { decryptWithPrivateKey, encryptWithPublicKey } from '@/utils/encryptUtils';
+import { decryptWithPrivateKey, encryptWithPublicKey, type JsonObject } from '@/utils/encryptUtils';
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey } from '@/utils/vcSigner';
 
@@ -534,7 +534,7 @@ export default function IssuedByMePage() {
 
       // Encrypt with holder's public key
       const encryptedBody = await encryptWithPublicKey(
-        signedVC as Record<string, unknown>,
+        signedVC as unknown as JsonObject,
         holderPublicKey
       );
 
@@ -953,7 +953,7 @@ export default function IssuedByMePage() {
 
       // Step 10: Encrypt the body with holder's public key
       const encryptedBody = await encryptWithPublicKey(
-        signedVC as Record<string, unknown>,
+        signedVC as unknown as JsonObject,
         holderPublicKey
       );
       console.log('Encrypted body length:', encryptedBody.length);

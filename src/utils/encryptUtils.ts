@@ -13,7 +13,7 @@ import * as aes from 'aes-js';
  */
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 
-interface JsonObject {
+export interface JsonObject {
   [key: string]: JsonValue;
 }
 

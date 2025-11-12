@@ -17,7 +17,7 @@ import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey } from '@/utils/vcSigner';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
 import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
-import { decryptWithPrivateKey, encryptWithPublicKey } from '@/utils/encryptUtils';
+import { decryptWithPrivateKey, encryptWithPublicKey, type JsonObject } from '@/utils/encryptUtils';
 
 interface IssueRequest {
   id: string;
@@ -1186,8 +1186,10 @@ export default function IssueRequestPage() {
 
       // Encrypt the signed VC with holder's public key
       // SignedVC is JSON-serializable, so we can safely cast it
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const encryptedBody = await encryptWithPublicKey(signedVC as any, holderPublicKeyHex);
+      const encryptedBody = await encryptWithPublicKey(
+        signedVC as unknown as JsonObject,
+        holderPublicKeyHex
+      );
       console.log('Encrypted body (encrypted signed VC):', encryptedBody);
       console.log('Encrypted body length:', encryptedBody.length);
 
