@@ -834,6 +834,29 @@ export default function IssueRequestPage() {
             // Extract current attribute values from decrypted body
             // For UPDATE, RENEWAL, and REVOKE requests, pre-populate with current values
             const currentAttributes: Record<string, string | number | boolean> = {};
+
+            // Extract attributes directly from the root level of decrypted body
+            // (excluding metadata fields like schema_id, schema_version, issuer_did, holder_did, vc_id)
+            const excludedKeys = [
+              'schema_id',
+              'schema_version',
+              'issuer_did',
+              'holder_did',
+              'vc_id',
+              'attributes',
+            ];
+            Object.entries(fullDecryptedBody).forEach(([key, value]) => {
+              if (
+                !excludedKeys.includes(key) &&
+                (typeof value === 'string' ||
+                  typeof value === 'number' ||
+                  typeof value === 'boolean')
+              ) {
+                currentAttributes[key] = value;
+              }
+            });
+
+            // Also check if attributes are nested under an "attributes" key (for backwards compatibility)
             if (
               fullDecryptedBody.attributes &&
               typeof fullDecryptedBody.attributes === 'object' &&
@@ -851,6 +874,7 @@ export default function IssueRequestPage() {
                 }
               });
             }
+
             console.log('Current attributes from decrypted body:', currentAttributes);
             setRequestAttributes(currentAttributes);
 
@@ -1893,16 +1917,20 @@ export default function IssueRequestPage() {
           </div>
         ) : selectedRequest && schemaData ? (
           <FillIssueRequestForm
+            requestId={selectedRequest.id}
+            issuerDid={selectedRequest.issuer_did}
+            holderDid={selectedRequest.holder_did}
             schemaId={schemaData.id}
             schemaName={schemaData.name}
             version={schemaData.version}
             status={schemaData.status}
             expiredIn={schemaData.expired_in}
+            requestedAt={selectedRequest.createdAt}
             createdAt={schemaData.created_at}
             updatedAt={schemaData.updated_at}
             imageUrl={schemaData.image_link || undefined}
-            holderDid={selectedRequest.holder_did}
             requestType={selectedRequest.type}
+            vcId={currentVcId || undefined}
             initialAttributes={schemaData.attributes.map((attr, index) => ({
               id: index + 1,
               name: attr.name,
@@ -1932,174 +1960,67 @@ export default function IssueRequestPage() {
           setSelectedRequest(null);
         }}
         title="View Request Details"
-        maxWidth="800px"
+        maxWidth="1000px"
       >
-        {selectedRequest && (
-          <div className="px-8 py-6">
-            {/* Request Information Grid */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              {/* Request ID */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Request ID</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {selectedRequest.id}
-                </div>
-              </div>
+        {selectedRequest &&
+          (() => {
+            const parsedBody = getCachedParsedBody(selectedRequest.encrypted_body);
+            const schemaId = parsedBody?.schema_id || '';
+            const schemaVersion = parsedBody?.schema_version || 1;
+            const schemaName = schemaNames.get(schemaId) || 'Unknown Schema';
+            const expiredIn = schemaExpiredIns.get(schemaId);
 
-              {/* Request Type */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">
-                    Request Type
-                  </ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRequestTypeColor(selectedRequest.type)}`}
-                  >
-                    {selectedRequest.type.charAt(0) + selectedRequest.type.slice(1).toLowerCase()}
-                  </span>
-                </div>
-              </div>
+            // Calculate "Will Expire At" date
+            let willExpireAtText = 'Lifetime';
+            if (expiredIn && expiredIn !== 0) {
+              const createdDate = new Date(selectedRequest.createdAt);
+              const expiryDate = new Date(createdDate);
+              expiryDate.setFullYear(expiryDate.getFullYear() + expiredIn);
+              willExpireAtText = formatDate(expiryDate.toISOString());
+            }
 
-              {/* Status */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                      selectedRequest.status === 'PENDING'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : selectedRequest.status === 'APPROVED'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {selectedRequest.status}
-                  </span>
-                </div>
-              </div>
-
-              {/* Requested On */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">
-                    Requested On
-                  </ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {formatDate(selectedRequest.createdAt)}
-                </div>
-              </div>
-
-              {/* Holder DID */}
-              <div className="col-span-2">
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 flex items-center gap-2">
-                  <span className="break-all flex-1">{selectedRequest.holder_did}</span>
-                  <button
-                    onClick={() => handleCopyDid(selectedRequest.holder_did, selectedRequest.id)}
-                    className="flex-shrink-0 p-1 hover:bg-gray-200 rounded transition-colors cursor-pointer"
-                  >
-                    {copiedId === selectedRequest.id ? (
-                      <svg
-                        className="w-4 h-4 text-green-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="w-4 h-4 text-gray-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Issuer DID */}
-              <div className="col-span-2">
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-                  {selectedRequest.issuer_did}
-                </div>
-              </div>
-
-              {(() => {
-                const parsedBody = getCachedParsedBody(selectedRequest.encrypted_body);
-                console.log('parsedBody', parsedBody);
-                const schemaId = parsedBody?.schema_id || '';
-                const schemaName = schemaNames.get(schemaId) || 'Unknown Schema';
-                const expiredIn = schemaExpiredIns.get(schemaId);
-
-                // Calculate schema expires properly
-                let schemaExpiresText = 'Lifetime';
-                if (expiredIn && expiredIn !== 0) {
-                  const createdDate = new Date(selectedRequest.createdAt);
-                  const expiryDate = new Date(createdDate.getTime() + expiredIn * 1000);
-                  schemaExpiresText = expiryDate.toLocaleString('en-GB', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false,
-                  });
-                }
-
-                return (
-                  <>
-                    {/* Schema Name */}
-                    <div>
-                      <label className="block mb-2">
-                        <ThemedText className="text-sm font-medium text-gray-700">
-                          Schema Name
-                        </ThemedText>
-                      </label>
-                      <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                        {schemaName}
-                      </div>
+            return (
+              <div className="px-8 py-6">
+                {/* Request Information Grid */}
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  {/* Request ID */}
+                  <div className="col-span-2">
+                    <label className="block mb-2">
+                      <ThemedText className="text-sm font-medium text-gray-700">
+                        Request ID
+                      </ThemedText>
+                    </label>
+                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                      {selectedRequest.id}
                     </div>
+                  </div>
 
-                    {/* Schema Expires */}
-                    <div>
-                      <label className="block mb-2">
-                        <ThemedText className="text-sm font-medium text-gray-700">
-                          Schema Expires
-                        </ThemedText>
-                      </label>
-                      <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                        {schemaExpiresText}
-                      </div>
+                  {/* Schema Name */}
+                  <div>
+                    <label className="block mb-2">
+                      <ThemedText className="text-sm font-medium text-gray-700">
+                        Schema Name
+                      </ThemedText>
+                    </label>
+                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                      {schemaName}
                     </div>
+                  </div>
 
-                    {/* Schema ID */}
+                  {/* Schema Version */}
+                  <div>
+                    <label className="block mb-2">
+                      <ThemedText className="text-sm font-medium text-gray-700">
+                        Schema Version
+                      </ThemedText>
+                    </label>
+                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                      {schemaVersion}
+                    </div>
+                  </div>
+
+                  {/* Schema ID */}
+                  {schemaId && (
                     <div className="col-span-2">
                       <label className="block mb-2">
                         <ThemedText className="text-sm font-medium text-gray-700">
@@ -2107,28 +2028,112 @@ export default function IssueRequestPage() {
                         </ThemedText>
                       </label>
                       <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-                        {schemaId || 'N/A'}
+                        {schemaId}
                       </div>
                     </div>
-                  </>
-                );
-              })()}
-            </div>
+                  )}
 
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setShowViewModal(false);
-                  setSelectedRequest(null);
-                }}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
-              >
-                CLOSE
-              </button>
-            </div>
-          </div>
-        )}
+                  {/* Holder DID */}
+                  <div className="col-span-2">
+                    <label className="block mb-2">
+                      <ThemedText className="text-sm font-medium text-gray-700">
+                        Holder DID
+                      </ThemedText>
+                    </label>
+                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                      {selectedRequest.holder_did}
+                    </div>
+                  </div>
+
+                  {/* Issuer DID */}
+                  <div className="col-span-2">
+                    <label className="block mb-2">
+                      <ThemedText className="text-sm font-medium text-gray-700">
+                        Issuer DID
+                      </ThemedText>
+                    </label>
+                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                      {selectedRequest.issuer_did}
+                    </div>
+                  </div>
+
+                  {/* Request Type */}
+                  <div>
+                    <label className="block mb-2">
+                      <ThemedText className="text-sm font-medium text-gray-700">
+                        Request Type
+                      </ThemedText>
+                    </label>
+                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                      <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRequestTypeColor(selectedRequest.type)}`}
+                      >
+                        {selectedRequest.type.charAt(0) +
+                          selectedRequest.type.slice(1).toLowerCase()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <label className="block mb-2">
+                      <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+                    </label>
+                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                      <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                          selectedRequest.status === 'PENDING'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : selectedRequest.status === 'APPROVED'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
+                        }`}
+                      >
+                        {selectedRequest.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Requested At */}
+                  <div>
+                    <label className="block mb-2">
+                      <ThemedText className="text-sm font-medium text-gray-700">
+                        Requested At
+                      </ThemedText>
+                    </label>
+                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                      {formatDate(selectedRequest.createdAt)}
+                    </div>
+                  </div>
+
+                  {/* Expired At */}
+                  <div>
+                    <label className="block mb-2">
+                      <ThemedText className="text-sm font-medium text-gray-700">
+                        Expired At
+                      </ThemedText>
+                    </label>
+                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                      {willExpireAtText}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      setSelectedRequest(null);
+                    }}
+                    className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
+                  >
+                    CLOSE
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
       </Modal>
 
       {/* View Schema Modal */}

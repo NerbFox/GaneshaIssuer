@@ -4,12 +4,15 @@ import { useState, useEffect } from 'react';
 import { ThemedText } from './ThemedText';
 import { DataTable, Column } from './DataTable';
 import InfoModal from './InfoModal';
+import { API_ENDPOINTS, buildApiUrl } from '@/utils/api';
+import { authenticatedGet } from '@/utils/api-client';
 
 interface AttributeData {
   id: number;
   name: string;
   type: string;
   value: string | number | boolean;
+  required?: boolean;
 }
 
 interface UpdateCredentialFormProps {
@@ -27,8 +30,9 @@ interface UpdateCredentialFormProps {
     activeUntil: string;
     lastUpdated?: string;
     schemaIsActive?: boolean;
-    attributes: { id: number; name: string; type: string; value: string }[];
+    attributes: { id: number; name: string; type: string; value: string; required?: boolean }[];
   };
+  vcId?: string;
 }
 
 export interface UpdateCredentialFormData {
@@ -45,7 +49,10 @@ export default function UpdateCredentialForm({
   onSubmit,
   onCancel,
   credentialData,
+  vcId,
 }: UpdateCredentialFormProps) {
+  const [blockchainStatus, setBlockchainStatus] = useState<string | null>(null);
+  const [isLoadingStatus, setIsLoadingStatus] = useState(false);
   const [holderDid] = useState(credentialData.holderDid);
   const [schemaId] = useState(credentialData.schemaId || '');
   // Trim version suffix from schema name (e.g., "Schema Name v1" -> "Schema Name")
@@ -71,6 +78,34 @@ export default function UpdateCredentialForm({
   });
 
   const [initialAttributes, setInitialAttributes] = useState<AttributeData[]>([]);
+
+  // Fetch status from blockchain
+  useEffect(() => {
+    const fetchBlockchainStatus = async () => {
+      const credentialVcId = vcId || credentialData.id;
+      if (!credentialVcId) return;
+
+      setIsLoadingStatus(true);
+      try {
+        const statusUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.STATUS(credentialVcId));
+        const statusResponse = await authenticatedGet(statusUrl);
+
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          // status from blockchain is a boolean: true = active, false = revoked
+          if (statusData.success && statusData.data) {
+            setBlockchainStatus(statusData.data.status ? 'APPROVED' : 'REVOKED');
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching blockchain status:', err);
+      } finally {
+        setIsLoadingStatus(false);
+      }
+    };
+
+    fetchBlockchainStatus();
+  }, [vcId, credentialData.id]);
 
   useEffect(() => {
     setInitialAttributes(JSON.parse(JSON.stringify(attributes)));
@@ -154,19 +189,83 @@ export default function UpdateCredentialForm({
     attr.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+        return 'bg-green-100 text-green-700';
+      case 'REVOKED':
+        return 'bg-red-100 text-red-700';
+      case 'EXPIRED':
+        return 'bg-gray-100 text-gray-700';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+        return 'Active';
+      case 'REVOKED':
+        return 'Revoked';
+      case 'EXPIRED':
+        return 'Expired';
+      case 'PENDING':
+        return 'Pending';
+      default:
+        return status;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  };
+
   const attributeColumns: Column<AttributeData>[] = [
     {
       id: 'name',
       label: 'NAME',
       sortKey: 'name',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>
+          {row.required && <span className="text-red-500 text-sm">*</span>}
+        </div>
+      ),
     },
     {
       id: 'type',
       label: 'TYPE',
       sortKey: 'type',
       render: (row) => (
-        <ThemedText className="text-sm text-blue-600 capitalize">{row.type}</ThemedText>
+        <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
+          {row.type}
+        </span>
+      ),
+    },
+    {
+      id: 'required',
+      label: 'REQUIRED',
+      sortKey: 'required',
+      render: (row) => (
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+            row.required ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-600'
+          }`}
+        >
+          {row.required ? 'Yes' : 'No'}
+        </span>
       ),
     },
     {
@@ -221,45 +320,112 @@ export default function UpdateCredentialForm({
 
   return (
     <div className="px-8 py-6">
-      {/* Holder DID (read-only) */}
-      <div className="mb-6">
-        <ThemedText className="text-sm text-gray-600 mb-2">Holder DID</ThemedText>
-        <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-          <ThemedText className="text-sm text-gray-900 break-all">{holderDid}</ThemedText>
-        </div>
-      </div>
-
-      {/* Schema ID (read-only) */}
-      <div className="mb-6">
-        <ThemedText className="text-sm text-gray-600 mb-2">Schema ID</ThemedText>
-        <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-          <ThemedText className="text-sm text-gray-900">{schemaId || 'N/A'}</ThemedText>
-        </div>
-      </div>
-
-      {/* Schema Name (read-only) */}
-      <div className="mb-6">
-        <ThemedText className="text-sm text-gray-600 mb-2">Schema Name</ThemedText>
-        <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-          <ThemedText className="text-sm text-gray-900">{schemaName}</ThemedText>
-        </div>
-      </div>
-
-      {/* Schema Version and Status in same row (read-only) */}
+      {/* Credential Information Grid */}
       <div className="grid grid-cols-2 gap-6 mb-6">
-        {/* Schema Version */}
-        <div>
-          <ThemedText className="text-sm text-gray-600 mb-2">Schema Version</ThemedText>
-          <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <ThemedText className="text-sm text-gray-900">{version}</ThemedText>
+        {/* Credential ID */}
+        <div className="col-span-2">
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Credential ID</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+            {vcId || credentialData.id}
           </div>
         </div>
 
-        {/* Status (immutable) */}
+        {/* Schema Name */}
         <div>
-          <ThemedText className="text-sm text-gray-600 mb-2">Schema Status</ThemedText>
-          <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <ThemedText className="text-sm text-gray-900">{status}</ThemedText>
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Schema Name</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+            {schemaName}
+          </div>
+        </div>
+
+        {/* Schema Version */}
+        <div>
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Schema Version</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+            {version}
+          </div>
+        </div>
+
+        {/* Schema ID */}
+        {schemaId && (
+          <div className="col-span-2">
+            <label className="block mb-2">
+              <ThemedText className="text-sm font-medium text-gray-700">Schema ID</ThemedText>
+            </label>
+            <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+              {schemaId}
+            </div>
+          </div>
+        )}
+
+        {/* Holder DID */}
+        <div className="col-span-2">
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+            {holderDid}
+          </div>
+        </div>
+
+        {/* Issuer DID */}
+        {credentialData.issuerDid && (
+          <div className="col-span-2">
+            <label className="block mb-2">
+              <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
+            </label>
+            <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+              {credentialData.issuerDid}
+            </div>
+          </div>
+        )}
+
+        {/* Status */}
+        <div>
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+            {isLoadingStatus ? (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="text-gray-600">Loading status...</span>
+              </div>
+            ) : (
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(blockchainStatus || credentialData.status)}`}
+              >
+                {getStatusLabel(blockchainStatus || credentialData.status)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Issued At */}
+        <div>
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Issued At</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+            {formatDate(credentialData.issuedAt)}
+          </div>
+        </div>
+
+        {/* Expired At */}
+        <div className="col-span-2">
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+            {credentialData.activeUntil === '-'
+              ? 'Lifetime'
+              : formatDate(credentialData.activeUntil)}
           </div>
         </div>
       </div>
@@ -268,16 +434,16 @@ export default function UpdateCredentialForm({
       {attributes.length > 0 && (
         <div className="mb-6">
           <ThemedText className="text-sm font-semibold text-gray-900 mb-4">
-            Attributes<span className="text-red-500">*</span>
+            Credential Attributes ({attributes.length})
           </ThemedText>
           <DataTable
             data={filteredAttributes}
             columns={attributeColumns}
             searchPlaceholder="Search attributes..."
             onSearch={handleSearch}
-            enableSelection={true}
+            enableSelection={false}
             totalCount={filteredAttributes.length}
-            rowsPerPageOptions={[5, 10, 25]}
+            rowsPerPageOptions={[5, 10, 25, 50]}
             idKey="id"
           />
         </div>

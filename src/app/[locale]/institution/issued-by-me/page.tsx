@@ -236,10 +236,6 @@ export default function IssuedByMePage() {
       setSchemas(transformedSchemas);
 
       // Parse and cache all encrypted bodies (store full decrypted data)
-      const parsedBodiesMap = new Map<
-        string,
-        { schema_id: string; schema_version: number } | null
-      >();
       const decryptedBodiesMap = new Map<string, Record<string, unknown>>();
 
       const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
@@ -250,22 +246,14 @@ export default function IssuedByMePage() {
               credential.encrypted_body,
               privateKeyHex
             );
-            // Store schema info for quick access
-            parsedBodiesMap.set(credential.encrypted_body, {
-              schema_id: String(decryptedBody.schema_id || ''),
-              schema_version: Number(decryptedBody.schema_version || 1),
-            });
             // Store full decrypted body for forms
             decryptedBodiesMap.set(
               credential.encrypted_body,
               decryptedBody as Record<string, unknown>
             );
           } catch {
-            // Silently handle decryption error
-            parsedBodiesMap.set(credential.encrypted_body, null);
+            // Silently handle decryption error - will use vc_id instead
           }
-        } else {
-          parsedBodiesMap.set(credential.encrypted_body, null);
         }
       }
 
@@ -278,12 +266,27 @@ export default function IssuedByMePage() {
             (credential.request_type === 'ISSUANCE' || !credential.request_type)
         ) // Filter out PENDING and REJECTED, and only show ISSUANCE type
         .map((credential) => {
-          // Get parsed body from cache
-          const parsedBody = parsedBodiesMap.get(credential.encrypted_body);
-          const schemaId = parsedBody?.schema_id || '';
-          const schemaVersion = parsedBody?.schema_version || 1;
+          // Parse schema_id and schema_version from vc_id
+          // vc_id format: "schema_id:schema_version:holder_did:timestamp"
+          let schemaId = '';
+          let schemaVersion = 1;
 
-          // Get decrypted body from cache
+          console.log('credential', credential);
+
+          if (credential.vc_id) {
+            const vcIdParts = credential.vc_id.split(':');
+            if (
+              vcIdParts.length >= 2 &&
+              vcIdParts[0] !== 'undefined' &&
+              vcIdParts[0] !== '' &&
+              vcIdParts[1] !== 'undefined'
+            ) {
+              schemaId = vcIdParts[0];
+              schemaVersion = parseInt(vcIdParts[1], 10) || 1;
+            }
+          }
+
+          // Get decrypted body from cache (if available)
           const encryptedBody = decryptedBodiesMap.get(credential.encrypted_body);
 
           // Get schema name from the map
@@ -388,7 +391,7 @@ export default function IssuedByMePage() {
       return (
         credential.schemaName.toLowerCase().includes(searchLower) ||
         credential.holderDid.toLowerCase().includes(searchLower) ||
-        credential.status.toLowerCase().includes(searchLower)
+        (credential.status || '').toLowerCase().includes(searchLower)
       );
     });
     setFilteredCredentials(filtered);
@@ -507,7 +510,8 @@ export default function IssuedByMePage() {
       });
 
       // Create a unique new VC ID
-      const newVcId = `vc:${Date.now()}:${Math.random().toString(36).substring(2, 15)}`;
+      const timestamp = Date.now();
+      const newVcId = `${schemaData.id}:${schemaData.version}:${data.holderDid}:${timestamp}`;
 
       // Create the new Verifiable Credential
       const vc = createVC({
@@ -527,19 +531,12 @@ export default function IssuedByMePage() {
 
       // Hash the VC
       const vcHashWithoutPrefix = hashVC(signedVC);
-      const vcHash = `0x${vcHashWithoutPrefix}`;
-
-      // Create encrypted body
-      const bodyToEncrypt = {
-        schema_id: data.schemaId,
-        schema_version: data.version,
-        issuer_did: issuerDid,
-        holder_did: data.holderDid,
-        ...credentialData,
-      };
 
       // Encrypt with holder's public key
-      const encryptedBody = await encryptWithPublicKey(bodyToEncrypt, holderPublicKey);
+      const encryptedBody = await encryptWithPublicKey(
+        signedVC as Record<string, unknown>,
+        holderPublicKey
+      );
 
       // Call the update-vc API
       const updateUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.UPDATE_VC);
@@ -551,7 +548,7 @@ export default function IssuedByMePage() {
         vc_type: data.schemaName.replace(/\s+v\d+$/, '').replace(/\s+/g, ''),
         schema_id: data.schemaId,
         schema_version: data.version,
-        new_vc_hash: vcHash,
+        new_vc_hash: vcHashWithoutPrefix,
         encrypted_body: encryptedBody,
         expiredAt: expiredAt.toISOString(),
       });
@@ -928,7 +925,8 @@ export default function IssuedByMePage() {
       });
 
       // Step 5: Create a unique VC ID (using UUID format with timestamp)
-      const vcId = `vc:${Date.now()}:${Math.random().toString(36).substring(2, 15)}`;
+      const timestamp = Date.now();
+      const vcId = `${data.schemaId}:${data.version}:${data.holderDid}:${timestamp}`;
 
       // Step 6: Create the Verifiable Credential
       const vc = createVC({
@@ -951,20 +949,13 @@ export default function IssuedByMePage() {
 
       // Step 8: Hash the VC (returns 64-character hex without 0x prefix)
       const vcHashWithoutPrefix = hashVC(signedVC);
-      const vcHash = `0x${vcHashWithoutPrefix}`;
-      console.log('VC Hash:', vcHash);
-
-      // Step 9: Create encrypted body with schema information
-      const bodyToEncrypt = {
-        schema_id: data.schemaId,
-        schema_version: data.version,
-        issuer_did: issuerDid,
-        holder_did: data.holderDid,
-        ...credentialData,
-      };
+      console.log('VC Hash:', vcHashWithoutPrefix);
 
       // Step 10: Encrypt the body with holder's public key
-      const encryptedBody = await encryptWithPublicKey(bodyToEncrypt, holderPublicKey);
+      const encryptedBody = await encryptWithPublicKey(
+        signedVC as Record<string, unknown>,
+        holderPublicKey
+      );
       console.log('Encrypted body length:', encryptedBody.length);
 
       // Step 11: Call the API to issue the credential
@@ -976,7 +967,7 @@ export default function IssuedByMePage() {
         vc_type: data.schemaName.replace(/\s+/g, ''),
         schema_id: data.schemaId,
         schema_version: data.version,
-        vc_hash: vcHash,
+        vc_hash: vcHashWithoutPrefix,
         encrypted_body: encryptedBody,
         expiredAt: expiredAt.toISOString(),
       });
@@ -1420,6 +1411,7 @@ export default function IssuedByMePage() {
               setShowUpdateModal(false);
               setSelectedCredential(null);
             }}
+            vcId={selectedCredential.vcId}
             credentialData={{
               id: selectedCredential.id,
               holderDid: selectedCredential.holderDid,
@@ -1441,7 +1433,7 @@ export default function IssuedByMePage() {
                 return credentialSchema?.isActive;
               })(),
               attributes: (() => {
-                // Find the schema with the selected credential's version to get attribute types
+                // Find the schema with the selected credential's version to get attribute types and required info
                 const credentialSchema = schemas.find(
                   (s) =>
                     s.id === selectedCredential.schemaId &&
@@ -1456,7 +1448,7 @@ export default function IssuedByMePage() {
                         !['schema_id', 'schema_version', 'issuer_did', 'holder_did'].includes(key)
                     )
                     .map(([name, value], index) => {
-                      // Find the attribute type from schema
+                      // Find the attribute type and required info from schema
                       const schemaAttribute = credentialSchema?.attributes.find(
                         (attr) => attr.name === name
                       );
@@ -1465,6 +1457,7 @@ export default function IssuedByMePage() {
                         name,
                         type: schemaAttribute?.type || 'string',
                         value: String(value),
+                        required: schemaAttribute?.required || false,
                       };
                     });
 
@@ -1481,6 +1474,7 @@ export default function IssuedByMePage() {
                     name: attr.name,
                     type: attr.type,
                     value: '',
+                    required: attr.required,
                   })) || []
                 );
               })(),
@@ -1505,8 +1499,9 @@ export default function IssuedByMePage() {
               setShowViewModal(false);
               setSelectedCredential(null);
             }}
+            vcId={selectedCredential.vcId}
             credentialData={{
-              id: selectedCredential.id,
+              id: selectedCredential.vcId || selectedCredential.id,
               holderDid: selectedCredential.holderDid,
               issuerDid: localStorage.getItem('institutionDID') || undefined,
               schemaName: selectedCredential.schemaName,

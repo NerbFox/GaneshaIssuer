@@ -18,16 +18,20 @@ interface AttributeData {
 }
 
 interface FillIssueRequestFormProps {
+  requestId?: string;
+  issuerDid?: string;
+  holderDid?: string;
   schemaId?: string;
   schemaName?: string;
   version?: string;
   status?: string;
   expiredIn?: number;
-  createdAt?: string;
-  updatedAt?: string;
+  requestedAt?: string; // When the request was created
+  createdAt?: string; // When the schema was created
+  updatedAt?: string; // When the schema was updated
   imageUrl?: string;
-  holderDid?: string;
   requestType?: string; // ISSUANCE, RENEWAL, UPDATE, REVOKE
+  vcId?: string; // For UPDATE, RENEWAL, REVOKE requests
   initialAttributes?: AttributeData[];
   attributePositions?: AttributePositionData;
   qrCodePosition?: QRCodePosition;
@@ -46,16 +50,22 @@ export interface IssueRequestFormData {
 }
 
 export default function FillIssueRequestForm({
+  requestId,
+  issuerDid,
+  holderDid,
   schemaId = 'ktp',
   schemaName = 'Kartu Tanda Penduduk',
   version = '1',
   status = 'Active',
   expiredIn,
-  createdAt,
-  updatedAt,
+  requestedAt,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  createdAt: _createdAt,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  updatedAt: _updatedAt,
   imageUrl,
-  holderDid,
   requestType = 'ISSUANCE',
+  vcId,
   initialAttributes = [
     { id: 1, name: 'NIK', type: 'text', value: '', required: true },
     { id: 2, name: 'Nama', type: 'text', value: '', required: true },
@@ -513,50 +523,47 @@ export default function FillIssueRequestForm({
     attr.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  };
+
+  // Calculate "Will Expire At" date
+  const calculateExpiryDate = () => {
+    if (!requestedAt) return '-';
+    if (!expiredIn || expiredIn === 0) return 'Lifetime';
+
+    const requestDate = new Date(requestedAt);
+    const expiryDate = new Date(requestDate);
+    expiryDate.setFullYear(expiryDate.getFullYear() + expiredIn);
+    return formatDate(expiryDate.toISOString());
+  };
+
   return (
     <div className="px-8 py-6">
-      {/* DID Prefix and Holder DID in same row */}
-      {holderDid && (
-        <div className="grid grid-cols-2 gap-6 mb-6">
-          {/* DID Prefix */}
-          <div>
-            <ThemedText className="text-sm text-gray-600 mb-2">
-              DID Prefix<span className="text-red-500">*</span>
-            </ThemedText>
-            <input
-              type="text"
-              value="did:dcert:"
-              disabled
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-900 cursor-not-allowed"
-            />
-          </div>
-
-          {/* Holder DID */}
-          <div>
-            <ThemedText className="text-sm text-gray-600 mb-2">
-              Holder DID<span className="text-red-500">*</span>
-            </ThemedText>
-            <input
-              type="text"
-              value={holderDid.replace('did:dcert:', '')}
-              disabled
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-900 cursor-not-allowed"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Schema Information Grid */}
+      {/* Request/Credential Information Grid */}
       <div className="grid grid-cols-2 gap-6 mb-6">
-        {/* Schema ID */}
-        <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Schema ID</ThemedText>
-          </label>
-          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-            {schemaId}
+        {/* Request ID or Credential ID (for UPDATE/RENEWAL/REVOKE) */}
+        {(requestId || vcId) && (
+          <div className="col-span-2">
+            <label className="block mb-2">
+              <ThemedText className="text-sm font-medium text-gray-700">
+                {vcId ? 'Credential ID' : 'Request ID'}
+              </ThemedText>
+            </label>
+            <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+              {vcId || requestId}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Schema Name */}
         <div>
@@ -578,59 +585,65 @@ export default function FillIssueRequestForm({
           </div>
         </div>
 
-        {/* Expired In */}
-        <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">
-              Expired In (Years)
-            </ThemedText>
-          </label>
-          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-            {expiredIn === 0 || expiredIn === null || expiredIn === undefined
-              ? 'Lifetime'
-              : expiredIn}
+        {/* Schema ID */}
+        {schemaId && (
+          <div className="col-span-2">
+            <label className="block mb-2">
+              <ThemedText className="text-sm font-medium text-gray-700">Schema ID</ThemedText>
+            </label>
+            <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+              {schemaId}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Created At */}
-        <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Created At</ThemedText>
-          </label>
-          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-            {createdAt
-              ? new Date(createdAt).toLocaleString('en-US', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  hour12: false,
-                })
-              : '-'}
+        {/* Holder DID */}
+        {holderDid && (
+          <div className="col-span-2">
+            <label className="block mb-2">
+              <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
+            </label>
+            <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+              {holderDid}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Updated At */}
-        <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Updated At</ThemedText>
-          </label>
-          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-            {updatedAt
-              ? new Date(updatedAt).toLocaleString('en-US', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  hour12: false,
-                })
-              : '-'}
+        {/* Issuer DID */}
+        {issuerDid && (
+          <div className="col-span-2">
+            <label className="block mb-2">
+              <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
+            </label>
+            <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+              {issuerDid}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Requested At */}
+        {requestedAt && (
+          <div>
+            <label className="block mb-2">
+              <ThemedText className="text-sm font-medium text-gray-700">Requested At</ThemedText>
+            </label>
+            <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+              {formatDate(requestedAt)}
+            </div>
+          </div>
+        )}
+
+        {/* Expired At */}
+        {requestedAt && (
+          <div>
+            <label className="block mb-2">
+              <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
+            </label>
+            <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+              {calculateExpiryDate()}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Credential Preview Section */}
@@ -721,12 +734,34 @@ export default function FillIssueRequestForm({
                 ? 'No changes detected in attributes'
                 : undefined
             }
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className={`px-6 py-2 text-white rounded-lg transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
+              requestType === 'REVOKE'
+                ? 'bg-red-500 hover:bg-red-600'
+                : requestType === 'UPDATE'
+                  ? 'bg-green-500 hover:bg-green-600'
+                  : requestType === 'RENEWAL'
+                    ? 'bg-purple-500 hover:bg-purple-600'
+                    : 'bg-blue-500 hover:bg-blue-600'
+            }`}
           >
             {isSubmitting && (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
             )}
-            {isSubmitting ? 'ISSUING...' : 'ISSUE CREDENTIAL'}
+            {isSubmitting
+              ? requestType === 'RENEWAL'
+                ? 'RENEWING...'
+                : requestType === 'UPDATE'
+                  ? 'UPDATING...'
+                  : requestType === 'REVOKE'
+                    ? 'REVOKING...'
+                    : 'ISSUING...'
+              : requestType === 'RENEWAL'
+                ? 'RENEW CREDENTIAL'
+                : requestType === 'UPDATE'
+                  ? 'UPDATE CREDENTIAL'
+                  : requestType === 'REVOKE'
+                    ? 'REVOKE CREDENTIAL'
+                    : 'ISSUE CREDENTIAL'}
           </button>
         </div>
       </div>

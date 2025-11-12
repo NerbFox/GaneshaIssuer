@@ -1,7 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { ThemedText } from './ThemedText';
 import { DataTable, Column } from './DataTable';
+import { API_ENDPOINTS, buildApiUrl } from '@/utils/api';
+import { authenticatedGet } from '@/utils/api-client';
 
 interface CredentialAttribute {
   id: number;
@@ -24,9 +27,44 @@ interface ViewCredentialFormProps {
     lastUpdated?: string;
     attributes: CredentialAttribute[];
   };
+  vcId?: string;
 }
 
-export default function ViewCredentialForm({ onClose, credentialData }: ViewCredentialFormProps) {
+export default function ViewCredentialForm({
+  onClose,
+  credentialData,
+  vcId,
+}: ViewCredentialFormProps) {
+  const [blockchainStatus, setBlockchainStatus] = useState<string | null>(null);
+  const [isLoadingStatus, setIsLoadingStatus] = useState(false);
+
+  // Fetch status from blockchain
+  useEffect(() => {
+    const fetchBlockchainStatus = async () => {
+      const credentialVcId = vcId || credentialData.id;
+      if (!credentialVcId) return;
+
+      setIsLoadingStatus(true);
+      try {
+        const statusUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.STATUS(credentialVcId));
+        const statusResponse = await authenticatedGet(statusUrl);
+
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          // status from blockchain is a boolean: true = active, false = revoked
+          if (statusData.success && statusData.data) {
+            setBlockchainStatus(statusData.data.status ? 'APPROVED' : 'REVOKED');
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching blockchain status:', err);
+      } finally {
+        setIsLoadingStatus(false);
+      }
+    };
+
+    fetchBlockchainStatus();
+  }, [vcId, credentialData.id]);
   const columns: Column<CredentialAttribute>[] = [
     {
       id: 'name',
@@ -148,11 +186,18 @@ export default function ViewCredentialForm({ onClose, credentialData }: ViewCred
             <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-            <span
-              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(credentialData.status)}`}
-            >
-              {getStatusLabel(credentialData.status)}
-            </span>
+            {isLoadingStatus ? (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="text-gray-600">Loading status...</span>
+              </div>
+            ) : (
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(blockchainStatus || credentialData.status)}`}
+              >
+                {getStatusLabel(blockchainStatus || credentialData.status)}
+              </span>
+            )}
           </div>
         </div>
 
@@ -194,21 +239,23 @@ export default function ViewCredentialForm({ onClose, credentialData }: ViewCred
           </div>
         )}
 
-        {/* Active Until */}
+        {/* Expired At */}
         <div className="col-span-2">
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Active Until</ThemedText>
+            <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-            {new Date(credentialData.activeUntil).toLocaleString('en-US', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: false,
-            })}
+            {credentialData.activeUntil === '-'
+              ? 'Lifetime'
+              : new Date(credentialData.activeUntil).toLocaleString('en-US', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false,
+                })}
           </div>
         </div>
       </div>
