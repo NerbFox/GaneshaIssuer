@@ -5,14 +5,29 @@ import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
+import Modal from '@/components/Modal';
 import { redirectIfJWTInvalid } from '@/utils/auth';
+import { buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
+import { authenticatedGet } from '@/utils/api-client';
+
+interface RequestedCredential {
+  schema_id: string;
+  schema_name: string;
+  schema_version: number;
+}
 
 interface VerificationRequest {
   id: string;
-  credentialType: string;
-  holderDid: string;
-  requestedDate: string;
-  status: 'Pending' | 'Verified' | 'Rejected';
+  holder_did: string;
+  verifier_did: string;
+  verifier_name: string;
+  purpose: string;
+  status: 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED';
+  requested_credentials: RequestedCredential[];
+  vp_id: string | null;
+  verify_status: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function VerifyRequestPage() {
@@ -21,16 +36,51 @@ export default function VerifyRequestPage() {
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<VerificationRequest[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'Pending' | 'Verified' | 'Rejected'>(
-    'all'
-  );
+  const [filterStatus, setFilterStatus] = useState<
+    'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED'
+  >('all');
   const [filterType, setFilterType] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedRequest, setSelectedRequest] = useState<VerificationRequest | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [copyNotification, setCopyNotification] = useState(false);
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
-  const pendingCount = requests.filter((r) => r.status === 'Pending').length;
+  const pendingCount = requests.filter((r) => r.status === 'PENDING').length;
+  const verifiedCount = requests.filter((r) => r.status === 'VERIFIED').length;
+  const rejectedCount = requests.filter((r) => r.status === 'REJECTED').length;
+
+  // Fetch verification requests from API
+  const fetchVerificationRequests = async () => {
+    try {
+      setIsLoading(true);
+      const institutionDID = localStorage.getItem('institutionDID');
+
+      if (!institutionDID) {
+        console.error('No institution DID found');
+        return;
+      }
+
+      const url = buildApiUrlWithParams(API_ENDPOINTS.PRESENTATIONS.REQUEST, {
+        verifier_did: institutionDID,
+      });
+
+      const response = await authenticatedGet(url);
+      const result = await response.json();
+
+      if (result.success && result.data?.requests) {
+        setRequests(result.data.requests);
+        setFilteredRequests(result.data.requests);
+      }
+    } catch (error) {
+      console.error('Error fetching verification requests:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Check authentication with JWT verification on component mount
   useEffect(() => {
@@ -38,11 +88,7 @@ export default function VerifyRequestPage() {
       const redirected = await redirectIfJWTInvalid(router);
       if (!redirected) {
         setIsAuthenticated(true);
-        setIsLoading(false);
-        // TODO: Fetch verification requests from API
-        // For now, using empty array
-        setRequests([]);
-        setFilteredRequests([]);
+        await fetchVerificationRequests();
       }
     };
 
@@ -74,9 +120,12 @@ export default function VerifyRequestPage() {
     const filtered = requests.filter((request) => {
       const searchLower = value.toLowerCase();
       return (
-        request.credentialType.toLowerCase().includes(searchLower) ||
-        request.holderDid.toLowerCase().includes(searchLower) ||
-        request.status.toLowerCase().includes(searchLower)
+        request.purpose.toLowerCase().includes(searchLower) ||
+        request.holder_did.toLowerCase().includes(searchLower) ||
+        request.status.toLowerCase().includes(searchLower) ||
+        request.requested_credentials.some((cred) =>
+          cred.schema_name.toLowerCase().includes(searchLower)
+        )
       );
     });
     setFilteredRequests(filtered);
@@ -91,7 +140,10 @@ export default function VerifyRequestPage() {
     setShowFilterModal(true);
   };
 
-  const applyFilters = (status: 'all' | 'Pending' | 'Verified' | 'Rejected', type: string) => {
+  const applyFilters = (
+    status: 'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED',
+    type: string
+  ) => {
     let filtered = requests;
 
     if (status !== 'all') {
@@ -100,14 +152,18 @@ export default function VerifyRequestPage() {
 
     if (type) {
       filtered = filtered.filter((request) =>
-        request.credentialType.toLowerCase().includes(type.toLowerCase())
+        request.requested_credentials.some((cred) =>
+          cred.schema_name.toLowerCase().includes(type.toLowerCase())
+        )
       );
     }
 
     setFilteredRequests(filtered);
   };
 
-  const handleStatusChange = (status: 'all' | 'Pending' | 'Verified' | 'Rejected') => {
+  const handleStatusChange = (
+    status: 'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED'
+  ) => {
     setFilterStatus(status);
     applyFilters(status, filterType);
   };
@@ -117,65 +173,76 @@ export default function VerifyRequestPage() {
     applyFilters(filterStatus, type);
   };
 
-  const handleVerify = (id: string) => {
-    console.log('Verify request:', id);
-    // TODO: Implement verify request
+  const toggleRowExpansion = (id: string) => {
+    setExpandedRows((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
   };
 
-  const handleReject = (id: string) => {
-    console.log('Reject request:', id);
-    // TODO: Implement reject request
+  const handleViewDetails = (request: VerificationRequest) => {
+    setSelectedRequest(request);
+    setShowDetailsModal(true);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'Verified':
-        return 'bg-green-100 text-green-700';
-      case 'Rejected':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
+  const handleCopyDID = (did: string) => {
+    navigator.clipboard.writeText(did);
+    setCopyNotification(true);
+    setTimeout(() => setCopyNotification(false), 2000);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date
-      .toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      })
-      .replace(/\//g, '/');
-  };
-
+  // Define columns for DataTable
   const columns: Column<VerificationRequest>[] = [
     {
-      id: 'credentialType',
-      label: 'CREDENTIAL TYPE',
-      sortKey: 'credentialType',
+      id: 'purpose',
+      label: 'PURPOSE',
+      sortKey: 'purpose',
       render: (row) => (
-        <ThemedText className="text-sm font-medium text-gray-900">{row.credentialType}</ThemedText>
+        <ThemedText className="text-sm font-medium text-gray-900">{row.purpose}</ThemedText>
       ),
     },
     {
-      id: 'holderDid',
+      id: 'holder_did',
       label: 'HOLDER DID',
-      sortKey: 'holderDid',
+      sortKey: 'holder_did',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">
-          {row.holderDid.substring(0, 25)}...
-        </ThemedText>
+        <div className="flex items-center gap-2">
+          <ThemedText className="text-sm text-gray-600 font-mono">
+            {row.holder_did.substring(0, 20)}...
+          </ThemedText>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCopyDID(row.holder_did);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            title="Copy DID"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+          </button>
+        </div>
       ),
     },
     {
-      id: 'requestedDate',
-      label: 'REQUESTED DATE',
-      sortKey: 'requestedDate',
+      id: 'credentials',
+      label: 'CREDENTIALS REQUESTED',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{formatDate(row.requestedDate)}</ThemedText>
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+          {row.requested_credentials.length} credential
+          {row.requested_credentials.length !== 1 ? 's' : ''}
+        </span>
       ),
     },
     {
@@ -184,10 +251,20 @@ export default function VerifyRequestPage() {
       sortKey: 'status',
       render: (row) => (
         <span
-          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(row.status)}`}
+          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+            row.status
+          )}`}
         >
           {row.status}
         </span>
+      ),
+    },
+    {
+      id: 'createdAt',
+      label: 'CREATED AT',
+      sortKey: 'createdAt',
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-600">{formatDate(row.createdAt)}</ThemedText>
       ),
     },
     {
@@ -195,31 +272,45 @@ export default function VerifyRequestPage() {
       label: 'ACTION',
       render: (row) => (
         <div className="flex gap-2">
-          {row.status === 'Pending' && (
-            <>
-              <button
-                onClick={() => handleVerify(row.id)}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
-              >
-                VERIFY
-              </button>
-              <button
-                onClick={() => handleReject(row.id)}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
-              >
-                REJECT
-              </button>
-            </>
-          )}
-          {row.status !== 'Pending' && (
-            <span className="text-sm text-gray-500 px-4 py-2">
-              {row.status === 'Verified' ? 'Verified' : 'Rejected'}
-            </span>
-          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewDetails(row);
+            }}
+            className="px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs font-medium"
+          >
+            View Details
+          </button>
         </div>
       ),
     },
   ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'SUBMITTED':
+        return 'bg-blue-100 text-blue-700';
+      case 'VERIFIED':
+        return 'bg-green-100 text-green-700';
+      case 'REJECTED':
+        return 'bg-red-100 text-red-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   // Show loading screen while checking authentication
   if (!isAuthenticated) {
@@ -250,32 +341,174 @@ export default function VerifyRequestPage() {
         ) : (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
-              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Total Requests</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 pt-4">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
+                <div className="flex items-center justify-between mb-2">
+                  <ThemedText className="text-sm text-blue-700 font-medium">
+                    Total Requests
+                  </ThemedText>
+                  <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-6 h-6 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <ThemedText fontSize={32} fontWeight={700} className="text-blue-900">
                   {requests.length}
                 </ThemedText>
               </div>
-              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Pending</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl p-6 border border-yellow-200">
+                <div className="flex items-center justify-between mb-2">
+                  <ThemedText className="text-sm text-yellow-700 font-medium">Pending</ThemedText>
+                  <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-6 h-6 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <ThemedText fontSize={32} fontWeight={700} className="text-yellow-900">
                   {pendingCount}
+                </ThemedText>
+              </div>
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
+                <div className="flex items-center justify-between mb-2">
+                  <ThemedText className="text-sm text-green-700 font-medium">Verified</ThemedText>
+                  <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-6 h-6 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <ThemedText fontSize={32} fontWeight={700} className="text-green-900">
+                  {verifiedCount}
+                </ThemedText>
+              </div>
+              <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
+                <div className="flex items-center justify-between mb-2">
+                  <ThemedText className="text-sm text-red-700 font-medium">Rejected</ThemedText>
+                  <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-6 h-6 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <ThemedText fontSize={32} fontWeight={700} className="text-red-900">
+                  {rejectedCount}
                 </ThemedText>
               </div>
             </div>
 
-            {/* Data Table */}
+            {/* DataTable with expandable rows */}
             <DataTable
               data={filteredRequests}
               columns={columns}
               onFilter={handleFilter}
-              searchPlaceholder="Search..."
+              searchPlaceholder="Search by purpose, holder DID, or credential type..."
               onSearch={handleSearch}
-              enableSelection={true}
+              enableSelection={false}
               totalCount={filteredRequests.length}
               rowsPerPageOptions={[5, 10, 25, 50, 100]}
               idKey="id"
+              defaultSortColumn="createdAt"
+              defaultSortDirection="desc"
+              expandableRows={{
+                expandedRowId: expandedRows.size === 1 ? Array.from(expandedRows)[0] : null,
+                renderExpandedContent: (row) => (
+                  <div className="space-y-3 py-4">
+                    <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 mb-3">
+                      Requested Credentials
+                    </ThemedText>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {row.requested_credentials.map((cred, index) => (
+                        <div
+                          key={`${cred.schema_id}-${index}`}
+                          className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <ThemedText fontSize={13} fontWeight={600} className="text-gray-900">
+                              {cred.schema_name}
+                            </ThemedText>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                              v{cred.schema_version}
+                            </span>
+                          </div>
+                          <ThemedText fontSize={11} className="text-gray-500 font-mono break-all">
+                            {cred.schema_id}
+                          </ThemedText>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <ThemedText className="text-gray-500 mb-1">Verify Status:</ThemedText>
+                          <ThemedText fontWeight={600} className="text-gray-900">
+                            {row.verify_status}
+                          </ThemedText>
+                        </div>
+                        <div>
+                          <ThemedText className="text-gray-500 mb-1">Last Updated:</ThemedText>
+                          <ThemedText fontWeight={600} className="text-gray-900">
+                            {formatDate(row.updatedAt)}
+                          </ThemedText>
+                        </div>
+                        {row.vp_id && (
+                          <div className="col-span-2">
+                            <ThemedText className="text-gray-500 mb-1">VP ID:</ThemedText>
+                            <ThemedText
+                              fontWeight={600}
+                              className="text-gray-900 font-mono break-all"
+                            >
+                              {row.vp_id}
+                            </ThemedText>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ),
+              }}
+              onRowClick={(row) => toggleRowExpansion(row.id)}
             />
           </>
         )}
@@ -316,14 +549,17 @@ export default function VerifyRequestPage() {
             <select
               value={filterStatus}
               onChange={(e) =>
-                handleStatusChange(e.target.value as 'all' | 'Pending' | 'Verified' | 'Rejected')
+                handleStatusChange(
+                  e.target.value as 'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED'
+                )
               }
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             >
               <option value="all">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Verified">Verified</option>
-              <option value="Rejected">Rejected</option>
+              <option value="PENDING">Pending</option>
+              <option value="SUBMITTED">Submitted</option>
+              <option value="VERIFIED">Verified</option>
+              <option value="REJECTED">Rejected</option>
             </select>
           </div>
 
@@ -340,6 +576,206 @@ export default function VerifyRequestPage() {
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             />
           </div>
+        </div>
+      )}
+
+      {/* Details Modal */}
+      <Modal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        title="Verification Request Details"
+        maxWidth="1000px"
+        minHeight="400px"
+      >
+        {selectedRequest && (
+          <div className="px-8 py-6 space-y-6">
+            {/* Request Information */}
+            <div className="bg-gray-50 rounded-xl p-6">
+              <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
+                Request Information
+              </ThemedText>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <ThemedText className="text-sm text-gray-500 mb-1">Request ID</ThemedText>
+                  <ThemedText className="text-sm font-mono text-gray-900 break-all">
+                    {selectedRequest.id}
+                  </ThemedText>
+                </div>
+                <div>
+                  <ThemedText className="text-sm text-gray-500 mb-1">Status</ThemedText>
+                  <span
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                      selectedRequest.status
+                    )}`}
+                  >
+                    {selectedRequest.status}
+                  </span>
+                </div>
+                <div>
+                  <ThemedText className="text-sm text-gray-500 mb-1">Purpose</ThemedText>
+                  <ThemedText fontWeight={600} className="text-gray-900">
+                    {selectedRequest.purpose}
+                  </ThemedText>
+                </div>
+                <div>
+                  <ThemedText className="text-sm text-gray-500 mb-1">Verify Status</ThemedText>
+                  <ThemedText fontWeight={600} className="text-gray-900">
+                    {selectedRequest.verify_status}
+                  </ThemedText>
+                </div>
+                <div>
+                  <ThemedText className="text-sm text-gray-500 mb-1">Created At</ThemedText>
+                  <ThemedText className="text-gray-900">
+                    {formatDate(selectedRequest.createdAt)}
+                  </ThemedText>
+                </div>
+                <div>
+                  <ThemedText className="text-sm text-gray-500 mb-1">Updated At</ThemedText>
+                  <ThemedText className="text-gray-900">
+                    {formatDate(selectedRequest.updatedAt)}
+                  </ThemedText>
+                </div>
+              </div>
+            </div>
+
+            {/* Holder Information */}
+            <div className="bg-blue-50 rounded-xl p-6">
+              <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
+                Holder Information
+              </ThemedText>
+              <div>
+                <ThemedText className="text-sm text-gray-500 mb-2">Holder DID</ThemedText>
+                <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-blue-200">
+                  <ThemedText className="text-sm font-mono text-gray-900 break-all flex-1">
+                    {selectedRequest.holder_did}
+                  </ThemedText>
+                  <button
+                    onClick={() => handleCopyDID(selectedRequest.holder_did)}
+                    className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
+                    title="Copy DID"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Verifier Information */}
+            <div className="bg-green-50 rounded-xl p-6">
+              <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
+                Verifier Information
+              </ThemedText>
+              <div className="space-y-4">
+                <div>
+                  <ThemedText className="text-sm text-gray-500 mb-1">Verifier Name</ThemedText>
+                  <ThemedText fontWeight={600} className="text-gray-900">
+                    {selectedRequest.verifier_name}
+                  </ThemedText>
+                </div>
+                <div>
+                  <ThemedText className="text-sm text-gray-500 mb-2">Verifier DID</ThemedText>
+                  <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-green-200">
+                    <ThemedText className="text-sm font-mono text-gray-900 break-all flex-1">
+                      {selectedRequest.verifier_did}
+                    </ThemedText>
+                    <button
+                      onClick={() => handleCopyDID(selectedRequest.verifier_did)}
+                      className="text-green-500 hover:text-green-700 transition-colors flex-shrink-0"
+                      title="Copy DID"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Requested Credentials */}
+            <div>
+              <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
+                Requested Credentials ({selectedRequest.requested_credentials.length})
+              </ThemedText>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {selectedRequest.requested_credentials.map((cred, index) => (
+                  <div
+                    key={`${cred.schema_id}-${index}`}
+                    className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <ThemedText fontSize={15} fontWeight={600} className="text-gray-900">
+                        {cred.schema_name}
+                      </ThemedText>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        v{cred.schema_version}
+                      </span>
+                    </div>
+                    <ThemedText className="text-xs text-gray-500 mb-2">Schema ID</ThemedText>
+                    <ThemedText className="text-xs font-mono text-gray-600 break-all bg-gray-50 p-2 rounded">
+                      {cred.schema_id}
+                    </ThemedText>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {selectedRequest.vp_id && (
+              <div className="bg-purple-50 rounded-xl p-6">
+                <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
+                  Presentation Information
+                </ThemedText>
+                <div>
+                  <ThemedText className="text-sm text-gray-500 mb-2">VP ID</ThemedText>
+                  <ThemedText className="text-sm font-mono text-gray-900 break-all bg-white p-3 rounded-lg border border-purple-200">
+                    {selectedRequest.vp_id}
+                  </ThemedText>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="mt-6 pt-6 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Copy Notification Toast */}
+      {copyNotification && (
+        <div className="fixed bottom-8 right-8 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50 animate-fade-in">
+          <svg
+            className="w-5 h-5 text-green-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <ThemedText className="text-white">DID copied to clipboard!</ThemedText>
         </div>
       )}
     </InstitutionLayout>
