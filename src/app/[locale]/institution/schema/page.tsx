@@ -1411,7 +1411,7 @@ export default function SchemaPage() {
                     onChange={(e) =>
                       setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')
                     }
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
                   >
                     <option value="all">All</option>
                     <option value="active">Active</option>
@@ -1432,7 +1432,7 @@ export default function SchemaPage() {
                     onChange={(e) => setFilterMinAttributes(e.target.value)}
                     placeholder="Min"
                     min="0"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black placeholder:text-gray-500"
                   />
                   <input
                     type="number"
@@ -1440,7 +1440,7 @@ export default function SchemaPage() {
                     onChange={(e) => setFilterMaxAttributes(e.target.value)}
                     placeholder="Max"
                     min="0"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black placeholder:text-gray-500"
                   />
                 </div>
               </div>
@@ -1457,7 +1457,7 @@ export default function SchemaPage() {
                     onChange={(e) => setFilterMinExpiredIn(e.target.value)}
                     placeholder="Min"
                     min="0"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black placeholder:text-gray-500"
                   />
                   <input
                     type="number"
@@ -1465,7 +1465,7 @@ export default function SchemaPage() {
                     onChange={(e) => setFilterMaxExpiredIn(e.target.value)}
                     placeholder="Max"
                     min="0"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black placeholder:text-gray-500"
                   />
                 </div>
               </div>
