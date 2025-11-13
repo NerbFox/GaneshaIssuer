@@ -8,7 +8,8 @@ import { SignedVerifiableCredentialDB } from './vcSigner';
 
 const DB_NAME = 'CredentialsDB';
 const STORE_NAME = 'credentials';
-const DB_VERSION = 1;
+const VP_SHARINGS_STORE = 'vp_sharings';
+const DB_VERSION = 2; // Increment version to add new store
 
 export interface VerifiableCredential {
   '@context': string[];
@@ -33,6 +34,18 @@ export interface VerifiableCredential {
     proofPurpose: string;
     proofValue: string;
   };
+}
+
+export interface VPSharing {
+  vp_id: string;
+  holder_did: string;
+  vp_request_id: string;
+  credentials: Array<{
+    schema_id: string;
+    schema_name: string;
+    schema_version: number;
+  }>;
+  created_at: string;
 }
 
 /**
@@ -61,6 +74,16 @@ const openDB = (): Promise<IDBDatabase> => {
         objectStore.createIndex('issuer', 'issuer', { unique: false });
         objectStore.createIndex('expiredAt', 'expiredAt', { unique: false });
         objectStore.createIndex('validFrom', 'validFrom', { unique: false });
+      }
+
+      // Create VP sharings object store if it doesn't exist
+      if (!db.objectStoreNames.contains(VP_SHARINGS_STORE)) {
+        const vpSharingsStore = db.createObjectStore(VP_SHARINGS_STORE, { keyPath: 'vp_id' });
+
+        // Create indexes for efficient querying
+        vpSharingsStore.createIndex('holder_did', 'holder_did', { unique: false });
+        vpSharingsStore.createIndex('vp_request_id', 'vp_request_id', { unique: false });
+        vpSharingsStore.createIndex('created_at', 'created_at', { unique: false });
       }
     };
   });
@@ -419,6 +442,199 @@ export const countVCs = async (): Promise<number> => {
     });
   } catch (error) {
     console.error('[IndexedDB] Error counting VCs:', error);
+    throw error;
+  }
+};
+
+/**
+ * Store multiple VP sharings in IndexedDB
+ */
+export const storeVPSharings = async (vpSharings: VPSharing[]): Promise<string[]> => {
+  try {
+    const db = await openDB();
+    const storedIds: string[] = [];
+
+    // Validate all VP sharings have required 'vp_id' field
+    const invalidVPs: number[] = [];
+    vpSharings.forEach((vp, index) => {
+      if (!vp || !vp.vp_id) {
+        invalidVPs.push(index);
+        console.error(`[IndexedDB] VP at index ${index} is missing required 'vp_id' field:`, vp);
+      }
+    });
+
+    if (invalidVPs.length > 0) {
+      throw new Error(
+        `${invalidVPs.length} VP(s) missing required 'vp_id' field at indices: ${invalidVPs.join(', ')}`
+      );
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([VP_SHARINGS_STORE], 'readwrite');
+      const objectStore = transaction.objectStore(VP_SHARINGS_STORE);
+
+      let completed = 0;
+      let hasError = false;
+      const errors: string[] = [];
+
+      vpSharings.forEach((vp, index) => {
+        const request = objectStore.put(vp);
+
+        request.onsuccess = () => {
+          storedIds.push(vp.vp_id);
+          completed++;
+          console.log(
+            `[IndexedDB] VP stored successfully: ${vp.vp_id} (${completed}/${vpSharings.length})`
+          );
+
+          if (completed === vpSharings.length && !hasError) {
+            resolve(storedIds);
+          }
+        };
+
+        request.onerror = () => {
+          hasError = true;
+          const errorMsg = `VP at index ${index} (id: ${vp.vp_id}): ${request.error?.message}`;
+          errors.push(errorMsg);
+          console.error(`[IndexedDB] Failed to store VP: ${vp.vp_id}`, request.error);
+        };
+      });
+
+      transaction.onerror = () => {
+        reject(new Error('Transaction failed while storing VP sharings'));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+        if (hasError) {
+          reject(new Error(`Some VPs failed to store: ${errors.join('; ')}`));
+        }
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error storing VP sharings:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all VP sharings from IndexedDB
+ */
+export const getAllVPSharings = async (): Promise<VPSharing[]> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([VP_SHARINGS_STORE], 'readonly');
+      const objectStore = transaction.objectStore(VP_SHARINGS_STORE);
+      const request = objectStore.getAll();
+
+      request.onsuccess = () => {
+        resolve(request.result || []);
+      };
+
+      request.onerror = () => {
+        reject(new Error(`Failed to get all VP sharings: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error getting all VP sharings:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get a single VP sharing by ID
+ */
+export const getVPSharingById = async (vpId: string): Promise<VPSharing | null> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([VP_SHARINGS_STORE], 'readonly');
+      const objectStore = transaction.objectStore(VP_SHARINGS_STORE);
+      const request = objectStore.get(vpId);
+
+      request.onsuccess = () => {
+        resolve(request.result || null);
+      };
+
+      request.onerror = () => {
+        reject(new Error(`Failed to get VP sharing: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error getting VP sharing:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a single VP sharing by ID
+ */
+export const deleteVPSharing = async (vpId: string): Promise<boolean> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([VP_SHARINGS_STORE], 'readwrite');
+      const objectStore = transaction.objectStore(VP_SHARINGS_STORE);
+      const request = objectStore.delete(vpId);
+
+      request.onsuccess = () => {
+        console.log(`[IndexedDB] VP sharing deleted successfully: ${vpId}`);
+        resolve(true);
+      };
+
+      request.onerror = () => {
+        reject(new Error(`Failed to delete VP sharing: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error deleting VP sharing:', error);
+    throw error;
+  }
+};
+
+/**
+ * Clear all VP sharings from IndexedDB
+ */
+export const clearAllVPSharings = async (): Promise<boolean> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([VP_SHARINGS_STORE], 'readwrite');
+      const objectStore = transaction.objectStore(VP_SHARINGS_STORE);
+      const request = objectStore.clear();
+
+      request.onsuccess = () => {
+        console.log('[IndexedDB] All VP sharings cleared successfully');
+        resolve(true);
+      };
+
+      request.onerror = () => {
+        reject(new Error(`Failed to clear VP sharings: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error clearing VP sharings:', error);
     throw error;
   }
 };
