@@ -1918,17 +1918,6 @@ export default function SharedWithMePage() {
                               <div className="space-y-4">
                                 <div>
                                   <ThemedText className="text-xs text-gray-500 mb-1">
-                                    CREDENTIAL ID
-                                  </ThemedText>
-                                  <ThemedText
-                                    fontSize={11}
-                                    className="text-gray-900 font-mono break-all"
-                                  >
-                                    {cred.vc_id}
-                                  </ThemedText>
-                                </div>
-                                <div>
-                                  <ThemedText className="text-xs text-gray-500 mb-1">
                                     ISSUER
                                   </ThemedText>
                                   <ThemedText
@@ -1937,12 +1926,6 @@ export default function SharedWithMePage() {
                                     className="text-gray-900 mb-1"
                                   >
                                     {vcData.issuerName}
-                                  </ThemedText>
-                                  <ThemedText
-                                    fontSize={11}
-                                    className="text-gray-600 font-mono break-all"
-                                  >
-                                    {cred.issuer}
                                   </ThemedText>
                                 </div>
                                 <div>
