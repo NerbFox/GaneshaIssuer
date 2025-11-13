@@ -689,7 +689,7 @@ export default function SharedWithMePage() {
               onChange={(e) =>
                 handleStatusChange(e.target.value as 'all' | 'Active' | 'Expired' | 'Revoked')
               }
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
             >
               <option value="all">All</option>
               <option value="Active">Active</option>
@@ -708,7 +708,7 @@ export default function SharedWithMePage() {
               onChange={(e) =>
                 handleVerifiedChange(e.target.value as 'all' | 'verified' | 'unverified')
               }
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
             >
               <option value="all">All</option>
               <option value="verified">Verified</option>

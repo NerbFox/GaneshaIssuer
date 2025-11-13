@@ -14,6 +14,7 @@ import { authenticatedGet } from '@/utils/api-client';
 interface HistoryRequest {
   id: string;
   request_type: string;
+  history_type: string;
   issuer_did: string;
   holder_did: string;
   status: string;
@@ -63,6 +64,7 @@ interface HistoryActivity {
   date: string;
   holderDid: string;
   requestType: string;
+  historyType: string;
   actionType: string;
   status: string;
   schemaName: string;
@@ -79,6 +81,7 @@ export default function HistoryPage() {
   const [filterActionType, setFilterActionType] = useState<
     'all' | 'PENDING' | 'APPROVED' | 'REJECTED'
   >('all');
+  const [filterActionBy, setFilterActionBy] = useState<'all' | 'holder' | 'issuer'>('all');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
@@ -207,8 +210,9 @@ export default function HistoryPage() {
           date: request.createdAt,
           holderDid: request.holder_did,
           requestType: request.request_type,
-          actionType: request.status,
-          status: request.status,
+          historyType: request.history_type || '-',
+          actionType: request.status || 'Initiated',
+          status: request.status || 'Initiated',
           schemaName: schemaName,
           schemaId: schemaId,
           schemaVersion: schemaVersion,
@@ -290,6 +294,7 @@ export default function HistoryPage() {
 
   const applyFilters = (
     actionType: 'all' | 'PENDING' | 'APPROVED' | 'REJECTED',
+    actionBy: 'all' | 'holder' | 'issuer',
     dateFrom: string,
     dateTo: string
   ) => {
@@ -297,6 +302,14 @@ export default function HistoryPage() {
 
     if (actionType !== 'all') {
       filtered = filtered.filter((activity) => activity.actionType === actionType);
+    }
+
+    if (actionBy !== 'all') {
+      const historyTypeMap = {
+        holder: 'REQUEST',
+        issuer: 'DIRECT_ACTION',
+      };
+      filtered = filtered.filter((activity) => activity.historyType === historyTypeMap[actionBy]);
     }
 
     if (dateFrom) {
@@ -312,17 +325,22 @@ export default function HistoryPage() {
 
   const handleActionTypeChange = (actionType: 'all' | 'PENDING' | 'APPROVED' | 'REJECTED') => {
     setFilterActionType(actionType);
-    applyFilters(actionType, filterDateFrom, filterDateTo);
+    applyFilters(actionType, filterActionBy, filterDateFrom, filterDateTo);
+  };
+
+  const handleActionByChange = (actionBy: 'all' | 'holder' | 'issuer') => {
+    setFilterActionBy(actionBy);
+    applyFilters(filterActionType, actionBy, filterDateFrom, filterDateTo);
   };
 
   const handleDateFromChange = (dateFrom: string) => {
     setFilterDateFrom(dateFrom);
-    applyFilters(filterActionType, dateFrom, filterDateTo);
+    applyFilters(filterActionType, filterActionBy, dateFrom, filterDateTo);
   };
 
   const handleDateToChange = (dateTo: string) => {
     setFilterDateTo(dateTo);
-    applyFilters(filterActionType, filterDateFrom, dateTo);
+    applyFilters(filterActionType, filterActionBy, filterDateFrom, dateTo);
   };
 
   const getActionTypeColor = (type: string) => {
@@ -346,8 +364,9 @@ export default function HistoryPage() {
         return 'bg-purple-100 text-purple-700';
       case 'UPDATE':
         return 'bg-cyan-100 text-cyan-700';
+      case 'REVOKE':
       case 'REVOCATION':
-        return 'bg-orange-100 text-orange-700';
+        return 'bg-red-100 text-red-700';
       default:
         return 'bg-gray-100 text-gray-700';
     }
@@ -685,12 +704,28 @@ export default function HistoryPage() {
                   e.target.value as 'all' | 'PENDING' | 'APPROVED' | 'REJECTED'
                 )
               }
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
             >
               <option value="all">All Actions</option>
               <option value="PENDING">Pending</option>
               <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>
+            </select>
+          </div>
+
+          {/* Action By Filter */}
+          <div className="mb-4">
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
+              Action By
+            </ThemedText>
+            <select
+              value={filterActionBy}
+              onChange={(e) => handleActionByChange(e.target.value as 'all' | 'holder' | 'issuer')}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
+            >
+              <option value="all">All</option>
+              <option value="holder">Holder</option>
+              <option value="issuer">Issuer</option>
             </select>
           </div>
 
@@ -703,7 +738,7 @@ export default function HistoryPage() {
               type="date"
               value={filterDateFrom}
               onChange={(e) => handleDateFromChange(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
             />
           </div>
 
@@ -716,7 +751,7 @@ export default function HistoryPage() {
               type="date"
               value={filterDateTo}
               onChange={(e) => handleDateToChange(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
             />
           </div>
         </div>

@@ -1888,7 +1888,7 @@ export default function IssueRequestPage() {
                   <select
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
                   >
                     <option value="all">All</option>
                     <option value="ISSUANCE">Issuance</option>
@@ -1906,7 +1906,7 @@ export default function IssueRequestPage() {
                   <select
                     value={filterSchemaStatus}
                     onChange={(e) => setFilterSchemaStatus(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
                   >
                     <option value="all">All</option>
                     <option value="active">Active Schema Requests</option>

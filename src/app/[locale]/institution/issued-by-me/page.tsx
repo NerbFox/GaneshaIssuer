@@ -13,6 +13,8 @@ import UpdateCredentialForm, { UpdateCredentialFormData } from '@/components/Upd
 import ViewCredentialForm from '@/components/ViewCredentialForm';
 import ViewSchemaForm from '@/components/ViewSchemaForm';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import InputModal from '@/components/InputModal';
+import InfoModal from '@/components/InfoModal';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
@@ -165,6 +167,18 @@ export default function IssuedByMePage() {
   >([]);
   const [showSchemaModal, setShowSchemaModal] = useState(false);
   const [schemaData, setSchemaData] = useState<Schema | null>(null);
+  const [showRevokeInputModal, setShowRevokeInputModal] = useState(false);
+  const [revokeCredentialId, setRevokeCredentialId] = useState<string | null>(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState<{
+    title: string;
+    message: string;
+    buttonText?: string;
+    buttonColor?: 'blue' | 'green' | 'red' | 'yellow';
+  }>({
+    title: '',
+    message: '',
+  });
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -257,6 +271,14 @@ export default function IssuedByMePage() {
         }
       }
 
+      // Create a Set of revoked VC IDs by checking for REVOKE request types
+      const revokedVcIds = new Set<string>();
+      credentialsResult.data.requests.forEach((credential) => {
+        if (credential.request_type === 'REVOKE' && credential.vc_id) {
+          revokedVcIds.add(credential.vc_id);
+        }
+      });
+
       // Transform API data to match IssuedCredential interface
       const transformedCredentials: IssuedCredential[] = credentialsResult.data.requests
         .filter(
@@ -299,6 +321,11 @@ export default function IssuedByMePage() {
           let activeUntil: string;
           let credentialStatus = credential.status;
 
+          // Check if this credential has been revoked
+          if (credential.vc_id && revokedVcIds.has(credential.vc_id)) {
+            credentialStatus = 'REVOKED';
+          }
+
           if (isUnknownSchema) {
             // For unknown schemas, set active until to '-'
             activeUntil = '-';
@@ -306,9 +333,13 @@ export default function IssuedByMePage() {
             const activeUntilDate = new Date(credential.createdAt);
             activeUntilDate.setFullYear(activeUntilDate.getFullYear() + expiredIn);
 
-            // Check if credential is expired based on Active Until date
+            // Check if credential is expired based on Active Until date (only if not already revoked)
             const now = new Date();
-            if (credential.status === 'APPROVED' && activeUntilDate < now) {
+            if (
+              credential.status === 'APPROVED' &&
+              credentialStatus !== 'REVOKED' &&
+              activeUntilDate < now
+            ) {
               credentialStatus = 'EXPIRED';
             }
 
@@ -593,32 +624,65 @@ export default function IssuedByMePage() {
     if (!credential) return;
 
     if (!credential.vcId) {
-      setConfirmationConfig({
+      setInfoModalConfig({
         title: 'Error',
         message: 'Credential VC ID not found. Cannot revoke this credential.',
-        confirmText: 'OK',
-        confirmButtonColor: 'red',
-        onConfirm: () => {
-          setShowConfirmation(false);
-        },
+        buttonText: 'OK',
+        buttonColor: 'red',
       });
-      setShowConfirmation(true);
+      setShowInfoModal(true);
       return;
     }
 
+    // Show input modal for revocation reason
+    setRevokeCredentialId(id);
+    setShowRevokeInputModal(true);
+  };
+
+  const handleRevokeConfirm = async (reason: string) => {
+    setShowRevokeInputModal(false);
+
+    if (!revokeCredentialId) return;
+
+    const credential = credentials.find((c) => c.id === revokeCredentialId);
+    if (!credential) return;
+
     setConfirmationConfig({
       title: 'Revoke Credential',
-      message: `Are you sure you want to revoke this credential?\n\nThis action cannot be undone.`,
+      message: `Are you sure you want to revoke this credential?\n\nReason: ${reason}\n\nThis action cannot be undone.`,
       confirmText: 'Revoke',
       confirmButtonColor: 'red',
       onConfirm: async () => {
         try {
           console.log('Revoke credential:', credential.vcId);
+
+          // Fetch holder's DID document to get their public key
+          const holderDidUrl = buildApiUrl(API_ENDPOINTS.DIDS.DOCUMENT(credential.holderDid));
+          const holderDidResponse = await authenticatedGet(holderDidUrl);
+
+          if (!holderDidResponse.ok) {
+            throw new Error('Failed to fetch holder DID document.');
+          }
+
+          const holderDidDoc = await holderDidResponse.json();
+          const holderPublicKey = holderDidDoc.data?.[holderDidDoc.data?.keyId];
+          if (!holderPublicKey) {
+            throw new Error('Holder public key not found in DID document');
+          }
+
+          // Encrypt the reason with holder's public key
+          const encryptedReason = await encryptWithPublicKey(
+            { reason: reason } as JsonObject,
+            holderPublicKey
+          );
+
           const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.REVOKE_VC);
           const issuerDid = localStorage.getItem('institutionDID');
           const revokeResponse = await authenticatedPost(revokeUrl, {
             issuer_did: issuerDid,
+            holder_did: credential.holderDid,
             vc_id: credential.vcId,
+            encrypted_body: encryptedReason,
           });
 
           if (!revokeResponse.ok) {
@@ -627,30 +691,24 @@ export default function IssuedByMePage() {
           }
 
           setShowConfirmation(false);
-          setConfirmationConfig({
+          setInfoModalConfig({
             title: 'Success',
             message: 'Credential has been revoked successfully.',
-            confirmText: 'OK',
-            confirmButtonColor: 'green',
-            onConfirm: () => {
-              setShowConfirmation(false);
-              fetchCredentials();
-            },
+            buttonText: 'OK',
+            buttonColor: 'green',
           });
-          setShowConfirmation(true);
+          setShowInfoModal(true);
+          fetchCredentials();
         } catch (error) {
           console.error('Error revoking credential:', error);
           setShowConfirmation(false);
-          setConfirmationConfig({
+          setInfoModalConfig({
             title: 'Error',
             message: `Failed to revoke credential: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            confirmText: 'OK',
-            confirmButtonColor: 'red',
-            onConfirm: () => {
-              setShowConfirmation(false);
-            },
+            buttonText: 'OK',
+            buttonColor: 'red',
           });
-          setShowConfirmation(true);
+          setShowInfoModal(true);
         }
       },
     });
@@ -1359,7 +1417,7 @@ export default function IssuedByMePage() {
               onChange={(e) =>
                 handleStatusChange(e.target.value as 'all' | 'Active' | 'Revoked' | 'Expired')
               }
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
             >
               <option value="all">All</option>
               <option value="Active">Active</option>
@@ -1378,7 +1436,7 @@ export default function IssuedByMePage() {
               value={filterType}
               onChange={(e) => handleTypeChange(e.target.value)}
               placeholder="Enter schema name"
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
             />
           </div>
         </div>
@@ -1562,6 +1620,35 @@ export default function IssuedByMePage() {
         message={confirmationConfig.message}
         confirmText={confirmationConfig.confirmText}
         confirmButtonColor={confirmationConfig.confirmButtonColor}
+      />
+
+      {/* Revoke Input Modal */}
+      <InputModal
+        isOpen={showRevokeInputModal}
+        onClose={() => {
+          setShowRevokeInputModal(false);
+          setRevokeCredentialId(null);
+        }}
+        onConfirm={handleRevokeConfirm}
+        title="Revoke Credential"
+        message="Please provide a reason for revoking this credential:"
+        placeholder="Enter revocation reason..."
+        confirmText="Continue"
+        confirmButtonColor="red"
+        inputType="textarea"
+        required={true}
+        minLength={5}
+        maxLength={500}
+      />
+
+      {/* Info Modal */}
+      <InfoModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title={infoModalConfig.title}
+        message={infoModalConfig.message}
+        buttonText={infoModalConfig.buttonText}
+        buttonColor={infoModalConfig.buttonColor}
       />
 
       {/* View Schema Modal */}

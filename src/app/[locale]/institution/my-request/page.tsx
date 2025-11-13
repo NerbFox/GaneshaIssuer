@@ -181,6 +181,7 @@ export default function MyRequestPage() {
     const filtered = requests.filter((request) => {
       const searchLower = value.toLowerCase();
       return (
+        request.id.toLowerCase().includes(searchLower) ||
         request.credentialType.toLowerCase().includes(searchLower) ||
         request.issuerDid.toLowerCase().includes(searchLower) ||
         request.requestType.toLowerCase().includes(searchLower) ||
@@ -427,7 +428,7 @@ export default function MyRequestPage() {
               onChange={(e) =>
                 handleStatusChange(e.target.value as 'all' | 'Pending' | 'Approved' | 'Rejected')
               }
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
             >
               <option value="all">All</option>
               <option value="Pending">Pending</option>
@@ -448,7 +449,7 @@ export default function MyRequestPage() {
                   e.target.value as 'all' | 'ISSUANCE' | 'RENEWAL' | 'UPDATE' | 'REVOCATION'
                 )
               }
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
             >
               <option value="all">All</option>
               <option value="ISSUANCE">Issuance</option>
@@ -468,7 +469,7 @@ export default function MyRequestPage() {
               value={filterType}
               onChange={(e) => handleTypeChange(e.target.value)}
               placeholder="Enter credential type"
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
             />
           </div>
         </div>
