@@ -133,6 +133,7 @@ interface RevokeRequestBody extends Record<string, unknown> {
   request_id: string;
   action: 'APPROVED';
   vc_id: string;
+  encrypted_body: string;
 }
 
 export default function IssueRequestPage() {
@@ -145,8 +146,6 @@ export default function IssueRequestPage() {
   const [filterSchemaStatus, setFilterSchemaStatus] = useState<string>('all');
   const [filterRequestedOnStart, setFilterRequestedOnStart] = useState<string>('');
   const [filterRequestedOnEnd, setFilterRequestedOnEnd] = useState<string>('');
-  const [filterSchemaExpiresStart, setFilterSchemaExpiresStart] = useState<string>('');
-  const [filterSchemaExpiresEnd, setFilterSchemaExpiresEnd] = useState<string>('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -532,45 +531,6 @@ export default function IssueRequestPage() {
       });
     }
 
-    // Apply schema expires date filter
-    if (filterSchemaExpiresStart || filterSchemaExpiresEnd) {
-      filtered = filtered.filter((request) => {
-        const parsedBody = getCachedParsedBody(request.encrypted_body);
-        const schemaId = parsedBody?.schema_id || '';
-        const expiredIn = schemaExpiredIns.get(schemaId);
-
-        // If expired_in is null or 0, it's lifetime - skip date filtering
-        if (!expiredIn || expiredIn === 0) {
-          return false;
-        }
-
-        const createdDate = new Date(request.createdAt);
-        // Convert years to milliseconds: years * 365.25 days * 24 hours * 60 minutes * 60 seconds * 1000 ms
-        const expiryDate = new Date(
-          createdDate.getTime() + expiredIn * 365.25 * 24 * 60 * 60 * 1000
-        );
-        const startDate = filterSchemaExpiresStart ? new Date(filterSchemaExpiresStart) : null;
-        const endDate = filterSchemaExpiresEnd ? new Date(filterSchemaExpiresEnd) : null;
-
-        if (startDate && endDate) {
-          // Only set to end of day if time is 23:59 (default from date picker)
-          if (filterSchemaExpiresEnd.endsWith('T23:59')) {
-            endDate.setHours(23, 59, 59, 999);
-          }
-          return expiryDate >= startDate && expiryDate <= endDate;
-        } else if (startDate) {
-          return expiryDate >= startDate;
-        } else if (endDate) {
-          // Only set to end of day if time is 23:59 (default from date picker)
-          if (filterSchemaExpiresEnd.endsWith('T23:59')) {
-            endDate.setHours(23, 59, 59, 999);
-          }
-          return expiryDate <= endDate;
-        }
-        return true;
-      });
-    }
-
     // Sort: inactive schemas at the end
     filtered.sort((a, b) => {
       const parsedBodyA = getCachedParsedBody(a.encrypted_body);
@@ -596,8 +556,6 @@ export default function IssueRequestPage() {
     filterSchemaStatus,
     filterRequestedOnStart,
     filterRequestedOnEnd,
-    filterSchemaExpiresStart,
-    filterSchemaExpiresEnd,
     requests,
     schemaNames,
     schemaIsActive,
@@ -611,8 +569,6 @@ export default function IssueRequestPage() {
     setFilterSchemaStatus('all');
     setFilterRequestedOnStart('');
     setFilterRequestedOnEnd('');
-    setFilterSchemaExpiresStart('');
-    setFilterSchemaExpiresEnd('');
   };
 
   const getActiveFilterCount = () => {
@@ -621,8 +577,6 @@ export default function IssueRequestPage() {
     if (filterSchemaStatus !== 'all') count++;
     if (filterRequestedOnStart) count++;
     if (filterRequestedOnEnd) count++;
-    if (filterSchemaExpiresStart) count++;
-    if (filterSchemaExpiresEnd) count++;
     return count;
   };
 
@@ -1654,42 +1608,6 @@ export default function IssueRequestPage() {
       ),
     },
     {
-      id: 'expiredAt',
-      label: 'EXPIRED AT',
-      sortKey: 'createdAt',
-      render: (row) => {
-        const parsedBody = getCachedParsedBody(row.encrypted_body);
-        const schemaId = parsedBody?.schema_id || '';
-        const expiredIn = schemaExpiredIns.get(schemaId);
-
-        // Handle lifetime (0 or null/undefined)
-        if (!expiredIn || expiredIn === 0) {
-          return <ThemedText className="text-sm text-gray-900">Lifetime</ThemedText>;
-        }
-
-        // Calculate expiry from request createdAt + expired_in (in years)
-        const createdDate = new Date(row.createdAt);
-        // Convert years to milliseconds: years * 365.25 days * 24 hours * 60 minutes * 60 seconds * 1000 ms
-        const expiryDate = new Date(
-          createdDate.getTime() + expiredIn * 365.25 * 24 * 60 * 60 * 1000
-        );
-
-        return (
-          <ThemedText className="text-sm text-gray-900">
-            {expiryDate.toLocaleString('en-US', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: false,
-            })}
-          </ThemedText>
-        );
-      },
-    },
-    {
       id: 'action',
       label: 'ACTION',
       render: (row) => {
@@ -2013,47 +1931,6 @@ export default function IssueRequestPage() {
                   />
                 </div>
               </div>
-
-              {/* Schema Expires Date Filter */}
-              <div>
-                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
-                  Schema Expires
-                </ThemedText>
-                <div className="grid grid-cols-2 gap-4">
-                  <DateTimePicker
-                    value={filterSchemaExpiresStart}
-                    onChange={(value) => {
-                      // Validate: from time cannot be after until time
-                      if (filterSchemaExpiresEnd && value) {
-                        const fromDate = new Date(value);
-                        const untilDate = new Date(filterSchemaExpiresEnd);
-                        if (fromDate > untilDate) {
-                          // Set to until time if from is after until
-                          setFilterSchemaExpiresStart(filterSchemaExpiresEnd);
-                          return;
-                        }
-                      }
-                      setFilterSchemaExpiresStart(value);
-                    }}
-                  />
-                  <DateTimePicker
-                    value={filterSchemaExpiresEnd}
-                    onChange={(value) => {
-                      // Validate: until time cannot be before from time
-                      if (filterSchemaExpiresStart && value) {
-                        const fromDate = new Date(filterSchemaExpiresStart);
-                        const untilDate = new Date(value);
-                        if (untilDate < fromDate) {
-                          // Set to from time if until is before from
-                          setFilterSchemaExpiresEnd(filterSchemaExpiresStart);
-                          return;
-                        }
-                      }
-                      setFilterSchemaExpiresEnd(value);
-                    }}
-                  />
-                </div>
-              </div>
             </div>
             {/* End of Scrollable Content */}
           </div>
@@ -2152,13 +2029,10 @@ export default function IssueRequestPage() {
             const schemaName = schemaNames.get(schemaId) || 'Unknown Schema';
             const expiredIn = schemaExpiredIns.get(schemaId);
 
-            // Calculate "Will Expire At" date
-            let willExpireAtText = 'Lifetime';
+            // Format schema expired in text
+            let validityPeriodText = 'Lifetime';
             if (expiredIn && expiredIn !== 0) {
-              const createdDate = new Date(selectedRequest.createdAt);
-              const expiryDate = new Date(createdDate);
-              expiryDate.setFullYear(expiryDate.getFullYear() + expiredIn);
-              willExpireAtText = formatDate(expiryDate.toISOString());
+              validityPeriodText = `${expiredIn} ${expiredIn === 1 ? 'Year' : 'Years'}`;
             }
 
             return (
@@ -2288,15 +2162,15 @@ export default function IssueRequestPage() {
                     </div>
                   </div>
 
-                  {/* Expired At */}
+                  {/* Schema Expired In */}
                   <div>
                     <label className="block mb-2">
                       <ThemedText className="text-sm font-medium text-gray-700">
-                        Expired At
+                        Schema Expired In
                       </ThemedText>
                     </label>
                     <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                      {willExpireAtText}
+                      {validityPeriodText}
                     </div>
                   </div>
                 </div>
