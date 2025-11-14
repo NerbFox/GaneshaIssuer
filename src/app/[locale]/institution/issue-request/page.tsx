@@ -825,8 +825,28 @@ export default function IssueRequestPage() {
           throw new Error('Failed to decrypt encrypted_body');
         }
 
-        const schemaId = fullDecryptedBody.schema_id;
-        const schemaVersion = fullDecryptedBody.schema_version;
+        // Extract schema_id and schema_version
+        let schemaId: string | undefined;
+        let schemaVersion: number | undefined;
+
+        // For ISSUANCE requests: schema_id and schema_version are directly in the body
+        if (fullDecryptedBody.schema_id && fullDecryptedBody.schema_version) {
+          schemaId = String(fullDecryptedBody.schema_id);
+          schemaVersion = Number(fullDecryptedBody.schema_version);
+        }
+        // For UPDATE/RENEW/REVOKE requests: extract schema info from vc_id
+        else if (fullDecryptedBody.vc_id && typeof fullDecryptedBody.vc_id === 'string') {
+          const vcIdParts = (fullDecryptedBody.vc_id as string).split(':');
+          if (vcIdParts.length >= 2) {
+            schemaId = vcIdParts[0];
+            schemaVersion = parseInt(vcIdParts[1], 10);
+            console.log(`Extracted schema from vc_id: ${schemaId} v${schemaVersion}`);
+          }
+        }
+
+        if (!schemaId || !schemaVersion) {
+          throw new Error('Could not extract schema_id and schema_version from request');
+        }
 
         console.log('Parsed schema ID:', schemaId);
         console.log('Parsed schema version:', schemaVersion);
