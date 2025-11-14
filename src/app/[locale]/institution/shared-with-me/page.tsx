@@ -88,9 +88,11 @@ interface VPDetailData {
 }
 
 interface CredentialVerification {
-  credential_id: string;
+  vc_id: string;
+  issuer: string;
   valid: boolean;
-  errors: string[];
+  error?: string;
+  errors?: string[];
 }
 
 interface VPVerificationData {
@@ -187,7 +189,16 @@ export default function SharedWithMePage() {
   const [isLoadingVerification, setIsLoadingVerification] = useState(false);
   const [showCloseConfirmation, setShowCloseConfirmation] = useState(false);
 
+  // QR Scanner Modal states
+  const [showQRScanModal, setShowQRScanModal] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [qrScanError, setQrScanError] = useState<string>('');
+  const [scannedVPData, setScannedVPData] = useState<VPVerificationData | null>(null);
+  const [showScannedVPModal, setShowScannedVPModal] = useState(false);
+  const [isLoadingScannedVP, setIsLoadingScannedVP] = useState(false);
+
   const filterModalRef = useRef<HTMLDivElement>(null);
+  const qrScannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
 
   const didPrefixes = ['did:dcert:'];
 
@@ -338,6 +349,17 @@ export default function SharedWithMePage() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showFilterModal]);
+
+  // Cleanup QR scanner on component unmount
+  useEffect(() => {
+    return () => {
+      if (qrScannerRef.current) {
+        qrScannerRef.current
+          .stop()
+          .catch((err: unknown) => console.error('Error stopping scanner on unmount:', err));
+      }
+    };
+  }, []);
 
   const handleSearch = (value: string) => {
     const filtered = credentials.filter((credential) => {
@@ -803,6 +825,181 @@ export default function SharedWithMePage() {
 
   const selectedCredentialsList = schemas.filter((s) => selectedCredentials.has(s.compositeId));
 
+  // QR Scanner handlers
+  const handleOpenQRScanner = () => {
+    setShowQRScanModal(true);
+    setQrScanError('');
+    setIsScanning(false);
+  };
+
+  const handleCloseQRScanner = () => {
+    // Stop scanner if running
+    if (qrScannerRef.current) {
+      qrScannerRef.current
+        .stop()
+        .catch((err: unknown) => console.error('Error stopping scanner:', err));
+      qrScannerRef.current = null;
+    }
+    setShowQRScanModal(false);
+    setIsScanning(false);
+    setQrScanError('');
+  };
+
+  const startQRScanner = async () => {
+    setIsScanning(true);
+    setQrScanError('');
+
+    try {
+      const { Html5Qrcode } = await import('html5-qrcode');
+
+      const qrScanner = new Html5Qrcode('qr-reader');
+      qrScannerRef.current = qrScanner;
+
+      await qrScanner.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        async (decodedText) => {
+          console.log('QR Code scanned:', decodedText);
+
+          try {
+            // Parse the QR code data
+            let qrData;
+            try {
+              qrData = JSON.parse(decodedText);
+            } catch {
+              throw new Error('Invalid QR code: Not a valid JSON format.');
+            }
+
+            // Validate QR code structure
+            if (!qrData || typeof qrData !== 'object') {
+              throw new Error('Invalid QR code: Expected a JSON object.');
+            }
+
+            if (qrData.type !== 'VP_ID') {
+              throw new Error(
+                `Invalid QR code: Expected type "VP_ID", but got "${qrData.type || 'unknown'}".`
+              );
+            }
+
+            if (!qrData.vpId || typeof qrData.vpId !== 'string') {
+              throw new Error('Invalid QR code: Missing or invalid "vpId" field.');
+            }
+
+            // Stop scanner
+            await qrScanner.stop();
+            qrScannerRef.current = null;
+            setShowQRScanModal(false);
+
+            // Fetch VP verification data
+            await fetchScannedVPVerification(qrData.vpId);
+          } catch (parseError) {
+            console.error('Error parsing QR code:', parseError);
+            const errorMessage =
+              parseError instanceof Error
+                ? parseError.message
+                : 'Invalid QR code format. Please scan a valid VP QR code.';
+
+            // Stop scanner and close modal
+            await qrScanner.stop();
+            qrScannerRef.current = null;
+            setShowQRScanModal(false);
+
+            // Show error modal
+            setInfoModalConfig({
+              title: '❌ Invalid QR Code',
+              message: `${errorMessage}\n\nExpected format:\n{\n  "type": "VP_ID",\n  "vpId": "your-vp-id-here"\n}\n\nPlease scan a valid VP QR code.`,
+              buttonColor: 'red',
+              showCancelButton: false,
+              onConfirm: undefined,
+              confirmButtonText: 'OK',
+            });
+            setShowInfoModal(true);
+          }
+        },
+        (errorMessage) => {
+          // This is called for every scan attempt, we can ignore it
+          console.log('Scan error (can be ignored):', errorMessage);
+        }
+      );
+    } catch (error) {
+      console.error('Error starting QR scanner:', error);
+      setQrScanError('Failed to start camera. Please grant camera permissions and try again.');
+      setIsScanning(false);
+    }
+  };
+
+  const fetchScannedVPVerification = async (vpId: string) => {
+    setShowScannedVPModal(true);
+    setIsLoadingScannedVP(true);
+
+    try {
+      const url = buildApiUrl(API_ENDPOINTS.PRESENTATIONS.VERIFY(vpId));
+      const response = await fetch(url, {
+        headers: {
+          accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch VP verification data');
+      }
+
+      const result = await response.json();
+
+      // Check if VP was not found or already verified
+      if (result.success && result.found === false) {
+        setShowScannedVPModal(false);
+        setInfoModalConfig({
+          title: '⚠️ VP Already Used',
+          message:
+            'This Verifiable Presentation has already been verified or is no longer available.\n\nThe VP may have been:\n• Already verified by you or another verifier\n• Revoked by the holder\n• Expired\n\nPlease request a new VP from the holder if needed.',
+          buttonColor: 'orange',
+          showCancelButton: false,
+          onConfirm: undefined,
+          confirmButtonText: 'OK',
+        });
+        setShowInfoModal(true);
+        return;
+      }
+
+      if (result.success && result.data) {
+        setScannedVPData({
+          vp: result.data.vp,
+          verification: {
+            vp_valid: result.data.vp_valid,
+            holder_did: result.data.holder_did,
+            credentials_verification: result.data.credentials_verification,
+          },
+          vpId: vpId,
+        });
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (error) {
+      console.error('Error fetching scanned VP verification:', error);
+      setShowScannedVPModal(false);
+      setInfoModalConfig({
+        title: 'Error',
+        message: 'Failed to verify the scanned VP. Please try again.',
+        buttonColor: 'red',
+        showCancelButton: false,
+        onConfirm: undefined,
+        confirmButtonText: undefined,
+      });
+      setShowInfoModal(true);
+    } finally {
+      setIsLoadingScannedVP(false);
+    }
+  };
+
+  const handleCloseScannedVPModal = () => {
+    setShowScannedVPModal(false);
+    setScannedVPData(null);
+  };
+
   // Helper functions to prepare data for DataTables
   const getVCInfoData = (schema: Schema): VCInfoItem[] => {
     return [
@@ -1049,26 +1246,48 @@ export default function SharedWithMePage() {
               rowsPerPageOptions={[5, 10, 25, 50, 100]}
               idKey="id"
               topRightButtons={
-                <button
-                  onClick={handleOpenRequestVPModal}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-medium cursor-pointer"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleOpenQRScanner}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  Request VP
-                </button>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                      />
+                    </svg>
+                    Scan a VP
+                  </button>
+                  <button
+                    onClick={handleOpenRequestVPModal}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-medium cursor-pointer"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    Request VP
+                  </button>
+                </div>
               }
             />
           </>
@@ -1370,19 +1589,19 @@ export default function SharedWithMePage() {
               {/* Header Info */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
                 <div className="grid grid-cols-2 gap-6">
-                  <div>
+                  <div className="space-x-2">
                     <ThemedText className="text-sm text-gray-600 mb-1">VP ID</ThemedText>
                     <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 font-mono">
                       {selectedVPDetail.vpSharing.vp_id}
                     </ThemedText>
                   </div>
-                  <div>
+                  <div className="space-x-2">
                     <ThemedText className="text-sm text-gray-600 mb-1">VP Request ID</ThemedText>
                     <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 font-mono">
                       {selectedVPDetail.requestDetail.id}
                     </ThemedText>
                   </div>
-                  <div>
+                  <div className="space-x-2">
                     <ThemedText className="text-sm text-gray-600 mb-1">
                       Verification Status
                     </ThemedText>
@@ -1398,7 +1617,7 @@ export default function SharedWithMePage() {
                       {selectedVPDetail.requestDetail.verify_status.replace('_', ' ')}
                     </span>
                   </div>
-                  <div>
+                  <div className="space-x-2">
                     <ThemedText className="text-sm text-gray-600 mb-1">Request Status</ThemedText>
                     <span
                       className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
@@ -1412,14 +1631,14 @@ export default function SharedWithMePage() {
                       {selectedVPDetail.requestDetail.status}
                     </span>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-2 space-x-2">
                     <ThemedText className="text-sm text-gray-600 mb-1">Holder DID</ThemedText>
                     <ThemedText fontSize={12} className="text-gray-900 font-mono break-all">
                       {selectedVPDetail.requestDetail.holder_did}
                     </ThemedText>
                   </div>
                 </div>
-                <div className="mt-4">
+                <div className="mt-4 space-x-2">
                   <ThemedText className="text-sm text-gray-600 mb-1">Purpose</ThemedText>
                   <ThemedText fontSize={14} className="text-gray-900">
                     {selectedVPDetail.requestDetail.purpose}
@@ -1472,7 +1691,7 @@ export default function SharedWithMePage() {
                                     >
                                       {cred.schema_name}
                                     </ThemedText>
-                                    <ThemedText fontSize={12} className="text-gray-600 mt-1">
+                                    <ThemedText fontSize={12} className="text-gray-600 mt-1 pl-2">
                                       Version {cred.schema_version}
                                     </ThemedText>
                                     <ThemedText
@@ -1559,7 +1778,7 @@ export default function SharedWithMePage() {
                                   >
                                     {cred.schema_name}
                                   </ThemedText>
-                                  <ThemedText fontSize={12} className="text-gray-600 mt-1">
+                                  <ThemedText fontSize={12} className="text-gray-600 mt-1 pl-2">
                                     Version {cred.schema_version}
                                   </ThemedText>
                                   <ThemedText
@@ -1632,7 +1851,7 @@ export default function SharedWithMePage() {
                                   clipRule="evenodd"
                                 />
                               </svg>
-                              <div>
+                              <div className="space-x-2">
                                 <ThemedText
                                   fontSize={14}
                                   fontWeight={600}
@@ -1684,19 +1903,19 @@ export default function SharedWithMePage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <ThemedText className="text-sm text-gray-600 mb-1">Request Created</ThemedText>
-                  <ThemedText fontSize={14} fontWeight={600} className="text-gray-900">
+                  <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 pl-2">
                     {formatDate(selectedVPDetail.requestDetail.createdAt)}
                   </ThemedText>
-                  <ThemedText fontSize={12} className="text-gray-500 mt-1">
+                  <ThemedText fontSize={12} className="text-gray-500 mt-1 pl-2">
                     {new Date(selectedVPDetail.requestDetail.createdAt).toLocaleTimeString()}
                   </ThemedText>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <ThemedText className="text-sm text-gray-600 mb-1">Last Updated</ThemedText>
-                  <ThemedText fontSize={14} fontWeight={600} className="text-gray-900">
+                  <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 pl-2">
                     {formatDate(selectedVPDetail.requestDetail.updatedAt)}
                   </ThemedText>
-                  <ThemedText fontSize={12} className="text-gray-500 mt-1">
+                  <ThemedText fontSize={12} className="text-gray-500 mt-1 pl-2">
                     {new Date(selectedVPDetail.requestDetail.updatedAt).toLocaleTimeString()}
                   </ThemedText>
                 </div>
@@ -1788,7 +2007,7 @@ export default function SharedWithMePage() {
                         ? '✓ Verification Successful'
                         : '✗ Verification Failed'}
                     </ThemedText>
-                    <ThemedText fontSize={14} className="text-gray-600 mt-1">
+                    <ThemedText fontSize={14} className="text-gray-600 mt-1 pl-2">
                       {vpVerificationData.verification.vp_valid
                         ? 'All credentials have been verified and are valid.'
                         : 'One or more credentials failed verification.'}
@@ -1803,7 +2022,7 @@ export default function SharedWithMePage() {
                   Presentation Information
                 </ThemedText>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
+                  <div className="space-x-2">
                     <ThemedText className="text-sm text-gray-600 mb-1">Holder DID</ThemedText>
                     <ThemedText fontSize={12} className="text-gray-900 font-mono break-all">
                       {vpVerificationData.verification.holder_did}
@@ -2087,6 +2306,415 @@ export default function SharedWithMePage() {
         confirmButtonText="Yes, Close and Delete"
         onConfirm={confirmCloseVerifyModal}
       />
+
+      {/* QR Scanner Modal */}
+      <Modal
+        isOpen={showQRScanModal}
+        onClose={handleCloseQRScanner}
+        title="Scan VP QR Code"
+        maxWidth="600px"
+        minHeight="500px"
+      >
+        <div className="px-8 py-6">
+          {!isScanning ? (
+            <div className="text-center py-10">
+              <div className="mb-6">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-24 w-24 mx-auto text-blue-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                  />
+                </svg>
+              </div>
+              <div className="grid grid-row-2">
+                <ThemedText fontSize={20} fontWeight={600} className="text-gray-900 mb-4">
+                  Ready to Scan
+                </ThemedText>
+                <ThemedText className="text-gray-600 mb-8">
+                  Click the button below to start scanning a VP QR code. You&apos;ll need to allow
+                  camera access when prompted.
+                </ThemedText>
+              </div>
+              <button
+                onClick={startQRScanner}
+                className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium shadow-lg"
+              >
+                Start Camera
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="mb-4">
+                <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 text-center">
+                  Position the QR code within the frame
+                </ThemedText>
+              </div>
+              <div
+                id="qr-reader"
+                className="rounded-lg overflow-hidden border-4 border-blue-500 shadow-xl"
+              ></div>
+              {qrScanError && (
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <ThemedText className="text-red-700 text-sm">{qrScanError}</ThemedText>
+                </div>
+              )}
+              <div className="mt-6 text-center">
+                <button
+                  onClick={handleCloseQRScanner}
+                  className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                >
+                  Cancel Scanning
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Scanned VP Verification Modal */}
+      <Modal
+        isOpen={showScannedVPModal}
+        onClose={handleCloseScannedVPModal}
+        title="Scanned VP Verification"
+        maxWidth="1400px"
+        minHeight="700px"
+      >
+        <div className="px-8 py-6">
+          {isLoadingScannedVP ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <ThemedText className="text-gray-600">Verifying credentials...</ThemedText>
+              </div>
+            </div>
+          ) : scannedVPData ? (
+            <div className="space-y-6">
+              {/* Verification Status Banner */}
+              <div
+                className={`rounded-xl p-6 border-2 ${
+                  scannedVPData.verification.vp_valid
+                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+                    : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  {scannedVPData.verification.vp_valid ? (
+                    <div className="flex-shrink-0 w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-10 w-10 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </div>
+                  ) : (
+                    <div className="flex-shrink-0 w-16 h-16 bg-red-500 rounded-full flex items-center justify-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-10 w-10 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <ThemedText
+                      fontSize={24}
+                      fontWeight={700}
+                      className={
+                        scannedVPData.verification.vp_valid ? 'text-green-700' : 'text-red-700'
+                      }
+                    >
+                      {scannedVPData.verification.vp_valid
+                        ? '✅ Verification Successful'
+                        : '❌ Verification Failed'}
+                    </ThemedText>
+                    <ThemedText fontSize={14} className="text-gray-600 mt-1 space-x-2">
+                      VP ID: {scannedVPData.vpId}
+                    </ThemedText>
+                  </div>
+                </div>
+              </div>
+
+              {/* VP Information */}
+              <div className="bg-gray-50 rounded-xl p-6">
+                <ThemedText fontSize={18} fontWeight={600} className="text-gray-900 mb-4">
+                  Presentation Information
+                </ThemedText>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-x-2">
+                    <ThemedText className="text-sm text-gray-600 mb-1">Holder DID</ThemedText>
+                    <ThemedText fontSize={13} fontWeight={600} className="text-gray-900 break-all">
+                      {scannedVPData.verification.holder_did}
+                    </ThemedText>
+                  </div>
+                  <div className="space-x-2">
+                    <ThemedText className="text-sm text-gray-600 mb-1">
+                      Total Credentials
+                    </ThemedText>
+                    <ThemedText fontSize={13} fontWeight={600} className="text-blue-600">
+                      {scannedVPData.vp.verifiableCredential.length}
+                    </ThemedText>
+                  </div>
+                </div>
+              </div>
+
+              {/* Credentials Verification Details */}
+              <div className="bg-white rounded-xl border-2 border-gray-200">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                  <ThemedText fontSize={20} fontWeight={600} className="text-gray-900">
+                    Credentials Verification (
+                    {scannedVPData.verification.credentials_verification.length})
+                  </ThemedText>
+                </div>
+                <div className="p-6 space-y-4">
+                  {scannedVPData.verification.credentials_verification.map((cred, idx: number) => {
+                    const vcData = scannedVPData.vp.verifiableCredential.find(
+                      (vc) => vc.id === cred.vc_id
+                    );
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`p-5 rounded-xl border-2 ${
+                          cred.valid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                                cred.valid ? 'bg-green-500' : 'bg-red-500'
+                              }`}
+                            >
+                              {cred.valid ? (
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-6 w-6 text-white"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={3}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              ) : (
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-6 w-6 text-white"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={3}
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <ThemedText
+                                fontSize={16}
+                                fontWeight={600}
+                                className={cred.valid ? 'text-green-800' : 'text-red-800'}
+                              >
+                                Credential #{idx + 1}
+                                {vcData && ` - ${vcData.type[1] || vcData.type[0]}`}
+                              </ThemedText>
+                              <ThemedText
+                                fontSize={12}
+                                className={cred.valid ? 'text-green-700' : 'text-red-700'}
+                              >
+                                {cred.valid ? 'Valid' : 'Invalid'}
+                              </ThemedText>
+                            </div>
+                          </div>
+                        </div>
+
+                        {vcData && (
+                          <div className="mt-4 space-y-4 bg-white rounded-lg p-4 border border-gray-200">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <ThemedText className="text-xs text-gray-500 mb-1">
+                                  CREDENTIAL ID
+                                </ThemedText>
+                                <ThemedText
+                                  fontSize={11}
+                                  fontWeight={600}
+                                  className="text-gray-900 break-all"
+                                >
+                                  {vcData.id}
+                                </ThemedText>
+                              </div>
+                              <div>
+                                <ThemedText className="text-xs text-gray-500 mb-1">
+                                  ISSUER
+                                </ThemedText>
+                                <ThemedText
+                                  fontSize={12}
+                                  fontWeight={600}
+                                  className="text-gray-900 mb-1"
+                                >
+                                  {vcData.issuerName || 'Unknown Issuer'}
+                                </ThemedText>
+                                <ThemedText fontSize={10} className="text-gray-600 break-all">
+                                  {typeof vcData.issuer === 'string'
+                                    ? vcData.issuer
+                                    : vcData.issuer.id}
+                                </ThemedText>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <ThemedText className="text-xs text-gray-500 mb-1">
+                                  VALID FROM
+                                </ThemedText>
+                                <ThemedText fontSize={12} className="text-gray-900">
+                                  {vcData.validFrom &&
+                                    new Date(vcData.validFrom).toLocaleString('en-US', {
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                </ThemedText>
+                              </div>
+                              <div>
+                                <ThemedText className="text-xs text-gray-500 mb-1">
+                                  EXPIRES AT
+                                </ThemedText>
+                                <ThemedText fontSize={12} className="text-gray-900">
+                                  {vcData.expiredAt &&
+                                    new Date(vcData.expiredAt).toLocaleString('en-US', {
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                </ThemedText>
+                              </div>
+                            </div>
+
+                            {/* Credential Subject Details */}
+                            <div>
+                              <ThemedText className="text-xs text-gray-500 mb-2" fontWeight={600}>
+                                CREDENTIAL SUBJECT
+                              </ThemedText>
+                              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                                {Object.entries(vcData.credentialSubject).map(
+                                  ([key, value]) =>
+                                    key !== 'id' && (
+                                      <div
+                                        key={key}
+                                        className="flex justify-between items-start py-1"
+                                      >
+                                        <ThemedText
+                                          fontSize={11}
+                                          className="text-gray-600 font-medium"
+                                        >
+                                          {key}:
+                                        </ThemedText>
+                                        <ThemedText
+                                          fontSize={11}
+                                          className="text-gray-900 text-right"
+                                        >
+                                          {String(value) || '-'}
+                                        </ThemedText>
+                                      </div>
+                                    )
+                                )}
+                              </div>
+                            </div>
+
+                            {!cred.valid && cred.error && (
+                              <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded-lg">
+                                <ThemedText fontSize={12} className="text-red-800 font-medium">
+                                  ⚠️ Error: {cred.error}
+                                </ThemedText>
+                              </div>
+                            )}
+
+                            {vcData.fileUrl && (
+                              <div className="mt-3">
+                                <a
+                                  href={vcData.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs font-medium"
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    />
+                                  </svg>
+                                  View Document
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  onClick={handleCloseScannedVPModal}
+                  className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium shadow-lg"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </Modal>
     </InstitutionLayout>
   );
 }

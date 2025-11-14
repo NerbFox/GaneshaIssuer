@@ -289,9 +289,9 @@ export default function VerifyRequestPage() {
         return 'bg-yellow-100 text-yellow-700';
       case 'SUBMITTED':
         return 'bg-blue-100 text-blue-700';
-      case 'VERIFIED':
+      case 'ACCEPT':
         return 'bg-green-100 text-green-700';
-      case 'REJECTED':
+      case 'DECLINE':
         return 'bg-red-100 text-red-700';
       default:
         return 'bg-gray-100 text-gray-700';
@@ -338,98 +338,28 @@ export default function VerifyRequestPage() {
         ) : (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 pt-4">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
-                <div className="flex items-center justify-between mb-2">
-                  <ThemedText className="text-sm text-blue-700 font-medium">
-                    Total Requests
-                  </ThemedText>
-                  <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <ThemedText fontSize={32} fontWeight={700} className="text-blue-900">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 pt-4">
+              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
+                <ThemedText className="text-sm text-gray-600 mb-2">Total Requests</ThemedText>
+                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                   {requests.length}
                 </ThemedText>
               </div>
-              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl p-6 border border-yellow-200">
-                <div className="flex items-center justify-between mb-2">
-                  <ThemedText className="text-sm text-yellow-700 font-medium">Pending</ThemedText>
-                  <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <ThemedText fontSize={32} fontWeight={700} className="text-yellow-900">
+              <div className="bg-purple-50 grid grid-row-2 rounded-2xl p-6">
+                <ThemedText className="text-sm text-gray-600 mb-2">Pending</ThemedText>
+                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                   {pendingCount}
                 </ThemedText>
               </div>
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
-                <div className="flex items-center justify-between mb-2">
-                  <ThemedText className="text-sm text-green-700 font-medium">Verified</ThemedText>
-                  <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <ThemedText fontSize={32} fontWeight={700} className="text-green-900">
+              <div className="bg-green-50 grid grid-row-2 rounded-2xl p-6">
+                <ThemedText className="text-sm text-gray-600 mb-2">Verified</ThemedText>
+                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                   {verifiedCount}
                 </ThemedText>
               </div>
-              <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
-                <div className="flex items-center justify-between mb-2">
-                  <ThemedText className="text-sm text-red-700 font-medium">Rejected</ThemedText>
-                  <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <ThemedText fontSize={32} fontWeight={700} className="text-red-900">
+              <div className="bg-amber-50 grid grid-row-2 rounded-2xl p-6">
+                <ThemedText className="text-sm text-gray-600 mb-2">Rejected</ThemedText>
+                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                   {rejectedCount}
                 </ThemedText>
               </div>
@@ -455,7 +385,7 @@ export default function VerifyRequestPage() {
                     <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 mb-3">
                       Requested Credentials
                     </ThemedText>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-3">
                       {row.requested_credentials.map((cred, index) => (
                         <div
                           key={`${cred.schema_id}-${index}`}
@@ -476,22 +406,22 @@ export default function VerifyRequestPage() {
                       ))}
                     </div>
                     <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <ThemedText className="text-gray-500 mb-1">Verify Status:</ThemedText>
+                      <div className="grid grid-cols-2 gap-6 text-sm">
+                        <div className="space-x-3">
+                          <ThemedText className="text-gray-500">Verify Status:</ThemedText>
                           <ThemedText fontWeight={600} className="text-gray-900">
                             {row.verify_status}
                           </ThemedText>
                         </div>
-                        <div>
-                          <ThemedText className="text-gray-500 mb-1">Last Updated:</ThemedText>
+                        <div className="space-x-3">
+                          <ThemedText className="text-gray-500">Last Updated:</ThemedText>
                           <ThemedText fontWeight={600} className="text-gray-900">
                             {formatDate(row.updatedAt)}
                           </ThemedText>
                         </div>
                         {row.vp_id && (
-                          <div className="col-span-2">
-                            <ThemedText className="text-gray-500 mb-1">VP ID:</ThemedText>
+                          <div className="col-span-2 space-x-3">
+                            <ThemedText className="text-gray-500">VP ID:</ThemedText>
                             <ThemedText
                               fontWeight={600}
                               className="text-gray-900 font-mono break-all"
@@ -591,15 +521,15 @@ export default function VerifyRequestPage() {
               <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
                 Request Information
               </ThemedText>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <ThemedText className="text-sm text-gray-500 mb-1">Request ID</ThemedText>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-x-3">
+                  <ThemedText className="text-sm text-gray-500">Request ID</ThemedText>
                   <ThemedText className="text-sm font-mono text-gray-900 break-all">
                     {selectedRequest.id}
                   </ThemedText>
                 </div>
-                <div>
-                  <ThemedText className="text-sm text-gray-500 mb-1">Status</ThemedText>
+                <div className="space-x-3">
+                  <ThemedText className="text-sm text-gray-500">Status</ThemedText>
                   <span
                     className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
                       selectedRequest.status
@@ -608,26 +538,26 @@ export default function VerifyRequestPage() {
                     {selectedRequest.status}
                   </span>
                 </div>
-                <div>
-                  <ThemedText className="text-sm text-gray-500 mb-1">Purpose</ThemedText>
+                <div className="space-x-3">
+                  <ThemedText className="text-sm text-gray-500">Purpose</ThemedText>
                   <ThemedText fontWeight={600} className="text-gray-900">
                     {selectedRequest.purpose}
                   </ThemedText>
                 </div>
-                <div>
-                  <ThemedText className="text-sm text-gray-500 mb-1">Verify Status</ThemedText>
+                <div className="space-x-3">
+                  <ThemedText className="text-sm text-gray-500">Verify Status</ThemedText>
                   <ThemedText fontWeight={600} className="text-gray-900">
                     {selectedRequest.verify_status}
                   </ThemedText>
                 </div>
-                <div>
-                  <ThemedText className="text-sm text-gray-500 mb-1">Created At</ThemedText>
+                <div className="space-x-3">
+                  <ThemedText className="text-sm text-gray-500">Created At</ThemedText>
                   <ThemedText className="text-gray-900">
                     {formatDate(selectedRequest.createdAt)}
                   </ThemedText>
                 </div>
-                <div>
-                  <ThemedText className="text-sm text-gray-500 mb-1">Updated At</ThemedText>
+                <div className="space-x-3">
+                  <ThemedText className="text-sm text-gray-500">Updated At</ThemedText>
                   <ThemedText className="text-gray-900">
                     {formatDate(selectedRequest.updatedAt)}
                   </ThemedText>
@@ -640,8 +570,8 @@ export default function VerifyRequestPage() {
               <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
                 Holder Information
               </ThemedText>
-              <div>
-                <ThemedText className="text-sm text-gray-500 mb-2">Holder DID</ThemedText>
+              <div className="space-y-3">
+                <ThemedText className="text-sm text-gray-500">Holder DID</ThemedText>
                 <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-blue-200">
                   <ThemedText className="text-sm font-mono text-gray-900 break-all flex-1">
                     {selectedRequest.holder_did}
@@ -670,14 +600,14 @@ export default function VerifyRequestPage() {
                 Verifier Information
               </ThemedText>
               <div className="space-y-4">
-                <div>
-                  <ThemedText className="text-sm text-gray-500 mb-1">Verifier Name</ThemedText>
+                <div className="space-x-3">
+                  <ThemedText className="text-sm text-gray-500">Verifier Name</ThemedText>
                   <ThemedText fontWeight={600} className="text-gray-900">
                     {selectedRequest.verifier_name}
                   </ThemedText>
                 </div>
-                <div>
-                  <ThemedText className="text-sm text-gray-500 mb-2">Verifier DID</ThemedText>
+                <div className="space-y-3">
+                  <ThemedText className="text-sm text-gray-500">Verifier DID</ThemedText>
                   <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-green-200">
                     <ThemedText className="text-sm font-mono text-gray-900 break-all flex-1">
                       {selectedRequest.verifier_did}
@@ -711,7 +641,7 @@ export default function VerifyRequestPage() {
               <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
                 Requested Credentials ({selectedRequest.requested_credentials.length})
               </ThemedText>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3">
                 {selectedRequest.requested_credentials.map((cred, index) => (
                   <div
                     key={`${cred.schema_id}-${index}`}
@@ -725,10 +655,12 @@ export default function VerifyRequestPage() {
                         v{cred.schema_version}
                       </span>
                     </div>
-                    <ThemedText className="text-xs text-gray-500 mb-2">Schema ID</ThemedText>
-                    <ThemedText className="text-xs font-mono text-gray-600 break-all bg-gray-50 p-2 rounded">
-                      {cred.schema_id}
-                    </ThemedText>
+                    <div className="space-x-3">
+                      <ThemedText className="text-xs text-gray-500">Schema ID</ThemedText>
+                      <ThemedText className="text-xs font-mono text-gray-600 break-all bg-gray-50 p-2 rounded">
+                        {cred.schema_id}
+                      </ThemedText>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -739,8 +671,8 @@ export default function VerifyRequestPage() {
                 <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
                   Presentation Information
                 </ThemedText>
-                <div>
-                  <ThemedText className="text-sm text-gray-500 mb-2">VP ID</ThemedText>
+                <div className="space-x-3 space-y-5 pt-5">
+                  <ThemedText className="text-sm text-gray-500">VP ID</ThemedText>
                   <ThemedText className="text-sm font-mono text-gray-900 break-all bg-white p-3 rounded-lg border border-purple-200">
                     {selectedRequest.vp_id}
                   </ThemedText>
