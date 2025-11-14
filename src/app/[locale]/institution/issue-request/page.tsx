@@ -514,12 +514,18 @@ export default function IssueRequestPage() {
         const endDate = filterRequestedOnEnd ? new Date(filterRequestedOnEnd) : null;
 
         if (startDate && endDate) {
-          endDate.setHours(23, 59, 59, 999); // Include the entire end date
+          // Only set to end of day if time is 23:59 (default from date picker)
+          if (filterRequestedOnEnd.endsWith('T23:59')) {
+            endDate.setHours(23, 59, 59, 999);
+          }
           return requestDate >= startDate && requestDate <= endDate;
         } else if (startDate) {
           return requestDate >= startDate;
         } else if (endDate) {
-          endDate.setHours(23, 59, 59, 999);
+          // Only set to end of day if time is 23:59 (default from date picker)
+          if (filterRequestedOnEnd.endsWith('T23:59')) {
+            endDate.setHours(23, 59, 59, 999);
+          }
           return requestDate <= endDate;
         }
         return true;
@@ -547,12 +553,18 @@ export default function IssueRequestPage() {
         const endDate = filterSchemaExpiresEnd ? new Date(filterSchemaExpiresEnd) : null;
 
         if (startDate && endDate) {
-          endDate.setHours(23, 59, 59, 999);
+          // Only set to end of day if time is 23:59 (default from date picker)
+          if (filterSchemaExpiresEnd.endsWith('T23:59')) {
+            endDate.setHours(23, 59, 59, 999);
+          }
           return expiryDate >= startDate && expiryDate <= endDate;
         } else if (startDate) {
           return expiryDate >= startDate;
         } else if (endDate) {
-          endDate.setHours(23, 59, 59, 999);
+          // Only set to end of day if time is 23:59 (default from date picker)
+          if (filterSchemaExpiresEnd.endsWith('T23:59')) {
+            endDate.setHours(23, 59, 59, 999);
+          }
           return expiryDate <= endDate;
         }
         return true;
@@ -1948,9 +1960,36 @@ export default function IssueRequestPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <DateTimePicker
                     value={filterRequestedOnStart}
-                    onChange={setFilterRequestedOnStart}
+                    onChange={(value) => {
+                      // Validate: from time cannot be after until time
+                      if (filterRequestedOnEnd && value) {
+                        const fromDate = new Date(value);
+                        const untilDate = new Date(filterRequestedOnEnd);
+                        if (fromDate > untilDate) {
+                          // Set to until time if from is after until
+                          setFilterRequestedOnStart(filterRequestedOnEnd);
+                          return;
+                        }
+                      }
+                      setFilterRequestedOnStart(value);
+                    }}
                   />
-                  <DateTimePicker value={filterRequestedOnEnd} onChange={setFilterRequestedOnEnd} />
+                  <DateTimePicker
+                    value={filterRequestedOnEnd}
+                    onChange={(value) => {
+                      // Validate: until time cannot be before from time
+                      if (filterRequestedOnStart && value) {
+                        const fromDate = new Date(filterRequestedOnStart);
+                        const untilDate = new Date(value);
+                        if (untilDate < fromDate) {
+                          // Set to from time if until is before from
+                          setFilterRequestedOnEnd(filterRequestedOnStart);
+                          return;
+                        }
+                      }
+                      setFilterRequestedOnEnd(value);
+                    }}
+                  />
                 </div>
               </div>
 
@@ -1962,11 +2001,35 @@ export default function IssueRequestPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <DateTimePicker
                     value={filterSchemaExpiresStart}
-                    onChange={setFilterSchemaExpiresStart}
+                    onChange={(value) => {
+                      // Validate: from time cannot be after until time
+                      if (filterSchemaExpiresEnd && value) {
+                        const fromDate = new Date(value);
+                        const untilDate = new Date(filterSchemaExpiresEnd);
+                        if (fromDate > untilDate) {
+                          // Set to until time if from is after until
+                          setFilterSchemaExpiresStart(filterSchemaExpiresEnd);
+                          return;
+                        }
+                      }
+                      setFilterSchemaExpiresStart(value);
+                    }}
                   />
                   <DateTimePicker
                     value={filterSchemaExpiresEnd}
-                    onChange={setFilterSchemaExpiresEnd}
+                    onChange={(value) => {
+                      // Validate: until time cannot be before from time
+                      if (filterSchemaExpiresStart && value) {
+                        const fromDate = new Date(filterSchemaExpiresStart);
+                        const untilDate = new Date(value);
+                        if (untilDate < fromDate) {
+                          // Set to from time if until is before from
+                          setFilterSchemaExpiresEnd(filterSchemaExpiresStart);
+                          return;
+                        }
+                      }
+                      setFilterSchemaExpiresEnd(value);
+                    }}
                   />
                 </div>
               </div>

@@ -342,12 +342,18 @@ export default function SchemaPage() {
         const endDate = filterCreatedAtEnd ? new Date(filterCreatedAtEnd) : null;
 
         if (startDate && endDate) {
-          endDate.setHours(23, 59, 59, 999); // Include the entire end date
+          // Only set to end of day if time is 23:59 (default from date picker)
+          if (filterCreatedAtEnd.endsWith('T23:59')) {
+            endDate.setHours(23, 59, 59, 999);
+          }
           return createdDate >= startDate && createdDate <= endDate;
         } else if (startDate) {
           return createdDate >= startDate;
         } else if (endDate) {
-          endDate.setHours(23, 59, 59, 999);
+          // Only set to end of day if time is 23:59 (default from date picker)
+          if (filterCreatedAtEnd.endsWith('T23:59')) {
+            endDate.setHours(23, 59, 59, 999);
+          }
           return createdDate <= endDate;
         }
         return true;
@@ -362,12 +368,18 @@ export default function SchemaPage() {
         const endDate = filterUpdatedAtEnd ? new Date(filterUpdatedAtEnd) : null;
 
         if (startDate && endDate) {
-          endDate.setHours(23, 59, 59, 999);
+          // Only set to end of day if time is 23:59 (default from date picker)
+          if (filterUpdatedAtEnd.endsWith('T23:59')) {
+            endDate.setHours(23, 59, 59, 999);
+          }
           return updatedDate >= startDate && updatedDate <= endDate;
         } else if (startDate) {
           return updatedDate >= startDate;
         } else if (endDate) {
-          endDate.setHours(23, 59, 59, 999);
+          // Only set to end of day if time is 23:59 (default from date picker)
+          if (filterUpdatedAtEnd.endsWith('T23:59')) {
+            endDate.setHours(23, 59, 59, 999);
+          }
           return updatedDate <= endDate;
         }
         return true;
@@ -1476,8 +1488,38 @@ export default function SchemaPage() {
                   Created At
                 </ThemedText>
                 <div className="grid grid-cols-2 gap-4">
-                  <DateTimePicker value={filterCreatedAtStart} onChange={setFilterCreatedAtStart} />
-                  <DateTimePicker value={filterCreatedAtEnd} onChange={setFilterCreatedAtEnd} />
+                  <DateTimePicker
+                    value={filterCreatedAtStart}
+                    onChange={(value) => {
+                      // Validate: from time cannot be after until time
+                      if (filterCreatedAtEnd && value) {
+                        const fromDate = new Date(value);
+                        const untilDate = new Date(filterCreatedAtEnd);
+                        if (fromDate > untilDate) {
+                          // Set to until time if from is after until
+                          setFilterCreatedAtStart(filterCreatedAtEnd);
+                          return;
+                        }
+                      }
+                      setFilterCreatedAtStart(value);
+                    }}
+                  />
+                  <DateTimePicker
+                    value={filterCreatedAtEnd}
+                    onChange={(value) => {
+                      // Validate: until time cannot be before from time
+                      if (filterCreatedAtStart && value) {
+                        const fromDate = new Date(filterCreatedAtStart);
+                        const untilDate = new Date(value);
+                        if (untilDate < fromDate) {
+                          // Set to from time if until is before from
+                          setFilterCreatedAtEnd(filterCreatedAtStart);
+                          return;
+                        }
+                      }
+                      setFilterCreatedAtEnd(value);
+                    }}
+                  />
                 </div>
               </div>
 
@@ -1487,8 +1529,38 @@ export default function SchemaPage() {
                   Updated At
                 </ThemedText>
                 <div className="grid grid-cols-2 gap-4">
-                  <DateTimePicker value={filterUpdatedAtStart} onChange={setFilterUpdatedAtStart} />
-                  <DateTimePicker value={filterUpdatedAtEnd} onChange={setFilterUpdatedAtEnd} />
+                  <DateTimePicker
+                    value={filterUpdatedAtStart}
+                    onChange={(value) => {
+                      // Validate: from time cannot be after until time
+                      if (filterUpdatedAtEnd && value) {
+                        const fromDate = new Date(value);
+                        const untilDate = new Date(filterUpdatedAtEnd);
+                        if (fromDate > untilDate) {
+                          // Set to until time if from is after until
+                          setFilterUpdatedAtStart(filterUpdatedAtEnd);
+                          return;
+                        }
+                      }
+                      setFilterUpdatedAtStart(value);
+                    }}
+                  />
+                  <DateTimePicker
+                    value={filterUpdatedAtEnd}
+                    onChange={(value) => {
+                      // Validate: until time cannot be before from time
+                      if (filterUpdatedAtStart && value) {
+                        const fromDate = new Date(filterUpdatedAtStart);
+                        const untilDate = new Date(value);
+                        if (untilDate < fromDate) {
+                          // Set to from time if until is before from
+                          setFilterUpdatedAtEnd(filterUpdatedAtStart);
+                          return;
+                        }
+                      }
+                      setFilterUpdatedAtEnd(value);
+                    }}
+                  />
                 </div>
               </div>
             </div>
