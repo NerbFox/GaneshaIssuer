@@ -22,7 +22,7 @@ interface VerificationRequest {
   verifier_did: string;
   verifier_name: string;
   purpose: string;
-  status: 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED';
+  status: 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'DECLINE';
   requested_credentials: RequestedCredential[];
   vp_id: string | null;
   verify_status: string;
@@ -37,7 +37,7 @@ export default function VerifyRequestPage() {
   const [filteredRequests, setFilteredRequests] = useState<VerificationRequest[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState<
-    'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED'
+    'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'DECLINE'
   >('all');
   const [filterType, setFilterType] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
@@ -50,8 +50,8 @@ export default function VerifyRequestPage() {
   const filterModalRef = useRef<HTMLDivElement>(null);
 
   const pendingCount = requests.filter((r) => r.status === 'PENDING').length;
-  const verifiedCount = requests.filter((r) => r.status === 'VERIFIED').length;
-  const rejectedCount = requests.filter((r) => r.status === 'REJECTED').length;
+  const verifiedCount = requests.filter((r) => r.verify_status === 'VALID_VERIFICATION').length;
+  const rejectedCount = requests.filter((r) => r.status === 'DECLINE').length;
 
   // Fetch verification requests from API
   const fetchVerificationRequests = async () => {
@@ -141,7 +141,7 @@ export default function VerifyRequestPage() {
   };
 
   const applyFilters = (
-    status: 'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED',
+    status: 'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'DECLINE',
     type: string
   ) => {
     let filtered = requests;
@@ -161,9 +161,7 @@ export default function VerifyRequestPage() {
     setFilteredRequests(filtered);
   };
 
-  const handleStatusChange = (
-    status: 'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED'
-  ) => {
+  const handleStatusChange = (status: 'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'DECLINE') => {
     setFilterStatus(status);
     applyFilters(status, filterType);
   };
@@ -175,10 +173,9 @@ export default function VerifyRequestPage() {
 
   const toggleRowExpansion = (id: string) => {
     setExpandedRows((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
+      const newSet = new Set<string>();
+      // If clicking the same row, close it. Otherwise, open the new row
+      if (!prev.has(id)) {
         newSet.add(id);
       }
       return newSet;
@@ -550,7 +547,7 @@ export default function VerifyRequestPage() {
               value={filterStatus}
               onChange={(e) =>
                 handleStatusChange(
-                  e.target.value as 'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED'
+                  e.target.value as 'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'DECLINE'
                 )
               }
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
