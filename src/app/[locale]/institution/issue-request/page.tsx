@@ -1016,6 +1016,7 @@ export default function IssueRequestPage() {
           request_id: selectedRequest.id,
           action: 'APPROVED',
           vc_id: currentVcId,
+          encrypted_body: selectedRequest.encrypted_body,
         };
 
         console.log('Revoke request body:', requestBody);
