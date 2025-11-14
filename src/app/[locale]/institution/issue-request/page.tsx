@@ -203,11 +203,36 @@ export default function IssueRequestPage() {
         try {
           const decryptedBody = await decryptWithPrivateKey(encryptedBody, privateKeyHex);
           console.log('decryptedBody', decryptedBody);
-          return {
-            schema_id: String(decryptedBody.schema_id || ''),
-            schema_version: Number(decryptedBody.schema_version || 1),
-          };
-        } catch {
+
+          // For ISSUANCE requests: schema_id and schema_version are directly in the body
+          if (decryptedBody.schema_id && decryptedBody.schema_version) {
+            return {
+              schema_id: String(decryptedBody.schema_id || ''),
+              schema_version: Number(decryptedBody.schema_version || 1),
+            };
+          }
+
+          // For UPDATE/RENEW/REVOKE requests: extract schema info from vc_id
+          // vc_id format: schema_id:version:holder_did:timestamp
+          if (decryptedBody.vc_id && typeof decryptedBody.vc_id === 'string') {
+            const vcIdParts = decryptedBody.vc_id.split(':');
+            if (vcIdParts.length >= 2) {
+              const schema_id = vcIdParts[0];
+              const schema_version = parseInt(vcIdParts[1], 10);
+
+              if (schema_id && !isNaN(schema_version)) {
+                console.log(`Extracted schema from vc_id: ${schema_id} v${schema_version}`);
+                return {
+                  schema_id,
+                  schema_version,
+                };
+              }
+            }
+          }
+
+          console.warn('Could not extract schema info from encrypted body:', decryptedBody);
+        } catch (err) {
+          console.error('Failed to decrypt encrypted_body:', err);
           // Silently handle decryption error - do nothing
         }
       }
