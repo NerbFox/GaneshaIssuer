@@ -6,7 +6,6 @@ import InstitutionLayout from '@/components/InstitutionLayout';
 import { ThemedText } from '@/components/ThemedText';
 import { DataTable, Column } from '@/components/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
-import Modal from '@/components/Modal';
 import { buildApiUrlWithParams, buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 import { encryptWithPublicKey, decryptWithPrivateKey } from '@/utils/encryptUtils';
 import {
@@ -20,11 +19,16 @@ import {
   storeSchemaData,
   storeSchemaDataBatch,
 } from '@/utils/indexedDB';
-import { ViewCredential } from '@/components/ViewCredential';
 import { validateVCComprehensive } from '@/utils/vcValidator';
 import { hashVC } from '@/utils/vcUtils';
 import InfoModal from '@/components/InfoModal';
 import { authenticatedPost } from '@/utils/api-client';
+import { RequestCredentialModal } from '@/components/RequestCredentialModal';
+import { ViewCredentialModal } from '@/components/ViewCredentialModal';
+import { UploadVCModal } from '@/components/UploadVCModal';
+import { RenewCredentialModal } from '@/components/RenewCredentialModal';
+import { UpdateCredentialModal } from '@/components/UpdateCredentialModal';
+import { RevokeCredentialModal } from '@/components/RevokeCredentialModal';
 
 /**
  * Renew-specific credential data
@@ -2148,130 +2152,33 @@ export default function MyCredentialPage() {
       )}
 
       {/* Request New Credential Modal */}
-      <Modal
+      <RequestCredentialModal
         isOpen={showRequestModal}
         onClose={() => setShowRequestModal(false)}
-        title="Request New Credential"
-        minHeight="700px"
-      >
-        <div className="px-8 py-6">
-          {isSchemasLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="text-center">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-                <ThemedText className="text-gray-600">Loading schemas...</ThemedText>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Schema List with Expandable Rows */}
-              <DataTable<SchemaWithCompositeId>
-                data={filteredSchemas.filter((s) => s.compositeId)}
-                columns={schemaColumns}
-                searchPlaceholder="Search schemas..."
-                onSearch={handleSchemaSearch}
-                enableSelection={false}
-                totalCount={filteredSchemas.filter((s) => s.compositeId).length}
-                rowsPerPageOptions={[5, 10, 25]}
-                idKey="compositeId"
-                expandableRows={{
-                  expandedRowId: expandedSchemaId,
-                  renderExpandedContent: (schema: SchemaWithCompositeId) => (
-                    <div className="space-y-6 bg-white p-4 rounded-lg">
-                      {/* VC Info */}
-                      <div>
-                        <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-3">
-                          VC Info
-                        </ThemedText>
-                        <DataTable
-                          data={getVCInfoData(schema)}
-                          columns={vcInfoColumns}
-                          enableSelection={false}
-                          totalCount={getVCInfoData(schema).length}
-                          idKey="id"
-                          hideTopControls={true}
-                          hideBottomControls={true}
-                          rowsPerPageOptions={[1000]}
-                        />
-                      </div>
-
-                      {/* Attributes */}
-                      <div>
-                        <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-3">
-                          Attributes
-                        </ThemedText>
-                        <DataTable
-                          data={getAttributesData(schema)}
-                          columns={attributesColumns}
-                          enableSelection={false}
-                          totalCount={getAttributesData(schema).length}
-                          idKey="id"
-                          hideTopControls={true}
-                          hideBottomControls={true}
-                          rowsPerPageOptions={[1000]}
-                        />
-                      </div>
-                    </div>
-                  ),
-                }}
-              />
-
-              {filteredSchemas.length === 0 && (
-                <div className="text-center py-12">
-                  <ThemedText className="text-gray-500">No schemas available</ThemedText>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </Modal>
+        isSchemasLoading={isSchemasLoading}
+        filteredSchemas={filteredSchemas}
+        expandedSchemaId={expandedSchemaId}
+        schemaColumns={schemaColumns}
+        vcInfoColumns={vcInfoColumns}
+        attributesColumns={attributesColumns}
+        onSchemaSearch={handleSchemaSearch}
+        getVCInfoData={getVCInfoData}
+        getAttributesData={getAttributesData}
+      />
 
       {/* View Credential Modal */}
-      <Modal
+      <ViewCredentialModal
         isOpen={showViewCredentialModal}
         onClose={() => {
           setShowViewCredentialModal(false);
           setSelectedCredential(null);
         }}
-        title="View Credential"
-        minHeight="700px"
-      >
-        {selectedCredential && (
-          <ViewCredential
-            credentialData={{
-              id: selectedCredential.id,
-              credentialType:
-                selectedCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown',
-              issuer: selectedCredential.issuer,
-              issuerName: selectedCredential.issuerName,
-              holder: selectedCredential.credentialSubject.id,
-              validFrom: selectedCredential.validFrom,
-              expiredAt: selectedCredential.expiredAt,
-              status: selectedCredential.expiredAt
-                ? new Date(selectedCredential.expiredAt) < new Date()
-                  ? 'Expired'
-                  : 'Active'
-                : 'Active',
-              imageLink: selectedCredential.imageLink,
-              attributes: Object.entries(selectedCredential.credentialSubject)
-                .filter(([key]) => key !== 'id') // Exclude the 'id' field
-                .map(([name, value]) => ({
-                  name,
-                  value: typeof value === 'object' ? JSON.stringify(value) : String(value),
-                })),
-              proof: selectedCredential.proof,
-            }}
-            onClose={() => {
-              setShowViewCredentialModal(false);
-              setSelectedCredential(null);
-            }}
-            onDownload={() => handleDownload(selectedCredential.id)}
-          />
-        )}
-      </Modal>
+        selectedCredential={selectedCredential}
+        onDownload={handleDownload}
+      />
 
       {/* Upload VC Modal */}
-      <Modal
+      <UploadVCModal
         isOpen={showUploadModal}
         onClose={() => {
           setShowUploadModal(false);
@@ -2279,463 +2186,31 @@ export default function MyCredentialPage() {
           setUploadedVC(null);
           setUploadValidation(null);
         }}
-        title="Upload Verifiable Credential"
-        minHeight="600px"
-      >
-        <div className="px-8 py-6">
-          <div className="mb-6">
-            <label className="block mb-3">
-              <ThemedText className="text-sm font-semibold text-gray-900">
-                Select JSON File
-              </ThemedText>
-            </label>
-
-            <div className="relative">
-              <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-blue-300 rounded-xl cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors duration-200">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <svg
-                    className="w-10 h-10 mb-3 text-blue-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                    />
-                  </svg>
-                  <p className="mb-2 text-sm text-blue-600 font-medium">
-                    <span className="font-semibold">Click to upload</span> or drag and drop
-                  </p>
-                  <p className="text-xs text-blue-500">JSON files only</p>
-                </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </div>
-
-          {/* Loading State */}
-          {isValidating && (
-            <div className="mb-6 flex items-center gap-3 text-blue-700 bg-blue-50 px-4 py-3 rounded-lg">
-              <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-700"></div>
-              <ThemedText fontSize={14} fontWeight={600}>
-                Validating credential...
-              </ThemedText>
-            </div>
-          )}
-
-          {/* Validation Message */}
-          {!isValidating && uploadValidation && (
-            <div className="mb-6">
-              {uploadValidation.isValid ? (
-                <div className="flex items-center gap-2 text-green-700 bg-green-50 px-4 py-3 rounded-lg">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <div>
-                    <ThemedText fontSize={14} fontWeight={600}>
-                      ✓ All validations passed
-                    </ThemedText>
-                    <ThemedText fontSize={12} className="text-green-600 mt-1">
-                      Structure validated → API validated → No duplicates found
-                    </ThemedText>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-red-700 bg-red-50 px-4 py-3 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <div>
-                      <ThemedText fontSize={14} fontWeight={600}>
-                        Validation failed
-                        {uploadValidation.stage && ` at ${uploadValidation.stage} stage`}
-                      </ThemedText>
-                    </div>
-                  </div>
-                  <ul className="list-disc list-inside text-sm space-y-1 mt-2">
-                    {uploadValidation.errors.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Preview VC */}
-          {uploadValidation?.isValid && uploadedVC && (
-            <div>
-              <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
-                Credential Preview
-              </ThemedText>
-              <div className="border border-gray-200 rounded-lg bg-gray-50 max-h-96 overflow-y-auto">
-                <div className="p-6 space-y-6">
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
-                      ID
-                    </ThemedText>
-                    <ThemedText
-                      fontSize={14}
-                      className="text-gray-900 break-all leading-relaxed text-right"
-                    >
-                      {uploadedVC.id}
-                    </ThemedText>
-                  </div>
-
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
-                      Type
-                    </ThemedText>
-                    <ThemedText fontSize={14} className="text-gray-900 text-right">
-                      {uploadedVC.type.join(', ')}
-                    </ThemedText>
-                  </div>
-
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
-                      Issuer
-                    </ThemedText>
-                    <ThemedText
-                      fontSize={14}
-                      className="text-gray-900 break-all leading-relaxed text-right"
-                    >
-                      {uploadedVC.issuer}
-                    </ThemedText>
-                  </div>
-
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
-                      Issuer Name
-                    </ThemedText>
-                    <ThemedText fontSize={14} className="text-gray-900 text-right">
-                      {uploadedVC.issuerName}
-                    </ThemedText>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white rounded-lg p-4 border border-gray-200">
-                      <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
-                        Valid From
-                      </ThemedText>
-                      <ThemedText fontSize={14} className="text-gray-900 text-right">
-                        {new Date(uploadedVC.validFrom).toLocaleDateString()}
-                      </ThemedText>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 border border-gray-200">
-                      <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
-                        Expired At
-                      </ThemedText>
-                      <ThemedText fontSize={14} className="text-gray-900 text-right">
-                        {uploadedVC.expiredAt
-                          ? new Date(uploadedVC.expiredAt).toLocaleDateString()
-                          : 'N/A'}
-                      </ThemedText>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
-                      Credential Subject
-                    </ThemedText>
-                    <div className="bg-gray-50 rounded-lg p-4 mt-2">
-                      <pre className="whitespace-pre-wrap break-all text-gray-700 text-sm leading-relaxed">
-                        {JSON.stringify(uploadedVC.credentialSubject, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Save Button */}
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  onClick={() => {
-                    setShowUploadModal(false);
-                    setUploadedFile(null);
-                    setUploadedVC(null);
-                    setUploadValidation(null);
-                  }}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium cursor-pointer"
-                >
-                  CANCEL
-                </button>
-                <button
-                  onClick={handleSaveUploadedVC}
-                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
-                >
-                  SAVE TO INDEXEDDB
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </Modal>
+        isValidating={isValidating}
+        uploadValidation={uploadValidation}
+        uploadedVC={uploadedVC}
+        fileInputRef={fileInputRef}
+        onFileUpload={handleFileUpload}
+        onSave={handleSaveUploadedVC}
+      />
 
       {/* Renew Credential Modal */}
-      <Modal
+      <RenewCredentialModal
         isOpen={showRenewModal}
         onClose={() => {
           setShowRenewModal(false);
           setRenewingCredential(null);
           setRenewalReason('');
         }}
-        title="Renew Credential"
-        maxWidth="900px"
-      >
-        {renewingCredential && (
-          <div className="px-8 py-6">
-            {/* Credential Information Grid */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              {/* Credential ID */}
-              <div className="col-span-2">
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">
-                    Credential ID
-                  </ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-                  {renewingCredential.id}
-                </div>
-              </div>
-
-              {/* Credential Type */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">
-                    Credential Type
-                  </ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {Array.isArray(renewingCredential.type)
-                    ? renewingCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown'
-                    : renewingCredential.type}
-                </div>
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                    Active
-                  </span>
-                </div>
-              </div>
-
-              {/* Valid From */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Valid From</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {new Date(renewingCredential.validFrom).toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false,
-                  })}
-                </div>
-              </div>
-
-              {/* Expired At */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {renewingCredential.expiredAt
-                    ? new Date(renewingCredential.expiredAt).toLocaleString('en-US', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: false,
-                      })
-                    : 'Never'}
-                </div>
-              </div>
-
-              {/* Issuer Name */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Issuer Name</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {renewingCredential.issuerName}
-                </div>
-              </div>
-
-              {/* Issuer DID */}
-              <div className="col-span-2">
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-                  {renewingCredential.issuer}
-                </div>
-              </div>
-
-              {/* Holder DID */}
-              <div className="col-span-2">
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-                  {renewingCredential.credentialSubject.id}
-                </div>
-              </div>
-            </div>
-
-            {/* Credential Image */}
-            {renewingCredential.imageLink && (
-              <div className="mb-6">
-                <label className="block mb-3">
-                  <ThemedText className="text-sm font-semibold text-gray-900">
-                    VC Background Image
-                  </ThemedText>
-                </label>
-                <div className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={renewingCredential.imageLink}
-                    alt="VC Background"
-                    className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 shadow-md block bg-gray-50"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Credential Attributes Section */}
-            {Object.keys(renewingCredential.credentialSubject).filter((key) => key !== 'id')
-              .length > 0 && (
-              <div className="mb-6">
-                <div className="mb-4">
-                  <ThemedText className="text-sm font-semibold text-gray-900">
-                    Credential Attributes (
-                    {
-                      Object.keys(renewingCredential.credentialSubject).filter(
-                        (key) => key !== 'id'
-                      ).length
-                    }
-                    )
-                  </ThemedText>
-                </div>
-
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <div className="space-y-4">
-                    {Object.entries(renewingCredential.credentialSubject)
-                      .filter(([key]) => key !== 'id')
-                      .map(([key, value], index) => (
-                        <div key={index} className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block mb-1">
-                              <ThemedText className="text-xs font-medium text-gray-600">
-                                {key}
-                              </ThemedText>
-                            </label>
-                          </div>
-                          <div>
-                            <div className="px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-900">
-                              {String(value)}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Renewal Reason Input */}
-            <div className="mb-6">
-              <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">
-                  Reason for Renewal <span className="text-red-500">*</span>
-                </ThemedText>
-              </label>
-              <textarea
-                value={renewalReason}
-                onChange={(e) => setRenewalReason(e.target.value)}
-                placeholder="Please provide a detailed reason for renewing this credential..."
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none min-h-[150px] text-sm text-gray-900"
-                disabled={isRenewing}
-              />
-              {renewalReason.trim() === '' && (
-                <ThemedText className="text-xs text-gray-500 mt-1">
-                  This field is required
-                </ThemedText>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setShowRenewModal(false);
-                  setRenewingCredential(null);
-                  setRenewalReason('');
-                }}
-                disabled={isRenewing}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                CANCEL
-              </button>
-              <button
-                onClick={handleSubmitRenew}
-                disabled={isRenewing || !renewalReason.trim()}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
-              >
-                {isRenewing ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Submitting...
-                  </span>
-                ) : (
-                  'RENEW VC'
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
+        renewingCredential={renewingCredential}
+        renewalReason={renewalReason}
+        onReasonChange={setRenewalReason}
+        isRenewing={isRenewing}
+        onSubmit={handleSubmitRenew}
+      />
 
       {/* Update Credential Modal */}
-      <Modal
+      <UpdateCredentialModal
         isOpen={showUpdateModal}
         onClose={() => {
           setShowUpdateModal(false);
@@ -2743,498 +2218,34 @@ export default function MyCredentialPage() {
           setUpdatedAttributes({});
           setUpdateReason('');
         }}
-        title="Update Credential"
-        maxWidth="900px"
-      >
-        {updatingCredential && (
-          <div className="px-8 py-6">
-            {/* Credential Information Grid */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              {/* Credential ID */}
-              <div className="col-span-2">
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">
-                    Credential ID
-                  </ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-                  {updatingCredential.id}
-                </div>
-              </div>
-
-              {/* Credential Type */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">
-                    Credential Type
-                  </ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {Array.isArray(updatingCredential.type)
-                    ? updatingCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown'
-                    : updatingCredential.type}
-                </div>
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                    Active
-                  </span>
-                </div>
-              </div>
-
-              {/* Valid From */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Valid From</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {new Date(updatingCredential.validFrom).toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false,
-                  })}
-                </div>
-              </div>
-
-              {/* Expired At */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {updatingCredential.expiredAt
-                    ? new Date(updatingCredential.expiredAt).toLocaleString('en-US', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: false,
-                      })
-                    : 'Never'}
-                </div>
-              </div>
-
-              {/* Issuer Name */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Issuer Name</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {updatingCredential.issuerName}
-                </div>
-              </div>
-
-              {/* Issuer DID */}
-              <div className="col-span-2">
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-                  {updatingCredential.issuer}
-                </div>
-              </div>
-
-              {/* Holder DID */}
-              <div className="col-span-2">
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-                  {updatingCredential.credentialSubject.id}
-                </div>
-              </div>
-            </div>
-
-            {/* Credential Image */}
-            {updatingCredential.imageLink && (
-              <div className="mb-6">
-                <label className="block mb-3">
-                  <ThemedText className="text-sm font-semibold text-gray-900">
-                    VC Background Image
-                  </ThemedText>
-                </label>
-                <div className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={updatingCredential.imageLink}
-                    alt="VC Background"
-                    className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 shadow-md block bg-gray-50"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Editable Credential Attributes Section */}
-            {Object.keys(updatedAttributes).length > 0 && (
-              <div className="mb-6">
-                <div className="mb-4">
-                  <ThemedText className="text-sm font-semibold text-gray-900">
-                    Credential Attributes ({Object.keys(updatedAttributes).length}) - Editable
-                  </ThemedText>
-                </div>
-
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <div className="space-y-4">
-                    {Object.entries(updatedAttributes).map(([key, value], index) => (
-                      <div key={index} className="grid grid-cols-2 gap-4">
-                        <div className="flex items-center">
-                          <label className="block">
-                            <ThemedText className="text-xs font-medium text-gray-600">
-                              {key}
-                            </ThemedText>
-                          </label>
-                        </div>
-                        <div>
-                          <input
-                            type="text"
-                            value={String(value)}
-                            onChange={(e) => {
-                              const newValue = e.target.value;
-                              setUpdatedAttributes((prev) => ({
-                                ...prev,
-                                [key]: newValue,
-                              }));
-                            }}
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                            disabled={isUpdating}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Update Reason Input */}
-            <div className="mb-6">
-              <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">
-                  Reason for Update <span className="text-red-500">*</span>
-                </ThemedText>
-              </label>
-              <textarea
-                value={updateReason}
-                onChange={(e) => setUpdateReason(e.target.value)}
-                placeholder="Please provide a detailed reason for updating this credential..."
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none min-h-[150px] text-sm text-gray-900"
-                disabled={isUpdating}
-              />
-              {updateReason.trim() === '' && (
-                <ThemedText className="text-xs text-gray-500 mt-1">
-                  This field is required
-                </ThemedText>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setShowUpdateModal(false);
-                  setUpdatingCredential(null);
-                  setUpdatedAttributes({});
-                  setUpdateReason('');
-                }}
-                disabled={isUpdating}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                CANCEL
-              </button>
-              <button
-                onClick={handleSubmitUpdate}
-                disabled={isUpdating || !updateReason.trim()}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
-              >
-                {isUpdating ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Submitting...
-                  </span>
-                ) : (
-                  'UPDATE VC'
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
+        updatingCredential={updatingCredential}
+        updatedAttributes={updatedAttributes}
+        onAttributeChange={(key, value) => {
+          setUpdatedAttributes((prev) => ({
+            ...prev,
+            [key]: value,
+          }));
+        }}
+        updateReason={updateReason}
+        onReasonChange={setUpdateReason}
+        isUpdating={isUpdating}
+        onSubmit={handleSubmitUpdate}
+      />
 
       {/* Revoke Credential Modal */}
-      <Modal
+      <RevokeCredentialModal
         isOpen={showRevokeModal}
         onClose={() => {
           setShowRevokeModal(false);
           setRevokingCredential(null);
           setRevocationReason('');
         }}
-        title="Revoke Credential"
-        maxWidth="900px"
-      >
-        {revokingCredential && (
-          <div className="px-8 py-6">
-            {/* Credential Information Grid */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              {/* Credential ID */}
-              <div className="col-span-2">
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">
-                    Credential ID
-                  </ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-                  {revokingCredential.id}
-                </div>
-              </div>
-
-              {/* Credential Type */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">
-                    Credential Type
-                  </ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {Array.isArray(revokingCredential.type)
-                    ? revokingCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown'
-                    : revokingCredential.type}
-                </div>
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                    Active
-                  </span>
-                </div>
-              </div>
-
-              {/* Valid From */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Valid From</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {new Date(revokingCredential.validFrom).toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false,
-                  })}
-                </div>
-              </div>
-
-              {/* Expired At */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {revokingCredential.expiredAt
-                    ? new Date(revokingCredential.expiredAt).toLocaleString('en-US', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: false,
-                      })
-                    : 'Never'}
-                </div>
-              </div>
-
-              {/* Issuer Name */}
-              <div>
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Issuer Name</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                  {revokingCredential.issuerName}
-                </div>
-              </div>
-
-              {/* Issuer DID */}
-              <div className="col-span-2">
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-                  {revokingCredential.issuer}
-                </div>
-              </div>
-
-              {/* Holder DID */}
-              <div className="col-span-2">
-                <label className="block mb-2">
-                  <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
-                </label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-                  {revokingCredential.credentialSubject.id}
-                </div>
-              </div>
-            </div>
-
-            {/* Credential Image */}
-            {revokingCredential.imageLink && (
-              <div className="mb-6">
-                <label className="block mb-3">
-                  <ThemedText className="text-sm font-semibold text-gray-900">
-                    VC Background Image
-                  </ThemedText>
-                </label>
-                <div className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={revokingCredential.imageLink}
-                    alt="VC Background"
-                    className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 shadow-md block bg-gray-50"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Credential Attributes Section */}
-            {Object.keys(revokingCredential.credentialSubject).filter((key) => key !== 'id')
-              .length > 0 && (
-              <div className="mb-6">
-                <div className="mb-4">
-                  <ThemedText className="text-sm font-semibold text-gray-900">
-                    Credential Attributes (
-                    {
-                      Object.keys(revokingCredential.credentialSubject).filter(
-                        (key) => key !== 'id'
-                      ).length
-                    }
-                    )
-                  </ThemedText>
-                </div>
-
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <div className="space-y-4">
-                    {Object.entries(revokingCredential.credentialSubject)
-                      .filter(([key]) => key !== 'id')
-                      .map(([key, value], index) => (
-                        <div key={index} className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block mb-1">
-                              <ThemedText className="text-xs font-medium text-gray-600">
-                                {key}
-                              </ThemedText>
-                            </label>
-                          </div>
-                          <div>
-                            <div className="px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-900">
-                              {String(value)}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Warning Message */}
-            <div className="mb-6">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-2">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 text-red-600 flex-shrink-0"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <ThemedText className="text-sm font-semibold text-red-800">
-                      Warning: This action cannot be undone
-                    </ThemedText>
-                  </div>
-                  <ThemedText className="text-xs text-red-700">
-                    Revoking this credential will permanently invalidate it. The credential will no
-                    longer be valid for verification purposes.
-                  </ThemedText>
-                </div>
-              </div>
-            </div>
-
-            {/* Revocation Reason Input */}
-            <div className="mb-6">
-              <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">
-                  Reason for Revocation <span className="text-red-500">*</span>
-                </ThemedText>
-              </label>
-              <textarea
-                value={revocationReason}
-                onChange={(e) => setRevocationReason(e.target.value)}
-                placeholder="Please provide a detailed reason for revoking this credential..."
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none min-h-[150px] text-sm text-gray-900"
-                disabled={isRevoking}
-              />
-              {revocationReason.trim() === '' && (
-                <ThemedText className="text-xs text-gray-500 mt-1">
-                  This field is required
-                </ThemedText>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setShowRevokeModal(false);
-                  setRevokingCredential(null);
-                  setRevocationReason('');
-                }}
-                disabled={isRevoking}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                CANCEL
-              </button>
-              <button
-                onClick={handleSubmitRevoke}
-                disabled={isRevoking || !revocationReason.trim()}
-                className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]"
-              >
-                {isRevoking ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Submitting...
-                  </span>
-                ) : (
-                  'REVOKE VC'
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
+        revokingCredential={revokingCredential}
+        revocationReason={revocationReason}
+        onReasonChange={setRevocationReason}
+        isRevoking={isRevoking}
+        onSubmit={handleSubmitRevoke}
+      />
 
       {/* Info Modal */}
       <InfoModal
