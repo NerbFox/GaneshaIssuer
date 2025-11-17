@@ -9,7 +9,8 @@ import { SignedVerifiableCredentialDB } from './vcSigner';
 const DB_NAME = 'CredentialsDB';
 const STORE_NAME = 'credentials';
 const VP_SHARINGS_STORE = 'vp_sharings';
-const DB_VERSION = 2; // Increment version to add new store
+const SCHEMA_DATA_STORE = 'schema_data';
+const DB_VERSION = 3; // Increment version to add schema_data store
 
 export interface VerifiableCredential {
   '@context': string[];
@@ -34,6 +35,19 @@ export interface VerifiableCredential {
     proofPurpose: string;
     proofValue: string;
   };
+}
+
+export interface SchemaData {
+  vc_id: string; // Foreign key to VerifiableCredential.id (1-to-1)
+  id: string;
+  version: number;
+  name: string;
+  schema: Record<string, unknown>;
+  issuer_did: string;
+  issuer_name: string;
+  image_link: string | null;
+  expired_in: number;
+  isActive: boolean;
 }
 
 export interface VPSharing {
@@ -84,6 +98,16 @@ const openDB = (): Promise<IDBDatabase> => {
         vpSharingsStore.createIndex('holder_did', 'holder_did', { unique: false });
         vpSharingsStore.createIndex('vp_request_id', 'vp_request_id', { unique: false });
         vpSharingsStore.createIndex('created_at', 'created_at', { unique: false });
+      }
+
+      // Create schema_data object store if it doesn't exist
+      if (!db.objectStoreNames.contains(SCHEMA_DATA_STORE)) {
+        const schemaDataStore = db.createObjectStore(SCHEMA_DATA_STORE, { keyPath: 'vc_id' });
+
+        // Create indexes for efficient querying
+        schemaDataStore.createIndex('id', 'id', { unique: false });
+        schemaDataStore.createIndex('issuer_did', 'issuer_did', { unique: false });
+        schemaDataStore.createIndex('name', 'name', { unique: false });
       }
     };
   });
@@ -635,6 +659,242 @@ export const clearAllVPSharings = async (): Promise<boolean> => {
     });
   } catch (error) {
     console.error('[IndexedDB] Error clearing VP sharings:', error);
+    throw error;
+  }
+};
+
+/**
+ * Store a single schema_data in IndexedDB
+ * The vc_id is used as the primary key to maintain 1-to-1 relationship with VC
+ */
+export const storeSchemaData = async (schemaData: SchemaData): Promise<boolean> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([SCHEMA_DATA_STORE], 'readwrite');
+      const objectStore = transaction.objectStore(SCHEMA_DATA_STORE);
+      const request = objectStore.put(schemaData);
+
+      request.onsuccess = () => {
+        console.log(`[IndexedDB] Schema data stored successfully for VC: ${schemaData.vc_id}`);
+        resolve(true);
+      };
+
+      request.onerror = () => {
+        console.error(
+          `[IndexedDB] Failed to store schema data for VC: ${schemaData.vc_id}`,
+          request.error
+        );
+        reject(new Error(`Failed to store schema data: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error storing schema data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Store multiple schema_data in IndexedDB
+ */
+export const storeSchemaDataBatch = async (schemaDataList: SchemaData[]): Promise<string[]> => {
+  try {
+    const db = await openDB();
+    const storedVcIds: string[] = [];
+
+    // Validate all schema_data have required 'vc_id' field
+    const invalidSchemas: number[] = [];
+    schemaDataList.forEach((schemaData, index) => {
+      if (!schemaData || !schemaData.vc_id) {
+        invalidSchemas.push(index);
+        console.error(
+          `[IndexedDB] Schema data at index ${index} is missing required 'vc_id' field:`,
+          schemaData
+        );
+      }
+    });
+
+    if (invalidSchemas.length > 0) {
+      throw new Error(
+        `${invalidSchemas.length} schema_data missing required 'vc_id' field at indices: ${invalidSchemas.join(', ')}`
+      );
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([SCHEMA_DATA_STORE], 'readwrite');
+      const objectStore = transaction.objectStore(SCHEMA_DATA_STORE);
+
+      let completed = 0;
+      let hasError = false;
+      const errors: string[] = [];
+
+      schemaDataList.forEach((schemaData, index) => {
+        const request = objectStore.put(schemaData);
+
+        request.onsuccess = () => {
+          storedVcIds.push(schemaData.vc_id);
+          completed++;
+          console.log(
+            `[IndexedDB] Schema data stored successfully for VC: ${schemaData.vc_id} (${completed}/${schemaDataList.length})`
+          );
+
+          if (completed === schemaDataList.length && !hasError) {
+            resolve(storedVcIds);
+          }
+        };
+
+        request.onerror = () => {
+          hasError = true;
+          const errorMsg = `Schema data at index ${index} (vc_id: ${schemaData.vc_id}): ${request.error?.message}`;
+          errors.push(errorMsg);
+          console.error(
+            `[IndexedDB] Failed to store schema data for VC: ${schemaData.vc_id}`,
+            request.error
+          );
+        };
+      });
+
+      transaction.onerror = () => {
+        reject(new Error('Transaction failed while storing schema data'));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+        if (hasError) {
+          reject(new Error(`Some schema data failed to store: ${errors.join('; ')}`));
+        }
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error storing schema data batch:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get schema_data by VerifiableCredential.id
+ * This maintains the 1-to-1 relationship between VC and schema_data
+ */
+export const getSchemaDataByVCId = async (vcId: string): Promise<SchemaData | null> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([SCHEMA_DATA_STORE], 'readonly');
+      const objectStore = transaction.objectStore(SCHEMA_DATA_STORE);
+      const request = objectStore.get(vcId);
+
+      request.onsuccess = () => {
+        resolve(request.result || null);
+      };
+
+      request.onerror = () => {
+        reject(new Error(`Failed to get schema data: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error getting schema data by VC ID:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all schema_data from IndexedDB
+ */
+export const getAllSchemaData = async (): Promise<SchemaData[]> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([SCHEMA_DATA_STORE], 'readonly');
+      const objectStore = transaction.objectStore(SCHEMA_DATA_STORE);
+      const request = objectStore.getAll();
+
+      request.onsuccess = () => {
+        resolve(request.result || []);
+      };
+
+      request.onerror = () => {
+        reject(new Error(`Failed to get all schema data: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error getting all schema data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete schema_data by VC ID
+ */
+export const deleteSchemaData = async (vcId: string): Promise<boolean> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([SCHEMA_DATA_STORE], 'readwrite');
+      const objectStore = transaction.objectStore(SCHEMA_DATA_STORE);
+      const request = objectStore.delete(vcId);
+
+      request.onsuccess = () => {
+        console.log(`[IndexedDB] Schema data deleted successfully for VC: ${vcId}`);
+        resolve(true);
+      };
+
+      request.onerror = () => {
+        reject(new Error(`Failed to delete schema data: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error deleting schema data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Clear all schema_data from IndexedDB
+ */
+export const clearAllSchemaData = async (): Promise<boolean> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([SCHEMA_DATA_STORE], 'readwrite');
+      const objectStore = transaction.objectStore(SCHEMA_DATA_STORE);
+      const request = objectStore.clear();
+
+      request.onsuccess = () => {
+        console.log('[IndexedDB] All schema data cleared successfully');
+        resolve(true);
+      };
+
+      request.onerror = () => {
+        reject(new Error(`Failed to clear schema data: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error clearing schema data:', error);
     throw error;
   }
 };

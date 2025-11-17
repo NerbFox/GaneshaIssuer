@@ -16,6 +16,9 @@ import {
   VerifiableCredential,
   getVCById,
   storeVC,
+  SchemaData,
+  storeSchemaData,
+  storeSchemaDataBatch,
 } from '@/utils/indexedDB';
 import { ViewCredential } from '@/components/ViewCredential';
 import { validateVCComprehensive } from '@/utils/vcValidator';
@@ -1210,7 +1213,9 @@ export default function MyCredentialPage() {
    * Claim VCs from the API in batches
    * Step 1: Fetch claimed VCs batch
    */
-  const claimVCBatch = async (limit: number = 50): Promise<VerifiableCredential[]> => {
+  const claimVCBatch = async (
+    limit: number = 50
+  ): Promise<{ vcs: VerifiableCredential[]; schemaDataList: SchemaData[] }> => {
     try {
       const holderDid = localStorage.getItem('institutionDID');
       const token = localStorage.getItem('institutionToken');
@@ -1231,6 +1236,7 @@ export default function MyCredentialPage() {
       console.log('[VC Claim] Starting VC claim process...');
 
       const allDecryptedVCs: VerifiableCredential[] = [];
+      const allSchemaData: SchemaData[] = [];
       let hasMore = true;
 
       // Keep claiming until there are no more VCs
@@ -1269,7 +1275,7 @@ export default function MyCredentialPage() {
 
         console.log(`[VC Claim] Claimed ${claimed_count} VCs, ${remaining_count} remaining`);
 
-        // Step 2: Decrypt each claimed VC
+        // Step 2: Decrypt each claimed VC and extract schema_data
         if (claimed_vcs && claimed_vcs.length > 0) {
           for (const claimedVC of claimed_vcs) {
             try {
@@ -1304,6 +1310,25 @@ export default function MyCredentialPage() {
                 `[VC Claim] Decrypted VC successfully: ${vc.id} (claimId: ${claimedVC.claimId}) from ${claimedVC.source}`
               );
               allDecryptedVCs.push(vc);
+
+              // Extract schema_data if present
+              if (claimedVC.schema_data) {
+                console.log(`[VC Claim] Extracting schema_data for VC: ${vc.id}`);
+                const schemaData: SchemaData = {
+                  vc_id: vc.id, // Link to VC using VC's id
+                  id: claimedVC.schema_data.id,
+                  version: claimedVC.schema_data.version,
+                  name: claimedVC.schema_data.name,
+                  schema: claimedVC.schema_data.schema,
+                  issuer_did: claimedVC.schema_data.issuer_did,
+                  issuer_name: claimedVC.schema_data.issuer_name,
+                  image_link: claimedVC.schema_data.image_link || null,
+                  expired_in: claimedVC.schema_data.expired_in,
+                  isActive: claimedVC.schema_data.isActive,
+                };
+                allSchemaData.push(schemaData);
+                console.log(`[VC Claim] Schema data extracted for VC: ${vc.id}`);
+              }
             } catch (decryptError) {
               console.error(`[VC Claim] Failed to decrypt VC ${claimedVC.claimId}:`, decryptError);
               // Continue with other VCs even if one fails
@@ -1319,7 +1344,10 @@ export default function MyCredentialPage() {
         }
       }
 
-      return allDecryptedVCs;
+      console.log(
+        `[VC Claim] Total VCs: ${allDecryptedVCs.length}, Total Schema Data: ${allSchemaData.length}`
+      );
+      return { vcs: allDecryptedVCs, schemaDataList: allSchemaData };
     } catch (error) {
       console.error('[VC Claim] Error claiming VCs:', error);
       throw error;
@@ -1406,8 +1434,8 @@ export default function MyCredentialPage() {
     try {
       console.log('[VC Flow] Starting VC claim check...');
 
-      // Step 1 & 2: Claim and decrypt VCs
-      const decryptedVCs = await claimVCBatch(50);
+      // Step 1 & 2: Claim and decrypt VCs with schema_data
+      const { vcs: decryptedVCs, schemaDataList } = await claimVCBatch(50);
 
       if (decryptedVCs.length === 0) {
         console.log(
@@ -1424,6 +1452,13 @@ export default function MyCredentialPage() {
       console.log('[VC Flow] Storing VCs in IndexedDB...');
       const storedIds = await storeVCBatch(decryptedVCs);
       console.log(`[VC Flow] Stored ${storedIds.length} VCs in IndexedDB`);
+
+      // Step 3b: Store schema_data in IndexedDB
+      if (schemaDataList.length > 0) {
+        console.log('[VC Flow] Storing schema_data in IndexedDB...');
+        const storedSchemaIds = await storeSchemaDataBatch(schemaDataList);
+        console.log(`[VC Flow] Stored ${storedSchemaIds.length} schema_data in IndexedDB`);
+      }
 
       // Collect claimId from the decrypted VCs
       const claimIds = decryptedVCs
@@ -1637,7 +1672,69 @@ export default function MyCredentialPage() {
     }
 
     try {
+      // Store the VC first
       await storeVC(uploadedVC);
+      console.log('[Upload VC] VC stored successfully:', uploadedVC.id);
+
+      // Extract schema_id and version from VC.id
+      // Format: {schema_id}:{schema_version}:{holder_did}:{timestamp}
+      const vcIdParts = uploadedVC.id.split(':');
+      if (vcIdParts.length >= 2) {
+        const schemaId = vcIdParts[0];
+        const schemaVersion = parseInt(vcIdParts[1], 10);
+
+        console.log('[Upload VC] Fetching schema data:', { schemaId, schemaVersion });
+
+        try {
+          // Fetch schema data from API
+          const schemaUrl = buildApiUrl(API_ENDPOINTS.SCHEMAS.BY_VERSION(schemaId, schemaVersion));
+
+          const schemaResponse = await fetch(schemaUrl, {
+            headers: {
+              accept: 'application/json',
+            },
+          });
+
+          if (schemaResponse.ok) {
+            const schemaResult = await schemaResponse.json();
+
+            if (schemaResult.success && schemaResult.data) {
+              const schemaApiData = schemaResult.data;
+
+              // Create SchemaData object for IndexedDB
+              const schemaData: SchemaData = {
+                vc_id: uploadedVC.id, // Link to VC
+                id: schemaApiData.id,
+                version: schemaApiData.version,
+                name: schemaApiData.name,
+                schema: schemaApiData.schema,
+                issuer_did: schemaApiData.issuer_did,
+                issuer_name: schemaApiData.issuer_name,
+                image_link: schemaApiData.image_link || null,
+                expired_in: schemaApiData.expired_in,
+                isActive: schemaApiData.isActive,
+              };
+
+              // Store schema data
+              await storeSchemaData(schemaData);
+              console.log('[Upload VC] Schema data stored successfully for VC:', uploadedVC.id);
+            } else {
+              console.warn('[Upload VC] Invalid schema response:', schemaResult);
+            }
+          } else {
+            console.warn('[Upload VC] Failed to fetch schema data:', schemaResponse.status);
+          }
+        } catch (schemaError) {
+          console.error('[Upload VC] Error fetching/storing schema data:', schemaError);
+          // Don't fail the upload if schema fetch fails
+        }
+      } else {
+        console.warn(
+          '[Upload VC] Could not parse schema_id and version from VC.id:',
+          uploadedVC.id
+        );
+      }
+
       setInfoModalConfig({
         title: 'Success',
         message: 'Credential uploaded and stored successfully!',
