@@ -930,14 +930,14 @@ export default function IssueRequestPage() {
     try {
       setIsSubmittingCredential(true);
 
-      // Upload PDF if exists
+      // Upload image if exists
       let fileId: string | null = null;
       let fileUrl: string | null = null;
 
-      if (data.pdfBlob) {
+      if (data.imageBlob) {
         try {
           const formData = new FormData();
-          formData.append('file', data.pdfBlob, `credential_${Date.now()}.pdf`);
+          formData.append('file', data.imageBlob, `credential_${Date.now()}.png`);
 
           const uploadUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.UPLOAD_FILE);
 
@@ -960,7 +960,7 @@ export default function IssueRequestPage() {
           if (!uploadResponse.ok) {
             const uploadError = await uploadResponse.json();
             throw new Error(
-              `Failed to upload PDF: ${uploadError.message || uploadResponse.statusText}`
+              `Failed to upload image: ${uploadError.message || uploadResponse.statusText}`
             );
           }
 
@@ -974,7 +974,7 @@ export default function IssueRequestPage() {
           }
         } catch (uploadError) {
           throw new Error(
-            `Failed to upload PDF: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`
+            `Failed to upload image: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`
           );
         }
       }
@@ -1098,8 +1098,8 @@ export default function IssueRequestPage() {
       // For UPDATE, RENEWAL, and ISSUANCE requests, we need to create a new VC
       // Convert form attributes to credential data
       const credentialData: Record<string, string | number | boolean> = {};
-      data.attributes.forEach((attr) => {
-        credentialData[attr.name] = attr.value;
+      Object.entries(data.attributes).forEach(([name, value]) => {
+        credentialData[name] = value;
       });
 
       // Fetch DID Document to get issuer name
