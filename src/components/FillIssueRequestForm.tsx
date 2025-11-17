@@ -41,12 +41,13 @@ interface FillIssueRequestFormProps {
 }
 
 export interface IssueRequestFormData {
+  requestId: string;
+  issuerDid: string;
+  holderDid: string;
   schemaId: string;
-  schemaName: string;
-  version: string;
-  status: string;
-  attributes: AttributeData[];
-  pdfBlob?: Blob; // PDF blob for upload
+  schemaVersion: number;
+  attributes: Record<string, string>;
+  imageBlob?: Blob; // Image blob for upload
 }
 
 export default function FillIssueRequestForm({
@@ -56,7 +57,6 @@ export default function FillIssueRequestForm({
   schemaId = 'ktp',
   schemaName = 'Kartu Tanda Penduduk',
   version = '1',
-  status = 'Active',
   expiredIn,
   requestedAt,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -139,35 +139,45 @@ export default function FillIssueRequestForm({
 
   const handleSubmit = async () => {
     try {
-      // Generate PDF with QR placeholder (no QR example)
-      const pdfBlob = await generatePDFBlob();
-
-      if (!pdfBlob) {
-        throw new Error('Failed to generate PDF');
+      // Validate required fields
+      if (!requestId || !issuerDid || !holderDid) {
+        console.error('Missing required fields');
+        return;
       }
 
-      // Pass the PDF blob to the parent component
-      onSubmit({
+      // Convert attributes array to map
+      const attributeMap: Record<string, string> = {};
+      attributes.forEach((attr) => {
+        attributeMap[attr.name] = String(attr.value);
+      });
+
+      // Generate image with QR placeholder (no QR example)
+      const imageBlob = await generateImageBlob();
+
+      if (!imageBlob) {
+        throw new Error('Failed to generate image');
+      }
+
+      // Pass the image blob to the parent component
+      await onSubmit({
+        requestId,
+        issuerDid,
+        holderDid,
         schemaId,
-        schemaName,
-        version,
-        status,
-        attributes,
-        pdfBlob, // Include the PDF blob
+        schemaVersion: Number(version),
+        attributes: attributeMap,
+        imageBlob, // Include the image blob
       });
     } catch {
       alert('Failed to prepare credential. Please try again.');
     }
   };
 
-  // Generate PDF Blob (without QR example, just placeholder)
-  const generatePDFBlob = async (): Promise<Blob | null> => {
+  // Generate Image Blob (without QR example, just placeholder)
+  const generateImageBlob = async (): Promise<Blob | null> => {
     try {
-      // Dynamically import jsPDF and html2canvas
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-        import('jspdf'),
-        import('html2canvas'),
-      ]);
+      // Dynamically import html2canvas
+      const { default: html2canvas } = await import('html2canvas');
 
       if (!previewRef.current) {
         return null;
@@ -182,7 +192,7 @@ export default function FillIssueRequestForm({
         return null;
       }
 
-      // Temporarily hide QR code example for PDF generation
+      // Temporarily hide QR code example for image generation
       // We need to create a clone and modify it
       const clone = credentialElement.cloneNode(true) as HTMLElement;
 
@@ -218,23 +228,12 @@ export default function FillIssueRequestForm({
       // Remove the clone
       document.body.removeChild(clone);
 
-      // Get canvas dimensions
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-
-      // Create PDF with same aspect ratio as canvas
-      const pdf = new jsPDF({
-        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [imgWidth, imgHeight],
+      // Convert canvas to blob (PNG format)
+      return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+          resolve(blob);
+        }, 'image/png');
       });
-
-      // Convert canvas to image and add to PDF
-      const imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-
-      // Return PDF as Blob
-      return pdf.output('blob');
     } catch {
       return null;
     }
