@@ -539,12 +539,10 @@ export default function AttributePositionEditor({
         <div className="flex-1 bg-gray-100 rounded-lg p-4 flex items-center justify-center overflow-hidden min-h-0">
           <div
             ref={containerRef}
-            className="relative shadow-lg"
+            className="relative shadow-lg mx-auto"
             style={{
-              maxWidth: '100%',
-              maxHeight: '100%',
-              width: imageAspectRatio > 1 ? '100%' : 'auto',
-              height: imageAspectRatio > 1 ? 'auto' : '100%',
+              width: '100%',
+              maxWidth: '800px',
               aspectRatio: `${imageAspectRatio}`,
             }}
             onClick={() => {
@@ -558,7 +556,7 @@ export default function AttributePositionEditor({
               ref={imageRef}
               src={imageUrl}
               alt="Template"
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-contain"
               draggable={false}
             />
 
@@ -566,7 +564,7 @@ export default function AttributePositionEditor({
             {fields.map((field) => (
               <div
                 key={field.attributeName}
-                className={`absolute cursor-move border-2 ${
+                className={`absolute cursor-move border-2 flex items-center overflow-hidden ${
                   selectedField === field.attributeName
                     ? 'border-blue-500 shadow-lg'
                     : 'border-blue-300'
@@ -578,22 +576,28 @@ export default function AttributePositionEditor({
                   height: `${field.height}%`,
                   fontSize: `${field.fontSize}px`,
                   backgroundColor: field.bgColor,
+                  lineHeight: '1',
+                  padding: '0',
                 }}
                 onMouseDown={(e) => handleMouseDown(e, field.attributeName)}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="w-full h-full flex items-center px-2 overflow-hidden">
-                  <span
-                    className="font-medium truncate"
-                    style={{
-                      color: field.fontColor,
-                      textShadow:
-                        field.bgColor === 'transparent' ? '0 1px 2px rgba(0,0,0,0.8)' : 'none',
-                    }}
-                  >
-                    {field.attributeName}
-                  </span>
-                </div>
+                <span
+                  className="font-medium truncate"
+                  style={{
+                    color: field.fontColor,
+                    textShadow:
+                      field.bgColor === 'transparent' ? '0 1px 2px rgba(0,0,0,0.8)' : 'none',
+                    paddingLeft: '4px',
+                    paddingRight: '4px',
+                    lineHeight: '1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: '100%',
+                  }}
+                >
+                  {field.attributeName}
+                </span>
 
                 {/* Resize Handles */}
                 {selectedField === field.attributeName && (

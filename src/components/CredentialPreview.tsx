@@ -83,7 +83,7 @@ export default function CredentialPreview({
           <img
             src={imageUrl}
             alt="Credential Template"
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-contain"
             draggable={false}
           />
 
