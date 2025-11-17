@@ -606,6 +606,7 @@ export default function IssueRequestPage() {
     const request = requests.find((r) => r.id === requestId);
     if (request) {
       setSelectedRequest(request);
+      console.log('debug: selectedRequest', request);
       setShowViewModal(true);
     }
   };
@@ -750,6 +751,7 @@ export default function IssueRequestPage() {
     const request = requests.find((r) => r.id === requestId);
     if (request) {
       setSelectedRequest(request);
+      console.log('debug: selectedRequest', request);
       setShowReviewModal(true);
 
       // Fetch schema data
@@ -986,11 +988,74 @@ export default function IssueRequestPage() {
           throw new Error('Missing VC ID for revocation');
         }
 
+        // Fetch holder's DID Document to get public key for encryption
+        let holderPublicKeyHex: string;
+        try {
+          console.log('Fetching DID document for:', selectedRequest.holder_did);
+          const didDocumentUrl = buildApiUrl(
+            API_ENDPOINTS.DIDS.DOCUMENT(selectedRequest.holder_did)
+          );
+
+          const didResponse = await fetch(didDocumentUrl, {
+            headers: {
+              accept: 'application/json',
+            },
+          });
+
+          if (!didResponse.ok) {
+            const didResult = await didResponse.json();
+            const errorMessage =
+              didResult.message || didResult.error || 'Failed to fetch DID document';
+            throw new Error(errorMessage);
+          }
+
+          const didResult = await didResponse.json();
+          console.log('DID document fetched:', didResult);
+
+          if (!didResult.success || !didResult.data) {
+            throw new Error('Invalid DID document response');
+          }
+
+          // Extract the public key from the DID document
+          const keyId = didResult.data.keyId; // e.g., "#key-1"
+          const publicKeyHex = didResult.data[keyId]; // Get the public key using keyId
+
+          if (!publicKeyHex) {
+            throw new Error(`Public key not found for keyId: ${keyId}`);
+          }
+
+          holderPublicKeyHex = publicKeyHex;
+          console.log(
+            'Extracted holder public key (first 20 chars):',
+            holderPublicKeyHex.substring(0, 20)
+          );
+        } catch (holderDidError) {
+          console.error('Error fetching holder DID document:', holderDidError);
+          throw new Error(
+            `Failed to get holder public key: ${holderDidError instanceof Error ? holderDidError.message : 'Unknown error'}`
+          );
+        }
+
+        // Create the revoke body containing only the vc_id
+        const revokeBody = {
+          vc_id: currentVcId,
+        };
+
+        console.log('Revoke body (before encryption):', revokeBody);
+
+        // Encrypt the revoke body with holder's public key
+        const encryptedRevokeBody = await encryptWithPublicKey(
+          revokeBody as unknown as JsonObject,
+          holderPublicKeyHex
+        );
+        console.log('Encrypted revoke body:', encryptedRevokeBody);
+        console.log('Encrypted revoke body length:', encryptedRevokeBody.length);
+
         const requestBody = {
           request_id: selectedRequest.id,
           action: 'APPROVED',
           vc_id: currentVcId,
-          encrypted_body: selectedRequest.encrypted_body,
+          encrypted_body: encryptedRevokeBody,
         };
 
         console.log('Revoke request body:', requestBody);

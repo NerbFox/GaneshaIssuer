@@ -542,8 +542,8 @@ export default function SchemaPage() {
           expired_in: data.expiredIn,
           // Include attribute positions if configured
           ...(data.attributePositions && { attribute_positions: data.attributePositions }),
-          // Include QR code position if configured
-          ...(data.qrCodePosition && { qr_code_position: data.qrCodePosition }),
+          // Always include QR code position (use default if not provided)
+          qr_code_position: data.qrCodePosition || { x: 80, y: 80, size: 15 },
         },
       };
 
@@ -561,10 +561,11 @@ export default function SchemaPage() {
         if (data.attributePositions) {
           formData.append('schema[attribute_positions]', JSON.stringify(data.attributePositions));
         }
-        // Include QR code position if configured
-        if (data.qrCodePosition) {
-          formData.append('schema[qr_code_position]', JSON.stringify(data.qrCodePosition));
-        }
+        // Always include QR code position (use default if not provided)
+        formData.append(
+          'schema[qr_code_position]',
+          JSON.stringify(data.qrCodePosition || { x: 80, y: 80, size: 15 })
+        );
 
         // Add image file if new image is uploaded
         if (data.image) {
@@ -937,8 +938,8 @@ export default function SchemaPage() {
           expired_in: data.expiredIn,
           // Include attribute positions if configured
           ...(data.attributePositions && { attribute_positions: data.attributePositions }),
-          // Include QR code position if configured
-          ...(data.qrCodePosition && { qr_code_position: data.qrCodePosition }),
+          // Always include QR code position (use default if not provided)
+          qr_code_position: data.qrCodePosition || { x: 80, y: 80, size: 15 },
         },
         issuer_did: issuerDid,
       };
@@ -958,10 +959,11 @@ export default function SchemaPage() {
         if (data.attributePositions) {
           formData.append('schema[attribute_positions]', JSON.stringify(data.attributePositions));
         }
-        // Include QR code position if configured
-        if (data.qrCodePosition) {
-          formData.append('schema[qr_code_position]', JSON.stringify(data.qrCodePosition));
-        }
+        // Always include QR code position (use default if not provided)
+        formData.append(
+          'schema[qr_code_position]',
+          JSON.stringify(data.qrCodePosition || { x: 80, y: 80, size: 15 })
+        );
         formData.append('issuer_did', issuerDid);
         formData.append('image', data.image, data.image.name);
 

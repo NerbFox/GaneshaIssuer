@@ -83,7 +83,7 @@ export default function CredentialPreview({
           <img
             src={imageUrl}
             alt="Credential Template"
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-contain"
             draggable={false}
           />
 
@@ -96,6 +96,7 @@ export default function CredentialPreview({
             const displayValue = hasValue ? actualValue : `[${attrName}]`;
             const bgColor = position.bgColor || 'transparent';
             const fontColor = position.fontColor || '#000000';
+            const fontFamily = position.fontFamily || 'Arial';
 
             return (
               <div
@@ -107,6 +108,7 @@ export default function CredentialPreview({
                   width: `${position.width}%`,
                   height: `${position.height}%`,
                   fontSize: `${position.fontSize}px`,
+                  fontFamily: fontFamily,
                   backgroundColor: bgColor,
                   lineHeight: '1',
                   padding: '0',
@@ -116,7 +118,6 @@ export default function CredentialPreview({
                   className="font-medium truncate"
                   style={{
                     color: fontColor,
-                    textShadow: bgColor === 'transparent' ? '0 1px 2px rgba(0,0,0,0.8)' : 'none',
                     opacity: hasValue ? 1 : 0.5,
                     fontStyle: hasValue ? 'normal' : 'italic',
                     paddingLeft: '4px',
