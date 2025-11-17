@@ -96,6 +96,7 @@ export default function CredentialPreview({
             const displayValue = hasValue ? actualValue : `[${attrName}]`;
             const bgColor = position.bgColor || 'transparent';
             const fontColor = position.fontColor || '#000000';
+            const fontFamily = position.fontFamily || 'Arial';
 
             return (
               <div
@@ -107,6 +108,7 @@ export default function CredentialPreview({
                   width: `${position.width}%`,
                   height: `${position.height}%`,
                   fontSize: `${position.fontSize}px`,
+                  fontFamily: fontFamily,
                   backgroundColor: bgColor,
                   lineHeight: '1',
                   padding: '0',

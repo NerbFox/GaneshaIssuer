@@ -9,6 +9,7 @@ export interface AttributePosition {
   width: number; // percentage width
   height: number; // percentage height
   fontSize: number; // in pixels
+  fontFamily?: string; // font family
   bgColor?: string; // background color (can be 'transparent')
   fontColor?: string; // font color
 }
@@ -52,6 +53,7 @@ interface DraggableField {
   width: number;
   height: number;
   fontSize: number;
+  fontFamily: string;
   bgColor: string;
   fontColor: string;
 }
@@ -117,6 +119,7 @@ export default function AttributePositionEditor({
         initialFields.push({
           attributeName: attr.name,
           ...initialPositions[attr.name],
+          fontFamily: initialPositions[attr.name].fontFamily || 'Arial',
           bgColor: initialPositions[attr.name].bgColor || 'transparent',
           fontColor: initialPositions[attr.name].fontColor || '#000000',
         });
@@ -159,6 +162,7 @@ export default function AttributePositionEditor({
       width: 30, // 30% width
       height: 5, // 5% height
       fontSize: 16,
+      fontFamily: 'Arial',
       bgColor: 'transparent',
       fontColor: '#000000',
     };
@@ -420,6 +424,14 @@ export default function AttributePositionEditor({
     );
   };
 
+  const handleFontFamilyChange = (attributeName: string, newFamily: string) => {
+    setFields((prevFields) =>
+      prevFields.map((field) =>
+        field.attributeName === attributeName ? { ...field, fontFamily: newFamily } : field
+      )
+    );
+  };
+
   const handleBgColorChange = (attributeName: string, newColor: string) => {
     setFields((prevFields) =>
       prevFields.map((field) =>
@@ -445,6 +457,7 @@ export default function AttributePositionEditor({
         width: field.width,
         height: field.height,
         fontSize: field.fontSize,
+        fontFamily: field.fontFamily,
         bgColor: field.bgColor,
         fontColor: field.fontColor,
       };
@@ -575,6 +588,7 @@ export default function AttributePositionEditor({
                   width: `${field.width}%`,
                   height: `${field.height}%`,
                   fontSize: `${field.fontSize}px`,
+                  fontFamily: field.fontFamily,
                   backgroundColor: field.bgColor,
                   lineHeight: '1',
                   padding: '0',
@@ -701,6 +715,28 @@ export default function AttributePositionEditor({
               <div className="px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-900">
                 {selectedFieldData.attributeName}
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Font Family</label>
+              <select
+                value={selectedFieldData.fontFamily}
+                onChange={(e) =>
+                  handleFontFamilyChange(selectedFieldData.attributeName, e.target.value)
+                }
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-900"
+              >
+                <option value="Arial">Arial</option>
+                <option value="Helvetica">Helvetica</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Courier New">Courier New</option>
+                <option value="Verdana">Verdana</option>
+                <option value="Tahoma">Tahoma</option>
+                <option value="Trebuchet MS">Trebuchet MS</option>
+                <option value="Impact">Impact</option>
+                <option value="Comic Sans MS">Comic Sans MS</option>
+              </select>
             </div>
 
             <div>
