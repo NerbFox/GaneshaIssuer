@@ -118,7 +118,6 @@ export default function CredentialPreview({
                   className="font-medium truncate"
                   style={{
                     color: fontColor,
-                    textShadow: bgColor === 'transparent' ? '0 1px 2px rgba(0,0,0,0.8)' : 'none',
                     opacity: hasValue ? 1 : 0.5,
                     fontStyle: hasValue ? 'normal' : 'italic',
                     paddingLeft: '4px',

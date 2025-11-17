@@ -600,8 +600,6 @@ export default function AttributePositionEditor({
                   className="font-medium truncate"
                   style={{
                     color: field.fontColor,
-                    textShadow:
-                      field.bgColor === 'transparent' ? '0 1px 2px rgba(0,0,0,0.8)' : 'none',
                     paddingLeft: '4px',
                     paddingRight: '4px',
                     lineHeight: '1',
