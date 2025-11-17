@@ -538,13 +538,8 @@ export default function FillIssueRequestForm({
 
   // Calculate "Will Expire At" date
   const calculateExpiryDate = () => {
-    if (!requestedAt) return '-';
     if (!expiredIn || expiredIn === 0) return 'Lifetime';
-
-    const requestDate = new Date(requestedAt);
-    const expiryDate = new Date(requestDate);
-    expiryDate.setFullYear(expiryDate.getFullYear() + expiredIn);
-    return formatDate(expiryDate.toISOString());
+    return `${expiredIn} ${expiredIn === 1 ? 'Year' : 'Years'}`;
   };
 
   return (
@@ -633,17 +628,15 @@ export default function FillIssueRequestForm({
           </div>
         )}
 
-        {/* Expired At */}
-        {requestedAt && (
-          <div>
-            <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
-            </label>
-            <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-              {calculateExpiryDate()}
-            </div>
+        {/* Schema Expired In */}
+        <div>
+          <label className="block mb-2">
+            <ThemedText className="text-sm font-medium text-gray-700">Schema Expired In</ThemedText>
+          </label>
+          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+            {calculateExpiryDate()}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Credential Preview Section */}

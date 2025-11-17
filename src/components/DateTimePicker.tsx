@@ -50,7 +50,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = e.target.value;
     if (newDate) {
-      const time = getTimePart() || '00:00';
+      const time = getTimePart() || '23:59';
       onChange(`${newDate}T${time}`);
     } else {
       onChange('');
@@ -129,7 +129,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     if (!sanitized) {
       setDisplayTime('');
       if (date) {
-        onChange(`${date}T00:00`);
+        onChange(`${date}T23:59`);
       } else {
         onChange('');
       }
