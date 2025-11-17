@@ -439,7 +439,10 @@ export default function UpdateSchemaForm({
         current.y !== initial.y ||
         current.width !== initial.width ||
         current.height !== initial.height ||
-        current.fontSize !== initial.fontSize
+        current.fontSize !== initial.fontSize ||
+        current.fontFamily !== initial.fontFamily ||
+        current.bgColor !== initial.bgColor ||
+        current.fontColor !== initial.fontColor
       );
     });
 
