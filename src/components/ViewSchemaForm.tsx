@@ -184,11 +184,12 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
       {/* Credential Template with Positioned Attributes */}
       {schemaData.imageUrl && (
         <div className="mb-6">
-          {schemaData.attributePositions &&
-          Object.keys(schemaData.attributePositions).length > 0 ? (
+          {(schemaData.attributePositions &&
+            Object.keys(schemaData.attributePositions).length > 0) ||
+          schemaData.qrCodePosition ? (
             <CredentialPreview
               imageUrl={schemaData.imageUrl}
-              positions={schemaData.attributePositions}
+              positions={schemaData.attributePositions || {}}
               qrPosition={schemaData.qrCodePosition}
               sampleData={Object.fromEntries(
                 schemaData.attributes.map((attr) => [attr.name, `[${attr.name}]`])
