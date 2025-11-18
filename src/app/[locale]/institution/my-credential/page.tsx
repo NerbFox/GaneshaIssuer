@@ -1616,7 +1616,7 @@ export default function MyCredentialPage() {
           issuerDid: vc.issuer,
           issuerName: vc.issuerName,
           issuedDate: vc.validFrom,
-          expiryDate: vc.expiredAt || 'N/A',
+          expiryDate: vc.expiredAt || 'Lifetime',
           status: status,
         };
       });
@@ -1886,7 +1886,9 @@ export default function MyCredentialPage() {
       label: 'EXPIRY DATE',
       sortKey: 'expiryDate',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{formatDate(row.expiryDate)}</ThemedText>
+        <ThemedText className="text-sm text-gray-900">
+          {row.expiryDate === 'Lifetime' ? 'Lifetime' : formatDate(row.expiryDate)}
+        </ThemedText>
       ),
     },
     {
