@@ -86,6 +86,8 @@ export const API_ENDPOINTS = {
       RENEW_VC: `${CREDENTIALS_ISSUER_PATH}/renew-vc`,
       CLAIM_VC_INIT: `${CREDENTIALS_PATH}/claim-vc/issuer-init`,
       CONFIRM_VC_INIT: `${CREDENTIALS_PATH}/confirm-vc/issuer-init`,
+      VC: `${CREDENTIALS_ISSUER_PATH}/vc`,
+      VC_BY_DID: (did: string) => `${CREDENTIALS_ISSUER_PATH}/vc/did/${did}`,
     },
   },
 

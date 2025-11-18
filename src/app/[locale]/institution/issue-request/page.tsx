@@ -1036,6 +1036,16 @@ export default function IssueRequestPage() {
           );
         }
 
+        // const issuerPrivateKey = localStorage.getItem('institutionSigningPrivateKey')
+        // if (!issuerPrivateKey) {
+        //   throw new Error('Institution signing private key not found');
+        // }
+        // // Decrypt body for validation if needed in the future
+        // await decryptWithPrivateKey(
+        //   selectedRequest.encrypted_body,
+        //   issuerPrivateKey
+        // );
+
         // Create the revoke body containing only the vc_id
         const wrappedBody = {
           verifiable_credential: {
@@ -1131,6 +1141,10 @@ export default function IssueRequestPage() {
         console.warn('Using default issuer name');
       }
 
+      const issuerPublicKeyHex = localStorage.getItem('institutionSigningPublicKey');
+      if (!issuerPublicKeyHex) {
+        throw new Error('Institution signing public key not found');
+      }
       // Fetch holder's DID Document to get public key for encryption
       let holderPublicKeyHex: string;
       try {
@@ -1222,11 +1236,9 @@ export default function IssueRequestPage() {
       let expiredAt: string | null = null;
 
       if (schemaData.expired_in > 0) {
-        // expired_in is in years, convert to milliseconds and add to current datetime
-        // years * 365.25 days * 24 hours * 60 minutes * 60 seconds * 1000 ms
-        const expirationDate = new Date(
-          now.getTime() + schemaData.expired_in * 365.25 * 24 * 60 * 60 * 1000
-        );
+        // expired_in is in years, add to current datetime
+        const expirationDate = new Date(now);
+        expirationDate.setFullYear(expirationDate.getFullYear() + schemaData.expired_in);
         expiredAt = expirationDate.toISOString();
         console.log(
           `Calculated expired_at: ${expiredAt} (${schemaData.expired_in} years from now)`
@@ -1266,6 +1278,50 @@ export default function IssueRequestPage() {
       // Route to appropriate API based on request type
       let apiUrl: string;
       let requestBody: IssueRequestBody | UpdateRequestBody | RenewRequestBody | RevokeRequestBody;
+
+      if (requestType === 'ISSUANCE') {
+        const encryptedBodyByIssuerPK = await encryptWithPublicKey(
+          JSON.parse(JSON.stringify({ vc_status: true, verifiable_credentials: [signedVC] })),
+          issuerPublicKeyHex
+        );
+
+        const storeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC);
+        const storeResponse = await authenticatedPost(storeUrl, {
+          issuer_did: selectedRequest.issuer_did,
+          encrypted_body: encryptedBodyByIssuerPK,
+        });
+
+        if (!storeResponse.ok) {
+          const errorData = await storeResponse.json();
+          console.error('Error storing VC for issuance:', errorData);
+          throw new Error(errorData.message || `Failed to store VC (${storeResponse.status})`);
+        }
+        // } else if (requestType === 'UPDATE' || requestType === 'RENEWAL') {
+        //   const vcByDidResponse = await authenticatedGet(vcByDidUrl);
+
+        //   if (!vcByDidResponse.ok) {
+        //     const errorData = await vcByDidResponse.json();
+        //     console.error('Error fetching existing VC for store:', errorData);
+        //     throw new Error(errorData.message || `Failed to fetch existing VC (${vcByDidResponse.status})`);
+        //   }
+
+        //   const vcByDidResult = await vcByDidResponse.json();
+        //   console.log('Existing VC fetched for store:', vcByDidResult);
+
+        //   const wrappedBodyForStore = {
+        //     verifiable_credentials: [signedVC],
+        //   }
+
+        //   const encryptedBodyByIssuerPK = await encryptWithPublicKey(
+        //     JSON.parse(JSON.stringify({vc_status: true, ...wrappedBodyForStore})),
+        //     issuerPublicKeyHex
+        //   );
+
+        //   const storeResponse = await authenticatedPost(storeUrl, {
+        //     issuer_did: selectedRequest.issuer_did,
+        //     encrypted_body: encryptedBodyByIssuerPK,
+        //   });
+      }
 
       if (requestType === 'UPDATE') {
         if (!currentVcId) {

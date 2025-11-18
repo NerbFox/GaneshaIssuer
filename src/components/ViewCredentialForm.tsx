@@ -12,6 +12,29 @@ interface CredentialAttribute {
   value: string;
 }
 
+interface VerifiableCredentialData {
+  id: string;
+  type: string[];
+  issuer: { id: string; name: string };
+  credentialSubject: {
+    id: string;
+    [key: string]: unknown;
+  };
+  validFrom: string;
+  expiredAt: string;
+  credentialStatus?: {
+    id: string;
+    type: string;
+    revoked?: boolean;
+  };
+  proof?: unknown;
+  imageLink?: string;
+  fileUrl?: string;
+  fileId?: string;
+  issuerName?: string;
+  '@context'?: string[];
+}
+
 interface ViewCredentialFormProps {
   onClose: () => void;
   credentialData: {
@@ -28,20 +51,58 @@ interface ViewCredentialFormProps {
     attributes: CredentialAttribute[];
   };
   vcId?: string;
+  vcHistory?: VerifiableCredentialData[];
 }
 
 export default function ViewCredentialForm({
   onClose,
   credentialData,
   vcId,
+  vcHistory,
 }: ViewCredentialFormProps) {
   const [blockchainStatus, setBlockchainStatus] = useState<string | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0); // Start with newest (index 0)
+
+  // Get current VC data from history if available
+  const currentVC = vcHistory && vcHistory.length > 0 ? vcHistory[currentIndex] : null;
+  const totalVersions = vcHistory?.length || 1;
+
+  // Extract attributes from current VC
+  const currentAttributes: CredentialAttribute[] = currentVC
+    ? Object.entries(currentVC.credentialSubject)
+        .filter(([key]) => key !== 'id')
+        .map(([name, value], index) => ({
+          id: index + 1,
+          name,
+          value: String(value),
+        }))
+    : credentialData.attributes;
+
+  // Get current credential data (from carousel or fallback)
+  const displayData = currentVC
+    ? {
+        id: currentVC.id,
+        holderDid: currentVC.credentialSubject.id,
+        issuerDid: typeof currentVC.issuer === 'object' ? currentVC.issuer.id : currentVC.issuer,
+        schemaName: credentialData.schemaName,
+        schemaId: credentialData.schemaId,
+        schemaVersion: credentialData.schemaVersion,
+        status: currentVC.credentialStatus?.revoked
+          ? 'REVOKED'
+          : new Date(currentVC.expiredAt) < new Date()
+            ? 'EXPIRED'
+            : 'APPROVED',
+        validFrom: currentVC.validFrom,
+        expiredAt: currentVC.expiredAt,
+        attributes: currentAttributes,
+      }
+    : credentialData;
 
   // Fetch status from blockchain
   useEffect(() => {
     const fetchBlockchainStatus = async () => {
-      const credentialVcId = vcId || credentialData.id;
+      const credentialVcId = currentVC?.id || vcId || credentialData.id;
       if (!credentialVcId) return;
 
       setIsLoadingStatus(true);
@@ -64,7 +125,20 @@ export default function ViewCredentialForm({
     };
 
     fetchBlockchainStatus();
-  }, [vcId, credentialData.id]);
+  }, [currentVC, vcId, credentialData.id, currentIndex]);
+
+  // Navigation handlers
+  const handlePrevious = () => {
+    if (currentIndex < totalVersions - 1) {
+      setCurrentIndex(currentIndex + 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  };
   const columns: Column<CredentialAttribute>[] = [
     {
       id: 'name',
@@ -114,6 +188,34 @@ export default function ViewCredentialForm({
 
   return (
     <div className="px-8 py-6">
+      {/* Version Navigation - Only show if there's a history */}
+      {vcHistory && vcHistory.length > 1 && (
+        <div className="mb-6 flex items-center justify-between bg-blue-50 p-4 rounded-lg">
+          <button
+            onClick={handlePrevious}
+            disabled={currentIndex >= totalVersions - 1}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            ← Previous Version
+          </button>
+          <div className="text-center">
+            <ThemedText className="text-sm font-medium text-gray-700">
+              Version {totalVersions - currentIndex} of {totalVersions}
+            </ThemedText>
+            <ThemedText className="text-xs text-gray-500 mt-1">
+              {currentIndex === 0 ? '(Current)' : '(Historical)'}
+            </ThemedText>
+          </div>
+          <button
+            onClick={handleNext}
+            disabled={currentIndex <= 0}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next Version →
+          </button>
+        </div>
+      )}
+
       {/* Credential Information Grid */}
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* Credential ID */}
@@ -122,7 +224,7 @@ export default function ViewCredentialForm({
             <ThemedText className="text-sm font-medium text-gray-700">Credential ID</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-            {credentialData.id}
+            {displayData.id}
           </div>
         </div>
 
@@ -132,7 +234,7 @@ export default function ViewCredentialForm({
             <ThemedText className="text-sm font-medium text-gray-700">Schema Name</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-            {credentialData.schemaName}
+            {displayData.schemaName}
           </div>
         </div>
 
@@ -142,18 +244,18 @@ export default function ViewCredentialForm({
             <ThemedText className="text-sm font-medium text-gray-700">Schema Version</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-            {credentialData.schemaVersion}
+            {displayData.schemaVersion}
           </div>
         </div>
 
         {/* Schema ID */}
-        {credentialData.schemaId && (
+        {displayData.schemaId && (
           <div className="col-span-2">
             <label className="block mb-2">
               <ThemedText className="text-sm font-medium text-gray-700">Schema ID</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-              {credentialData.schemaId}
+              {displayData.schemaId}
             </div>
           </div>
         )}
@@ -164,18 +266,18 @@ export default function ViewCredentialForm({
             <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-            {credentialData.holderDid}
+            {displayData.holderDid}
           </div>
         </div>
 
         {/* Issuer DID */}
-        {credentialData.issuerDid && (
+        {displayData.issuerDid && (
           <div className="col-span-2">
             <label className="block mb-2">
               <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-              {credentialData.issuerDid}
+              {displayData.issuerDid}
             </div>
           </div>
         )}
@@ -193,9 +295,9 @@ export default function ViewCredentialForm({
               </div>
             ) : (
               <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(blockchainStatus || credentialData.status)}`}
+                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(blockchainStatus || displayData.status)}`}
               >
-                {getStatusLabel(blockchainStatus || credentialData.status)}
+                {getStatusLabel(blockchainStatus || displayData.status)}
               </span>
             )}
           </div>
@@ -207,26 +309,9 @@ export default function ViewCredentialForm({
             <ThemedText className="text-sm font-medium text-gray-700">Issued At</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-            {new Date(credentialData.issuedAt).toLocaleString('en-US', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: false,
-            })}
-          </div>
-        </div>
-
-        {/* Last Updated */}
-        {credentialData.lastUpdated && (
-          <div className="col-span-2">
-            <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">Last Updated</ThemedText>
-            </label>
-            <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-              {new Date(credentialData.lastUpdated).toLocaleString('en-US', {
+            {new Date(currentVC ? currentVC.validFrom : credentialData.issuedAt).toLocaleString(
+              'en-US',
+              {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
@@ -234,10 +319,10 @@ export default function ViewCredentialForm({
                 minute: '2-digit',
                 second: '2-digit',
                 hour12: false,
-              })}
-            </div>
+              }
+            )}
           </div>
-        )}
+        </div>
 
         {/* Expired At */}
         <div className="col-span-2">
@@ -245,9 +330,11 @@ export default function ViewCredentialForm({
             <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-            {credentialData.activeUntil === '-'
+            {(currentVC ? currentVC.expiredAt : credentialData.activeUntil) === '-'
               ? 'Lifetime'
-              : new Date(credentialData.activeUntil).toLocaleString('en-US', {
+              : new Date(
+                  currentVC ? currentVC.expiredAt : credentialData.activeUntil
+                ).toLocaleString('en-US', {
                   year: 'numeric',
                   month: '2-digit',
                   day: '2-digit',
@@ -261,20 +348,20 @@ export default function ViewCredentialForm({
       </div>
 
       {/* Attributes Section */}
-      {credentialData.attributes.length > 0 && (
+      {displayData.attributes.length > 0 && (
         <div className="mb-6">
           <div className="mb-4">
             <ThemedText className="text-sm font-medium text-gray-900">
-              Credential Attributes ({credentialData.attributes.length})
+              Credential Attributes ({displayData.attributes.length})
             </ThemedText>
           </div>
 
           <DataTable
-            data={credentialData.attributes}
+            data={displayData.attributes}
             columns={columns}
             searchPlaceholder="Search attributes..."
             enableSelection={false}
-            totalCount={credentialData.attributes.length}
+            totalCount={displayData.attributes.length}
             rowsPerPageOptions={[5, 10, 25, 50]}
             idKey="id"
           />

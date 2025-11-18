@@ -22,6 +22,29 @@ import { decryptWithPrivateKey, encryptWithPublicKey, type JsonObject } from '@/
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey } from '@/utils/vcSigner';
 
+interface VerifiableCredentialData {
+  id: string;
+  type: string[];
+  issuer: { id: string; name: string };
+  credentialSubject: {
+    id: string;
+    [key: string]: unknown;
+  };
+  validFrom: string;
+  expiredAt: string;
+  credentialStatus?: {
+    id: string;
+    type: string;
+    revoked?: boolean;
+  };
+  proof?: unknown;
+  imageLink?: string;
+  fileUrl?: string;
+  fileId?: string;
+  issuerName?: string;
+  '@context'?: string[];
+}
+
 interface IssuedCredential {
   id: string;
   holderDid: string;
@@ -33,25 +56,21 @@ interface IssuedCredential {
   encryptedBody?: Record<string, unknown>;
   createdAt: string;
   vcId?: string;
+  vcHistory?: VerifiableCredentialData[]; // Array of all VCs (newest first)
 }
 
-interface ApiCredentialResponse {
+interface ApiVCDataResponse {
   success: boolean;
   message: string;
   data: {
+    message: string;
     count: number;
-    requests: {
+    data: {
       id: string;
-      history_type: string;
-      request_type: string;
-      encrypted_body: string;
       issuer_did: string;
-      holder_did: string;
-      status: string;
-      vc_id?: string;
-      new_vc_id?: string;
-      transaction_hash?: string;
+      encrypted_body: string;
       createdAt: string;
+      updatedAt: string;
     }[];
   };
 }
@@ -195,10 +214,10 @@ export default function IssuedByMePage() {
         throw new Error('Institution DID not found. Please log in again.');
       }
 
-      // Fetch credentials using issuer-history endpoint
-      const credentialsUrl = buildApiUrlWithParams(API_ENDPOINTS.CREDENTIALS.ISSUER_HISTORY, {
-        issuer_did: institutionDID,
-      });
+      // Fetch credentials using issuer VC data endpoint
+      const credentialsUrl = buildApiUrl(
+        API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_DID(institutionDID)
+      );
 
       const credentialsResponse = await authenticatedGet(credentialsUrl);
 
@@ -206,7 +225,7 @@ export default function IssuedByMePage() {
         throw new Error('Failed to fetch credentials');
       }
 
-      const credentialsResult: ApiCredentialResponse = await credentialsResponse.json();
+      const credentialsResult: ApiVCDataResponse = await credentialsResponse.json();
 
       // Fetch schemas to get schema names
       const schemasUrl = buildApiUrlWithParams(API_ENDPOINTS.SCHEMAS.BASE, {
@@ -249,121 +268,99 @@ export default function IssuedByMePage() {
       }));
       setSchemas(transformedSchemas);
 
-      // Parse and cache all encrypted bodies (store full decrypted data)
-      const decryptedBodiesMap = new Map<string, Record<string, unknown>>();
-
+      // Decrypt and process all encrypted VC data
       const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
-      for (const credential of credentialsResult.data.requests) {
-        if (privateKeyHex) {
-          try {
-            const decryptedBody = await decryptWithPrivateKey(
-              credential.encrypted_body,
-              privateKeyHex
-            );
-            // Store full decrypted body for forms
-            decryptedBodiesMap.set(
-              credential.encrypted_body,
-              decryptedBody as Record<string, unknown>
-            );
-          } catch {
-            // Silently handle decryption error - will use vc_id instead
+      const transformedCredentials: IssuedCredential[] = [];
+
+      for (const vcData of credentialsResult.data.data) {
+        if (!privateKeyHex) {
+          continue;
+        }
+
+        try {
+          // Decrypt the encrypted body
+          const decryptedData = await decryptWithPrivateKey(vcData.encrypted_body, privateKeyHex);
+          console.log('decryptedData', decryptedData);
+
+          // The decrypted data should have structure: { vc_status: boolean, verifiable_credentials: [...] }
+          const vcContainer = decryptedData as unknown as {
+            vc_status: boolean;
+            verifiable_credentials: VerifiableCredentialData[];
+          };
+
+          // Store all VCs in history (verifiable_credentials array is already sorted newest first)
+          const vcHistory = vcContainer.verifiable_credentials || [];
+
+          // Use the first (newest) VC for the table display
+          if (vcHistory.length > 0) {
+            const newestVC = vcHistory[0];
+
+            // Parse schema_id and schema_version from vc.id
+            // vc.id format: "schema_id:schema_version:holder_did:timestamp"
+            let schemaId = '';
+            let schemaVersion = 1;
+
+            if (newestVC.id) {
+              const vcIdParts = newestVC.id.split(':');
+              if (vcIdParts.length >= 2 && vcIdParts[0] !== 'undefined' && vcIdParts[0] !== '') {
+                schemaId = vcIdParts[0];
+                schemaVersion = parseInt(vcIdParts[1], 10) || 1;
+              }
+            }
+
+            // Get holder DID from credentialSubject
+            const holderDid = newestVC.credentialSubject?.id || '';
+
+            // Get schema name from the map
+            const schemaInfo = schemaMap.get(schemaId);
+            const schemaName = schemaInfo?.name || 'Unknown Schema';
+            const isUnknownSchema = !schemaInfo || !schemaId;
+
+            // Determine credential status based on newest VC
+            let credentialStatus = 'APPROVED';
+            if (newestVC.credentialStatus?.revoked) {
+              credentialStatus = 'REVOKED';
+            } else if (newestVC.expiredAt) {
+              const expirationDate = new Date(newestVC.expiredAt);
+              const now = new Date();
+              if (expirationDate < now) {
+                credentialStatus = 'EXPIRED';
+              }
+            }
+
+            // Extract credential data (excluding standard VC fields)
+            const encryptedBody: Record<string, unknown> = {};
+            if (newestVC.credentialSubject) {
+              Object.entries(newestVC.credentialSubject).forEach(([key, value]) => {
+                if (key !== 'id') {
+                  encryptedBody[key] = value;
+                }
+              });
+            }
+
+            transformedCredentials.push({
+              id: vcData.id,
+              holderDid: holderDid,
+              schemaName: isUnknownSchema
+                ? schemaName
+                : schemaVersion > 0
+                  ? `${schemaName} v${schemaVersion}`
+                  : schemaName,
+              status: credentialStatus,
+              activeUntil: newestVC.expiredAt || '-',
+              schemaId: schemaId,
+              schemaVersion: schemaVersion,
+              encryptedBody: encryptedBody,
+              createdAt: newestVC.validFrom || vcData.createdAt,
+              vcId: newestVC.id,
+              vcHistory: vcHistory, // Store the entire history
+            });
           }
+        } catch (error) {
+          console.error('Error decrypting VC data:', error);
+          // Skip this VC if decryption fails
         }
       }
-
-      // Create a Set of revoked VC IDs by checking for REVOKE request types
-      const revokedVcIds = new Set<string>();
-      credentialsResult.data.requests.forEach((credential) => {
-        if (credential.request_type === 'REVOKE' && credential.vc_id) {
-          revokedVcIds.add(credential.vc_id);
-        }
-      });
-
-      // Transform API data to match IssuedCredential interface
-      const transformedCredentials: IssuedCredential[] = credentialsResult.data.requests
-        .filter(
-          (credential) =>
-            credential.status !== 'PENDING' &&
-            credential.status !== 'REJECTED' &&
-            (credential.request_type === 'ISSUANCE' || !credential.request_type)
-        ) // Filter out PENDING and REJECTED, and only show ISSUANCE type
-        .map((credential) => {
-          // Parse schema_id and schema_version from vc_id
-          // vc_id format: "schema_id:schema_version:holder_did:timestamp"
-          let schemaId = '';
-          let schemaVersion = 1;
-
-          console.log('credential', credential);
-
-          if (credential.vc_id) {
-            const vcIdParts = credential.vc_id.split(':');
-            if (
-              vcIdParts.length >= 2 &&
-              vcIdParts[0] !== 'undefined' &&
-              vcIdParts[0] !== '' &&
-              vcIdParts[1] !== 'undefined'
-            ) {
-              schemaId = vcIdParts[0];
-              schemaVersion = parseInt(vcIdParts[1], 10) || 1;
-            }
-          }
-
-          // Get decrypted body from cache (if available)
-          const encryptedBody = decryptedBodiesMap.get(credential.encrypted_body);
-
-          // Get schema name from the map
-          const schemaInfo = schemaMap.get(schemaId);
-          const schemaName = schemaInfo?.name || 'Unknown Schema';
-          const expiredIn = schemaInfo?.expiredIn || 5;
-          const isUnknownSchema = !schemaInfo || !schemaId;
-
-          // Calculate active until date (only if schema is known)
-          let activeUntil: string;
-          let credentialStatus = credential.status;
-
-          // Check if this credential has been revoked
-          if (credential.vc_id && revokedVcIds.has(credential.vc_id)) {
-            credentialStatus = 'REVOKED';
-          }
-
-          if (isUnknownSchema) {
-            // For unknown schemas, set active until to '-'
-            activeUntil = '-';
-          } else {
-            const activeUntilDate = new Date(credential.createdAt);
-            activeUntilDate.setFullYear(activeUntilDate.getFullYear() + expiredIn);
-
-            // Check if credential is expired based on Active Until date (only if not already revoked)
-            const now = new Date();
-            if (
-              credential.status === 'APPROVED' &&
-              credentialStatus !== 'REVOKED' &&
-              activeUntilDate < now
-            ) {
-              credentialStatus = 'EXPIRED';
-            }
-
-            activeUntil = activeUntilDate.toISOString();
-          }
-
-          return {
-            id: credential.id,
-            holderDid: credential.holder_did,
-            // Don't add version suffix for unknown schemas
-            schemaName: isUnknownSchema
-              ? schemaName
-              : schemaVersion > 0
-                ? `${schemaName} v${schemaVersion}`
-                : schemaName,
-            status: credentialStatus,
-            activeUntil: activeUntil,
-            schemaId: schemaId,
-            schemaVersion: schemaVersion,
-            encryptedBody: encryptedBody,
-            createdAt: credential.createdAt,
-            vcId: credential.vc_id,
-          };
-        });
 
       setCredentials(transformedCredentials);
       setFilteredCredentials(transformedCredentials);
@@ -785,27 +782,58 @@ export default function IssuedByMePage() {
           const expiredAt = new Date(now);
           expiredAt.setFullYear(expiredAt.getFullYear() + expiredIn);
 
-          // Transform attributes into credential data format
+          // Get institution information
+          const institutionDataStr = localStorage.getItem('institutionData');
+          if (!institutionDataStr) {
+            throw new Error('Institution information not found. Please log in again.');
+          }
+
+          const institutionData = JSON.parse(institutionDataStr);
+          const institutionName = institutionData.name;
+
+          if (!institutionName) {
+            throw new Error('Institution name not found. Please log in again.');
+          }
+
+          // Get image link from schema
+          const imageLink = schemaData.data?.image_link || null;
+
+          // Transform credential data
           const credentialData: Record<string, string | number | boolean> = {};
           if (credential.encryptedBody) {
             Object.entries(credential.encryptedBody).forEach(([key, value]) => {
-              if (!['schema_id', 'schema_version', 'issuer_did', 'holder_did'].includes(key)) {
-                credentialData[key] = value as string | number | boolean;
-              }
+              credentialData[key] = value as string | number | boolean;
             });
           }
 
-          // Create encrypted body
-          const bodyToEncrypt = {
-            schema_id: credential.schemaId,
-            schema_version: credential.schemaVersion,
-            issuer_did: issuerDid,
-            holder_did: credential.holderDid,
-            ...credentialData,
+          // Create the Verifiable Credential (vcId is guaranteed to exist by earlier check)
+          const vc = createVC({
+            id: credential.vcId!,
+            vcType: credential.schemaName.replace(/\s+v\d+$/, '').replace(/\s+/g, ''),
+            issuerDid: issuerDid,
+            issuerName: institutionName,
+            holderDid: credential.holderDid,
+            credentialData: credentialData,
+            validFrom: now.toISOString(),
+            expiredAt: expiredAt.toISOString(),
+            imageLink: imageLink,
+          });
+
+          console.log('Created VC (unsigned):', vc);
+
+          // Sign the VC with stored private key
+          const signedVC = await signVCWithStoredKey(vc);
+          console.log('Signed VC with proof:', signedVC);
+
+          const wrappedBody = {
+            verifiable_credential: signedVC,
           };
 
           // Encrypt with holder's public key
-          const encryptedBody = await encryptWithPublicKey(bodyToEncrypt, holderPublicKey);
+          const encryptedBody = await encryptWithPublicKey(
+            JSON.parse(JSON.stringify(wrappedBody)),
+            holderPublicKey
+          );
 
           // Call the renew-vc API
           const renewUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.RENEW_VC);
@@ -935,8 +963,9 @@ export default function IssuedByMePage() {
       // Step 1: Get issuer information from localStorage
       const issuerDid = localStorage.getItem('institutionDID');
       const institutionDataStr = localStorage.getItem('institutionData');
+      const issuerPublicKey = localStorage.getItem('institutionSigningPublicKey');
 
-      if (!issuerDid || !institutionDataStr) {
+      if (!issuerDid || !institutionDataStr || !issuerPublicKey) {
         throw new Error('Issuer information not found. Please log in again.');
       }
 
@@ -1019,11 +1048,20 @@ export default function IssuedByMePage() {
       };
 
       // Step 10: Encrypt the body with holder's public key
-      const encryptedBody = await encryptWithPublicKey(
+      const encryptedBodyByHolderPK = await encryptWithPublicKey(
         JSON.parse(JSON.stringify(wrappedBody)),
         holderPublicKey
       );
-      console.log('Encrypted body length:', encryptedBody.length);
+      const encryptedBodyByIssuerPK = await encryptWithPublicKey(
+        JSON.parse(
+          JSON.stringify({
+            vc_status: true,
+            verifiable_credentials: [signedVC],
+          })
+        ),
+        issuerPublicKey
+      );
+      console.log('Encrypted body length:', encryptedBodyByHolderPK.length);
 
       // Step 11: Call the API to issue the credential
       const issueUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.ISSUE_VC);
@@ -1035,13 +1073,19 @@ export default function IssuedByMePage() {
         schema_id: data.schemaId,
         schema_version: data.version,
         vc_hash: vcHashWithoutPrefix,
-        encrypted_body: encryptedBody,
+        encrypted_body: encryptedBodyByHolderPK,
         expiredAt: expiredAt.toISOString(),
       });
+      const storeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC);
+      const storeResponse = await authenticatedPost(storeUrl, {
+        issuer_did: issuerDid,
+        encrypted_body: encryptedBodyByIssuerPK,
+      });
 
-      if (!issueResponse.ok) {
-        const errorData = await issueResponse.json();
-        throw new Error(errorData.message || 'Failed to issue credential');
+      if (!issueResponse.ok || !storeResponse.ok) {
+        const errorData1 = await issueResponse.json();
+        const errorData2 = await issueResponse.json();
+        throw new Error(errorData1.message || errorData2.message || 'Failed to issue credential');
       }
 
       const responseData = await issueResponse.json();
@@ -1567,6 +1611,7 @@ export default function IssuedByMePage() {
               setSelectedCredential(null);
             }}
             vcId={selectedCredential.vcId}
+            vcHistory={selectedCredential.vcHistory}
             credentialData={{
               id: selectedCredential.vcId || selectedCredential.id,
               holderDid: selectedCredential.holderDid,
