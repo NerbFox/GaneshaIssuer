@@ -1038,7 +1038,9 @@ export default function IssueRequestPage() {
 
         // Create the revoke body containing only the vc_id
         const wrappedBody = {
-          vc_id: currentVcId,
+          verifiable_credential: {
+            id: currentVcId,
+          },
         };
 
         console.log('Revoke body (before encryption):', wrappedBody);
@@ -1261,19 +1263,6 @@ export default function IssueRequestPage() {
 
       console.info('VC full signed: ', signedVC);
 
-      const wrappedBody = {
-        verifiable_credential: signedVC,
-      };
-
-      // Encrypt the signed VC with holder's public key
-      // SignedVC is JSON-serializable, so we can safely cast it
-      const encryptedBody = await encryptWithPublicKey(
-        JSON.parse(JSON.stringify(wrappedBody)),
-        holderPublicKeyHex
-      );
-      console.log('Encrypted body (encrypted signed VC):', encryptedBody);
-      console.log('Encrypted body length:', encryptedBody.length);
-
       // Route to appropriate API based on request type
       let apiUrl: string;
       let requestBody: IssueRequestBody | UpdateRequestBody | RenewRequestBody | RevokeRequestBody;
@@ -1286,6 +1275,21 @@ export default function IssueRequestPage() {
         // Extract vc_type from schema name (remove spaces and version info)
         const vcType = schemaData.name.replace(/\s+/g, '').replace(/v\d+$/, '');
 
+        const wrappedBody = {
+          old_vc_id: currentVcId,
+          verifiable_credential: signedVC,
+        };
+
+        // Encrypt the signed VC with holder's public key
+        // SignedVC is JSON-serializable, so we can safely cast it
+        const encryptedBodyByHolderPK = await encryptWithPublicKey(
+          JSON.parse(JSON.stringify(wrappedBody)),
+          holderPublicKeyHex
+        );
+
+        console.log('Encrypted body (encrypted signed VC):', encryptedBodyByHolderPK);
+        console.log('Encrypted body length:', encryptedBodyByHolderPK.length);
+
         requestBody = {
           request_id: selectedRequest.id,
           action: 'APPROVED',
@@ -1295,7 +1299,7 @@ export default function IssueRequestPage() {
           schema_id: schemaData.id,
           schema_version: parseInt(schemaData.version),
           new_vc_hash: vcHash,
-          encrypted_body: encryptedBody,
+          encrypted_body: encryptedBodyByHolderPK,
           expired_at: expiredAt,
         };
 
@@ -1306,11 +1310,25 @@ export default function IssueRequestPage() {
           throw new Error('Missing current VC ID for renewal');
         }
 
+        const wrappedBody = {
+          verifiable_credential: signedVC,
+        };
+
+        // Encrypt the signed VC with holder's public key
+        // SignedVC is JSON-serializable, so we can safely cast it
+        const encryptedBodyByHolderPK = await encryptWithPublicKey(
+          JSON.parse(JSON.stringify(wrappedBody)),
+          holderPublicKeyHex
+        );
+
+        console.log('Encrypted body (encrypted signed VC):', encryptedBodyByHolderPK);
+        console.log('Encrypted body length:', encryptedBodyByHolderPK.length);
+
         requestBody = {
           request_id: selectedRequest.id,
           action: 'APPROVED',
           vc_id: currentVcId, // Existing VC ID to renew
-          encrypted_body: encryptedBody,
+          encrypted_body: encryptedBodyByHolderPK,
           expired_at: expiredAt,
         };
 
@@ -1318,6 +1336,21 @@ export default function IssueRequestPage() {
         console.log('RENEW VC - Request body:', requestBody);
       } else {
         // ISSUANCE (default)
+
+        const wrappedBody = {
+          verifiable_credential: signedVC,
+        };
+
+        // Encrypt the signed VC with holder's public key
+        // SignedVC is JSON-serializable, so we can safely cast it
+        const encryptedBodyByHolderPK = await encryptWithPublicKey(
+          JSON.parse(JSON.stringify(wrappedBody)),
+          holderPublicKeyHex
+        );
+
+        console.log('Encrypted body (encrypted signed VC):', encryptedBodyByHolderPK);
+        console.log('Encrypted body length:', encryptedBodyByHolderPK.length);
+
         requestBody = {
           request_id: selectedRequest.id,
           action: 'APPROVED',
@@ -1325,7 +1358,7 @@ export default function IssueRequestPage() {
           schema_id: schemaData.id,
           schema_version: parseInt(schemaData.version),
           vc_hash: vcHash,
-          encrypted_body: encryptedBody,
+          encrypted_body: encryptedBodyByHolderPK,
           expired_at: expiredAt,
         };
 

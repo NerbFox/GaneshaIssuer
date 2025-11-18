@@ -564,6 +564,7 @@ export default function IssuedByMePage() {
       const vcHashWithoutPrefix = hashVC(signedVC);
 
       const wrappedBody = {
+        old_vc_id: credential.vcId,
         verifiable_credential: signedVC,
       };
 
