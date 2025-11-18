@@ -1037,25 +1037,25 @@ export default function IssueRequestPage() {
         }
 
         // Create the revoke body containing only the vc_id
-        const revokeBody = {
+        const wrappedBody = {
           vc_id: currentVcId,
         };
 
-        console.log('Revoke body (before encryption):', revokeBody);
+        console.log('Revoke body (before encryption):', wrappedBody);
 
         // Encrypt the revoke body with holder's public key
-        const encryptedRevokeBody = await encryptWithPublicKey(
-          revokeBody as unknown as JsonObject,
+        const encryptedBody = await encryptWithPublicKey(
+          wrappedBody as unknown as JsonObject,
           holderPublicKeyHex
         );
-        console.log('Encrypted revoke body:', encryptedRevokeBody);
-        console.log('Encrypted revoke body length:', encryptedRevokeBody.length);
+        console.log('Encrypted revoke body:', encryptedBody);
+        console.log('Encrypted revoke body length:', encryptedBody.length);
 
         const requestBody = {
           request_id: selectedRequest.id,
           action: 'APPROVED',
           vc_id: currentVcId,
-          encrypted_body: encryptedRevokeBody,
+          encrypted_body: encryptedBody,
         };
 
         console.log('Revoke request body:', requestBody);
@@ -1261,10 +1261,14 @@ export default function IssueRequestPage() {
 
       console.info('VC full signed: ', signedVC);
 
+      const wrappedBody = {
+        verifiable_credential: signedVC,
+      };
+
       // Encrypt the signed VC with holder's public key
       // SignedVC is JSON-serializable, so we can safely cast it
       const encryptedBody = await encryptWithPublicKey(
-        signedVC as unknown as JsonObject,
+        JSON.parse(JSON.stringify(wrappedBody)),
         holderPublicKeyHex
       );
       console.log('Encrypted body (encrypted signed VC):', encryptedBody);

@@ -563,9 +563,13 @@ export default function IssuedByMePage() {
       // Hash the VC
       const vcHashWithoutPrefix = hashVC(signedVC);
 
+      const wrappedBody = {
+        verifiable_credential: signedVC,
+      };
+
       // Encrypt with holder's public key
       const encryptedBody = await encryptWithPublicKey(
-        signedVC as unknown as JsonObject,
+        JSON.parse(JSON.stringify(wrappedBody)),
         holderPublicKey
       );
 
@@ -1009,9 +1013,13 @@ export default function IssuedByMePage() {
       const vcHashWithoutPrefix = hashVC(signedVC);
       console.log('VC Hash:', vcHashWithoutPrefix);
 
+      const wrappedBody = {
+        verifiable_credential: signedVC,
+      };
+
       // Step 10: Encrypt the body with holder's public key
       const encryptedBody = await encryptWithPublicKey(
-        signedVC as unknown as JsonObject,
+        JSON.parse(JSON.stringify(wrappedBody)),
         holderPublicKey
       );
       console.log('Encrypted body length:', encryptedBody.length);
