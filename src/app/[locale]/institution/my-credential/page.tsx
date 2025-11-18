@@ -18,6 +18,8 @@ import {
   SchemaData,
   storeSchemaData,
   storeSchemaDataBatch,
+  deleteVC,
+  deleteSchemaData,
 } from '@/utils/indexedDB';
 import { validateVCComprehensive } from '@/utils/vcValidator';
 import { hashVC } from '@/utils/vcUtils';
@@ -65,46 +67,6 @@ interface VCRenewCredentialData {
 
   // Renewal specific
   renewal_reason: string;
-
-  // Optional image reference
-  image_link?: string | null;
-}
-
-/**
- * Update-specific credential data
- * Prepared from VerifiableCredential for update request
- */
-interface VCUpdateCredentialData {
-  // VC Identification
-  vc_id: string;
-
-  // Schema Information (derived from credential type)
-  schema_id: string;
-  schema_version: number;
-  schema_name: string;
-
-  // Credential Subject Data - all dynamic fields
-  attributes: {
-    [key: string]: string | number | boolean;
-  };
-
-  // Mandatory Subject Fields
-  id: string; // Subject DID
-
-  // Validity Period
-  valid_from: string;
-  expiration_date: string | null;
-
-  // VC Metadata
-  vc_type: string[];
-  vc_context: string[];
-
-  // Issuer Information
-  issuer: string;
-  issuer_name: string;
-
-  // Update specific
-  update_reason: string;
 
   // Optional image reference
   image_link?: string | null;
@@ -241,6 +203,9 @@ export default function MyCredentialPage() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updatingCredential, setUpdatingCredential] = useState<VerifiableCredential | null>(null);
   const [updatedAttributes, setUpdatedAttributes] = useState<{
+    [key: string]: string | number | boolean;
+  }>({});
+  const [originalAttributes, setOriginalAttributes] = useState<{
     [key: string]: string | number | boolean;
   }>({});
   const [updateReason, setUpdateReason] = useState('');
@@ -415,9 +380,12 @@ export default function MyCredentialPage() {
 
       // Extract attributes (excluding 'id' field)
       const credentialSubject = vc.credentialSubject;
-      const { ...attributes } = credentialSubject;
+      const { id: subjectId, ...attributes } = credentialSubject;
+
+      console.log(`Excluding id ${subjectId} from attributes for update:`, attributes);
 
       setUpdatingCredential(vc);
+      setOriginalAttributes(attributes as { [key: string]: string | number | boolean });
       setUpdatedAttributes(attributes as { [key: string]: string | number | boolean });
       setUpdateReason('');
       setShowUpdateModal(true);
@@ -704,48 +672,36 @@ export default function MyCredentialPage() {
 
       console.log('Issuer public key retrieved from DID document');
 
-      // Use the updated attributes from state
-      const attributes: { [key: string]: string | number | boolean } = { ...updatedAttributes };
+      // Calculate changed attributes by comparing original and updated
+      const changedAttributes: { [key: string]: string | number | boolean } = {};
+      Object.keys(updatedAttributes).forEach((key) => {
+        // Compare with original attributes to find what changed
+        if (originalAttributes[key] !== updatedAttributes[key]) {
+          changedAttributes[key] = updatedAttributes[key];
+        }
+      });
 
-      // Extract schema ID and version from VC id
-      // Format: {schema_id}:{schema_version}:{holder_did}:{timestamp}
-      const vcIdParts = updatingCredential.id.split(':');
-      let schemaId = 'Unknown';
-      let schemaVersion = 1;
-
-      if (vcIdParts.length >= 2) {
-        schemaId = vcIdParts[0];
-        schemaVersion = parseInt(vcIdParts[1], 10) || 1;
+      // Check if there are any changed attributes
+      if (Object.keys(changedAttributes).length === 0) {
+        setInfoModalConfig({
+          title: 'No Changes Detected',
+          message: 'No attributes have been modified. Please make changes before submitting.',
+          buttonColor: 'yellow',
+        });
+        setShowInfoModal(true);
+        setIsUpdating(false);
+        return;
       }
 
-      // Get schema name from the credential type
-      const schemaName = Array.isArray(updatingCredential.type)
-        ? updatingCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown'
-        : 'Unknown';
-
-      // Prepare update data according to VCUpdateCredentialData interface
-      const updateData: VCUpdateCredentialData = {
+      // Prepare update data with only changed attributes
+      const updateData = {
         vc_id: updatingCredential.id,
-        schema_id: schemaId,
-        schema_version: schemaVersion,
-        schema_name: schemaName,
-        attributes: attributes,
-        id: updatingCredential.credentialSubject.id,
-        valid_from: updatingCredential.validFrom,
-        expiration_date: updatingCredential.expiredAt,
-        vc_type: Array.isArray(updatingCredential.type)
-          ? updatingCredential.type
-          : [updatingCredential.type],
-        vc_context: Array.isArray(updatingCredential['@context'])
-          ? updatingCredential['@context']
-          : [updatingCredential['@context']],
-        issuer: updatingCredential.issuer,
-        issuer_name: updatingCredential.issuerName,
+        changed_attributes: changedAttributes,
         update_reason: updateReason.trim(),
-        image_link: updatingCredential.imageLink || null,
       };
 
       console.log('Update data prepared:', updateData);
+      console.log('Changed attributes:', changedAttributes);
 
       // Encrypt the update data
       const encryptedBody = await encryptWithPublicKey(
@@ -784,6 +740,7 @@ export default function MyCredentialPage() {
       setShowUpdateModal(false);
       setUpdatingCredential(null);
       setUpdatedAttributes({});
+      setOriginalAttributes({});
       setUpdateReason('');
 
       setInfoModalConfig({
@@ -1292,46 +1249,150 @@ export default function MyCredentialPage() {
               );
 
               console.log(`[VC Claim] Decrypted data for ${claimedVC.claimId}:`, decryptedData);
+              console.log(`[VC Claim] Request type: ${claimedVC.request_type}`);
 
-              // The decrypted data should be a VerifiableCredential
-              const vc = decryptedData as unknown as VerifiableCredential;
+              // Handle different request types
+              if (claimedVC.request_type === 'REVOKE') {
+                // REVOKE: Delete the old VC from IndexedDB
+                console.log('[VC Claim] Processing REVOKE request');
 
-              // Validate that the VC has required fields
-              if (!vc || typeof vc !== 'object') {
-                throw new Error('Decrypted data is not a valid object');
-              }
+                const vcData = decryptedData.verifiable_credential as { id?: string };
+                const vcId = vcData?.id;
 
-              if (!vc.id) {
-                console.error('[VC Claim] Decrypted VC is missing id field:', vc);
-                throw new Error('Decrypted VC is missing required "id" field');
-              }
+                if (!vcId || typeof vcId !== 'string') {
+                  console.error('[VC Claim] REVOKE request missing vc_id:', decryptedData);
+                  throw new Error('REVOKE request is missing vc_id');
+                }
 
-              // Attach the claimId and source to the VC for later confirmation
-              vc.claimId = claimedVC.claimId;
-              vc.source = claimedVC.source;
+                console.log(`[VC Claim] Deleting VC with id: ${vcId}`);
+                const deleted = await deleteVC(vcId);
 
-              console.log(
-                `[VC Claim] Decrypted VC successfully: ${vc.id} (claimId: ${claimedVC.claimId}) from ${claimedVC.source}`
-              );
-              allDecryptedVCs.push(vc);
+                if (deleted) {
+                  console.log(`[VC Claim] Successfully deleted VC: ${vcId}`);
+                  // Also delete associated schema_data
+                  try {
+                    await deleteSchemaData(vcId);
+                    console.log(`[VC Claim] Successfully deleted schema_data for VC: ${vcId}`);
+                  } catch {
+                    console.warn(`[VC Claim] No schema_data found for VC: ${vcId}`);
+                  }
+                } else {
+                  console.warn(`[VC Claim] VC not found for deletion: ${vcId}`);
+                }
 
-              // Extract schema_data if present
-              if (claimedVC.schema_data) {
-                console.log(`[VC Claim] Extracting schema_data for VC: ${vc.id}`);
-                const schemaData: SchemaData = {
-                  vc_id: vc.id, // Link to VC using VC's id
-                  id: claimedVC.schema_data.id,
-                  version: claimedVC.schema_data.version,
-                  name: claimedVC.schema_data.name,
-                  schema: claimedVC.schema_data.schema,
-                  issuer_did: claimedVC.schema_data.issuer_did,
-                  issuer_name: claimedVC.schema_data.issuer_name,
-                  image_link: claimedVC.schema_data.image_link || null,
-                  expired_in: claimedVC.schema_data.expired_in,
-                  isActive: claimedVC.schema_data.isActive,
-                };
-                allSchemaData.push(schemaData);
-                console.log(`[VC Claim] Schema data extracted for VC: ${vc.id}`);
+                // No VC to add to allDecryptedVCs for REVOKE
+                continue;
+              } else if (claimedVC.request_type === 'UPDATE') {
+                // UPDATE: Delete old VC and add new VC
+                console.log('[VC Claim] Processing UPDATE request');
+
+                const oldVcId = decryptedData.old_vc_id as string;
+
+                if (!oldVcId || typeof oldVcId !== 'string') {
+                  console.error('[VC Claim] UPDATE request missing old_vc_id:', decryptedData);
+                  throw new Error('UPDATE request is missing old_vc_id');
+                }
+
+                console.log(`[VC Claim] Deleting old VC with id: ${oldVcId}`);
+                const deleted = await deleteVC(oldVcId);
+
+                if (deleted) {
+                  console.log(`[VC Claim] Successfully deleted old VC: ${oldVcId}`);
+                  // Also delete associated schema_data
+                  try {
+                    await deleteSchemaData(oldVcId);
+                    console.log(
+                      `[VC Claim] Successfully deleted schema_data for old VC: ${oldVcId}`
+                    );
+                  } catch {
+                    console.warn(`[VC Claim] No schema_data found for old VC: ${oldVcId}`);
+                  }
+                } else {
+                  console.warn(`[VC Claim] Old VC not found for deletion: ${oldVcId}`);
+                }
+
+                // Get the new VC
+                const vc = decryptedData.verifiable_credential as unknown as VerifiableCredential;
+
+                if (!vc || typeof vc !== 'object') {
+                  throw new Error('Decrypted VC data is not a valid object');
+                }
+
+                if (!vc.id) {
+                  console.error('[VC Claim] Updated VC is missing id field:', vc);
+                  throw new Error('Updated VC is missing required "id" field');
+                }
+
+                // Attach the claimId and source to the VC for later confirmation
+                vc.claimId = claimedVC.claimId;
+                vc.source = claimedVC.source;
+
+                console.log(
+                  `[VC Claim] Updated VC successfully: ${vc.id} (claimId: ${claimedVC.claimId}) from ${claimedVC.source}`
+                );
+                allDecryptedVCs.push(vc);
+
+                // Extract schema_data if present
+                if (claimedVC.schema_data) {
+                  console.log(`[VC Claim] Extracting schema_data for updated VC: ${vc.id}`);
+                  const schemaData: SchemaData = {
+                    vc_id: vc.id,
+                    id: claimedVC.schema_data.id,
+                    version: claimedVC.schema_data.version,
+                    name: claimedVC.schema_data.name,
+                    schema: claimedVC.schema_data.schema,
+                    issuer_did: claimedVC.schema_data.issuer_did,
+                    issuer_name: claimedVC.schema_data.issuer_name,
+                    image_link: claimedVC.schema_data.image_link || null,
+                    expired_in: claimedVC.schema_data.expired_in,
+                    isActive: claimedVC.schema_data.isActive,
+                  };
+                  allSchemaData.push(schemaData);
+                  console.log(`[VC Claim] Schema data extracted for updated VC: ${vc.id}`);
+                }
+              } else {
+                // ISSUANCE (default): Add new VC
+                console.log('[VC Claim] Processing ISSUANCE request');
+
+                const vc = decryptedData.verifiable_credential as unknown as VerifiableCredential;
+
+                // Validate that the VC has required fields
+                if (!vc || typeof vc !== 'object') {
+                  throw new Error('Decrypted data is not a valid object');
+                }
+
+                if (!vc.id) {
+                  console.error('[VC Claim] Decrypted VC is missing id field:', vc);
+                  throw new Error('Decrypted VC is missing required "id" field');
+                }
+
+                // Attach the claimId and source to the VC for later confirmation
+                vc.claimId = claimedVC.claimId;
+                vc.source = claimedVC.source;
+
+                console.log(
+                  `[VC Claim] Decrypted VC successfully: ${vc.id} (claimId: ${claimedVC.claimId}) from ${claimedVC.source}`
+                );
+                allDecryptedVCs.push(vc);
+
+                // Extract schema_data if present
+                if (claimedVC.schema_data) {
+                  console.log(`[VC Claim] Extracting schema_data for VC: ${vc.id}`);
+                  const schemaData: SchemaData = {
+                    vc_id: vc.id, // Link to VC using VC's id
+                    id: claimedVC.schema_data.id,
+                    version: claimedVC.schema_data.version,
+                    name: claimedVC.schema_data.name,
+                    schema: claimedVC.schema_data.schema,
+                    issuer_did: claimedVC.schema_data.issuer_did,
+                    issuer_name: claimedVC.schema_data.issuer_name,
+                    image_link: claimedVC.schema_data.image_link || null,
+                    expired_in: claimedVC.schema_data.expired_in,
+                    isActive: claimedVC.schema_data.isActive,
+                  };
+                  allSchemaData.push(schemaData);
+                  console.log(`[VC Claim] Schema data extracted for VC: ${vc.id}`);
+                }
               }
             } catch (decryptError) {
               console.error(`[VC Claim] Failed to decrypt VC ${claimedVC.claimId}:`, decryptError);
@@ -2216,6 +2277,7 @@ export default function MyCredentialPage() {
           setShowUpdateModal(false);
           setUpdatingCredential(null);
           setUpdatedAttributes({});
+          setOriginalAttributes({});
           setUpdateReason('');
         }}
         updatingCredential={updatingCredential}
