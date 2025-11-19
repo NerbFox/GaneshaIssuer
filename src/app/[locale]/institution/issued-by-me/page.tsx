@@ -18,7 +18,11 @@ import InfoModal from '@/components/InfoModal';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
-import { decryptWithPrivateKey, encryptWithPublicKey, type JsonObject } from '@/utils/encryptUtils';
+import {
+  decryptWithIssuerPrivateKey,
+  encryptWithPublicKey,
+  encryptWithIssuerPublicKey,
+} from '@/utils/encryptUtils';
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey } from '@/utils/vcSigner';
 
@@ -269,17 +273,12 @@ export default function IssuedByMePage() {
       setSchemas(transformedSchemas);
 
       // Decrypt and process all encrypted VC data
-      const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
       const transformedCredentials: IssuedCredential[] = [];
 
       for (const vcData of credentialsResult.data.data) {
-        if (!privateKeyHex) {
-          continue;
-        }
-
         try {
-          // Decrypt the encrypted body
-          const decryptedData = await decryptWithPrivateKey(vcData.encrypted_body, privateKeyHex);
+          // Decrypt the encrypted body using issuer's private key from localStorage
+          const decryptedData = await decryptWithIssuerPrivateKey(vcData.encrypted_body);
           console.log('decryptedData', decryptedData);
 
           // The decrypted data should have structure: { vc_status: boolean, verifiable_credentials: [...] }
@@ -566,10 +565,7 @@ export default function IssuedByMePage() {
       };
 
       // Encrypt with holder's public key
-      const encryptedBody = await encryptWithPublicKey(
-        JSON.parse(JSON.stringify(wrappedBody)),
-        holderPublicKey
-      );
+      const encryptedBody = await encryptWithPublicKey(wrappedBody, holderPublicKey);
 
       // Call the update-vc API
       const updateUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.UPDATE_VC);
@@ -679,7 +675,7 @@ export default function IssuedByMePage() {
                 id: vcId,
               },
               reason: reason,
-            } as JsonObject,
+            },
             holderPublicKey
           );
 
@@ -835,10 +831,7 @@ export default function IssuedByMePage() {
           };
 
           // Encrypt with holder's public key
-          const encryptedBody = await encryptWithPublicKey(
-            JSON.parse(JSON.stringify(wrappedBody)),
-            holderPublicKey
-          );
+          const encryptedBody = await encryptWithPublicKey(wrappedBody, holderPublicKey);
 
           // Call the renew-vc API
           const renewUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.RENEW_VC);
@@ -968,9 +961,8 @@ export default function IssuedByMePage() {
       // Step 1: Get issuer information from localStorage
       const issuerDid = localStorage.getItem('institutionDID');
       const institutionDataStr = localStorage.getItem('institutionData');
-      const issuerPublicKey = localStorage.getItem('institutionSigningPublicKey');
 
-      if (!issuerDid || !institutionDataStr || !issuerPublicKey) {
+      if (!issuerDid || !institutionDataStr) {
         throw new Error('Issuer information not found. Please log in again.');
       }
 
@@ -1053,19 +1045,12 @@ export default function IssuedByMePage() {
       };
 
       // Step 10: Encrypt the body with holder's public key
-      const encryptedBodyByHolderPK = await encryptWithPublicKey(
-        JSON.parse(JSON.stringify(wrappedBody)),
-        holderPublicKey
-      );
-      const encryptedBodyByIssuerPK = await encryptWithPublicKey(
-        JSON.parse(
-          JSON.stringify({
-            vc_status: true,
-            verifiable_credentials: [signedVC],
-          })
-        ),
-        issuerPublicKey
-      );
+      const encryptedBodyByHolderPK = await encryptWithPublicKey(wrappedBody, holderPublicKey);
+      // Encrypt with issuer's public key for storage
+      const encryptedBodyByIssuerPK = await encryptWithIssuerPublicKey({
+        vc_status: true,
+        verifiable_credentials: [signedVC],
+      });
       console.log('Encrypted body length:', encryptedBodyByHolderPK.length);
 
       // Step 11: Call the API to issue the credential

@@ -17,7 +17,11 @@ import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey } from '@/utils/vcSigner';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
 import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
-import { decryptWithPrivateKey, encryptWithPublicKey, type JsonObject } from '@/utils/encryptUtils';
+import {
+  decryptWithIssuerPrivateKey,
+  encryptWithPublicKey,
+  encryptWithIssuerPublicKey,
+} from '@/utils/encryptUtils';
 
 interface IssueRequest {
   id: string;
@@ -197,47 +201,44 @@ export default function IssueRequestPage() {
   ): Promise<{ schema_id: string; schema_version: number } | null> => {
     // Only decrypt if we have a private key available
     if (typeof window !== 'undefined') {
-      const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
-      if (privateKeyHex) {
-        try {
-          const decryptedBody = await decryptWithPrivateKey(encryptedBody, privateKeyHex);
-          console.log('decryptedBody', decryptedBody);
+      try {
+        const decryptedBody = await decryptWithIssuerPrivateKey(encryptedBody);
+        console.log('decryptedBody', decryptedBody);
 
-          // For ISSUANCE requests: schema_id and schema_version are directly in the body
-          if (decryptedBody.schema_id && decryptedBody.schema_version) {
-            return {
-              schema_id: String(decryptedBody.schema_id || ''),
-              schema_version: Number(decryptedBody.schema_version || 1),
-            };
-          }
+        // For ISSUANCE requests: schema_id and schema_version are directly in the body
+        if (decryptedBody.schema_id && decryptedBody.schema_version) {
+          return {
+            schema_id: String(decryptedBody.schema_id || ''),
+            schema_version: Number(decryptedBody.schema_version || 1),
+          };
+        }
 
-          // For UPDATE/RENEW/REVOKE requests: extract schema info from vc_id
-          // vc_id format: schema_id:version:holder_did:timestamp
-          if (decryptedBody.vc_id && typeof decryptedBody.vc_id === 'string') {
-            const vcIdParts = decryptedBody.vc_id.split(':');
-            if (vcIdParts.length >= 2) {
-              const schema_id = vcIdParts[0];
-              const schema_version = parseInt(vcIdParts[1], 10);
+        // For UPDATE/RENEW/REVOKE requests: extract schema info from vc_id
+        // vc_id format: schema_id:version:holder_did:timestamp
+        if (decryptedBody.vc_id && typeof decryptedBody.vc_id === 'string') {
+          const vcIdParts = decryptedBody.vc_id.split(':');
+          if (vcIdParts.length >= 2) {
+            const schema_id = vcIdParts[0];
+            const schema_version = parseInt(vcIdParts[1], 10);
 
-              if (schema_id && !isNaN(schema_version)) {
-                console.log(`Extracted schema from vc_id: ${schema_id} v${schema_version}`);
-                return {
-                  schema_id,
-                  schema_version,
-                };
-              }
+            if (schema_id && !isNaN(schema_version)) {
+              console.log(`Extracted schema from vc_id: ${schema_id} v${schema_version}`);
+              return {
+                schema_id,
+                schema_version,
+              };
             }
           }
-
-          console.warn('Could not extract schema info from encrypted body:', decryptedBody);
-        } catch (err) {
-          console.error('Failed to decrypt encrypted_body:', err);
-          // Silently handle decryption error - do nothing
         }
+
+        console.warn('Could not extract schema info from encrypted body:', decryptedBody);
+      } catch (err) {
+        console.error('Failed to decrypt encrypted_body:', err);
+        // Silently handle decryption error - do nothing
       }
     }
 
-    // If no private key available or not in browser, silently return null
+    // If not in browser or decryption failed, silently return null
     return null;
   };
 
@@ -760,20 +761,12 @@ export default function IssueRequestPage() {
         // Decrypt the full encrypted_body to get all data including attributes
         let fullDecryptedBody: Record<string, unknown> | null = null;
         if (typeof window !== 'undefined') {
-          const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
-          if (privateKeyHex) {
-            try {
-              fullDecryptedBody = await decryptWithPrivateKey(
-                request.encrypted_body,
-                privateKeyHex
-              );
-              console.log('Full decrypted body:', fullDecryptedBody);
-            } catch (err) {
-              console.error('Failed to decrypt encrypted_body:', err);
-              throw new Error('Failed to decrypt encrypted_body');
-            }
-          } else {
-            throw new Error('Institution signing private key not found');
+          try {
+            fullDecryptedBody = await decryptWithIssuerPrivateKey(request.encrypted_body);
+            console.log('Full decrypted body:', fullDecryptedBody);
+          } catch (err) {
+            console.error('Failed to decrypt encrypted_body:', err);
+            throw new Error('Failed to decrypt encrypted_body');
           }
         }
 
@@ -1056,10 +1049,7 @@ export default function IssueRequestPage() {
         console.log('Revoke body (before encryption):', wrappedBody);
 
         // Encrypt the revoke body with holder's public key
-        const encryptedBody = await encryptWithPublicKey(
-          wrappedBody as unknown as JsonObject,
-          holderPublicKeyHex
-        );
+        const encryptedBody = await encryptWithPublicKey(wrappedBody, holderPublicKeyHex);
         console.log('Encrypted revoke body:', encryptedBody);
         console.log('Encrypted revoke body length:', encryptedBody.length);
 
@@ -1141,10 +1131,6 @@ export default function IssueRequestPage() {
         console.warn('Using default issuer name');
       }
 
-      const issuerPublicKeyHex = localStorage.getItem('institutionSigningPublicKey');
-      if (!issuerPublicKeyHex) {
-        throw new Error('Institution signing public key not found');
-      }
       // Fetch holder's DID Document to get public key for encryption
       let holderPublicKeyHex: string;
       try {
@@ -1280,10 +1266,11 @@ export default function IssueRequestPage() {
       let requestBody: IssueRequestBody | UpdateRequestBody | RenewRequestBody | RevokeRequestBody;
 
       if (requestType === 'ISSUANCE') {
-        const encryptedBodyByIssuerPK = await encryptWithPublicKey(
-          JSON.parse(JSON.stringify({ vc_status: true, verifiable_credentials: [signedVC] })),
-          issuerPublicKeyHex
-        );
+        // Encrypt with issuer's public key for storage
+        const encryptedBodyByIssuerPK = await encryptWithIssuerPublicKey({
+          vc_status: true,
+          verifiable_credentials: [signedVC],
+        });
 
         const storeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC);
         const storeResponse = await authenticatedPost(storeUrl, {
@@ -1337,11 +1324,7 @@ export default function IssueRequestPage() {
         };
 
         // Encrypt the signed VC with holder's public key
-        // SignedVC is JSON-serializable, so we can safely cast it
-        const encryptedBodyByHolderPK = await encryptWithPublicKey(
-          JSON.parse(JSON.stringify(wrappedBody)),
-          holderPublicKeyHex
-        );
+        const encryptedBodyByHolderPK = await encryptWithPublicKey(wrappedBody, holderPublicKeyHex);
 
         console.log('Encrypted body (encrypted signed VC):', encryptedBodyByHolderPK);
         console.log('Encrypted body length:', encryptedBodyByHolderPK.length);
@@ -1371,11 +1354,7 @@ export default function IssueRequestPage() {
         };
 
         // Encrypt the signed VC with holder's public key
-        // SignedVC is JSON-serializable, so we can safely cast it
-        const encryptedBodyByHolderPK = await encryptWithPublicKey(
-          JSON.parse(JSON.stringify(wrappedBody)),
-          holderPublicKeyHex
-        );
+        const encryptedBodyByHolderPK = await encryptWithPublicKey(wrappedBody, holderPublicKeyHex);
 
         console.log('Encrypted body (encrypted signed VC):', encryptedBodyByHolderPK);
         console.log('Encrypted body length:', encryptedBodyByHolderPK.length);
@@ -1398,11 +1377,7 @@ export default function IssueRequestPage() {
         };
 
         // Encrypt the signed VC with holder's public key
-        // SignedVC is JSON-serializable, so we can safely cast it
-        const encryptedBodyByHolderPK = await encryptWithPublicKey(
-          JSON.parse(JSON.stringify(wrappedBody)),
-          holderPublicKeyHex
-        );
+        const encryptedBodyByHolderPK = await encryptWithPublicKey(wrappedBody, holderPublicKeyHex);
 
         console.log('Encrypted body (encrypted signed VC):', encryptedBodyByHolderPK);
         console.log('Encrypted body length:', encryptedBodyByHolderPK.length);

@@ -21,6 +21,12 @@ export interface JsonObject {
 interface JsonArray extends Array<JsonValue> {}
 
 /**
+ * Type for any JSON-serializable data (accepts any object/array that can be JSON.stringified)
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type JsonSerializable = JsonObject | JsonArray | string | number | boolean | null | any;
+
+/**
  * Get cryptographically secure random bytes
  * Works on both web (using crypto.getRandomValues) and React Native (using expo-crypto)
  */
@@ -150,12 +156,12 @@ function computeECIESTag(
  * 3. Symmetric Encryption: AES-256-CTR with derived encryption key
  * 4. Authentication: HMAC-SHA256 with derived MAC key for integrity verification
  *
- * @param data - The data object to encrypt
+ * @param data - The data to encrypt (any JSON-serializable value)
  * @param publicKeyHex - Issuer's public key (P-256, uncompressed format starting with 04)
  * @returns Base64url encoded encrypted data: [Ephemeral PubKey][IV][Ciphertext][MAC Tag]
  */
 export async function encryptWithPublicKey(
-  data: JsonObject,
+  data: JsonSerializable,
   publicKeyHex: string
 ): Promise<string> {
   try {
@@ -272,12 +278,12 @@ export async function encryptWithPublicKey(
  *
  * @param encryptedData - Base64url encoded encrypted data
  * @param privateKeyHex - Receiver's private key (P-256)
- * @returns Decrypted data object
+ * @returns Decrypted data (any JSON-serializable value)
  */
 export async function decryptWithPrivateKey(
   encryptedData: string,
   privateKeyHex: string
-): Promise<JsonObject> {
+): Promise<JsonSerializable> {
   // Step 1: Decode base64url to bytes
   const combined = base64UrlToUint8Array(encryptedData);
 
@@ -343,11 +349,14 @@ export async function decryptWithPrivateKey(
 /**
  * Sign data with ECDSA (P-256 and SHA-256)
  *
- * @param data - The data object to sign
+ * @param data - The data to sign (any JSON-serializable value)
  * @param privateKeyHex - Private key in hex format (P-256, 32 bytes)
  * @returns Base64url encoded signature
  */
-export async function signWithES256(data: JsonObject, privateKeyHex: string): Promise<string> {
+export async function signWithES256(
+  data: JsonSerializable,
+  privateKeyHex: string
+): Promise<string> {
   try {
     console.log('[Signing] Starting ECDSA signature with P-256');
 
@@ -384,13 +393,13 @@ export async function signWithES256(data: JsonObject, privateKeyHex: string): Pr
 /**
  * Verify ECDSA signature
  *
- * @param data - The data object that was signed
+ * @param data - The data that was signed (any JSON-serializable value)
  * @param signature - Base64url encoded signature
  * @param publicKeyHex - Public key in hex format (P-256, uncompressed, starting with 04)
  * @returns True if signature is valid
  */
 export async function verifySignature(
-  data: JsonObject,
+  data: JsonSerializable,
   signature: string,
   publicKeyHex: string
 ): Promise<boolean> {
@@ -423,4 +432,42 @@ export async function verifySignature(
     console.error('[Verify] Error verifying signature:', error);
     return false;
   }
+}
+
+// =============================================================================
+// WRAPPER FUNCTIONS USING LOCALSTORAGE KEYS
+// =============================================================================
+
+/**
+ * Encrypt data with issuer's public key from localStorage
+ * Uses the institutionSigningPublicKey stored in localStorage
+ *
+ * @param data - The data to encrypt (any JSON-serializable value)
+ * @returns Base64url encoded encrypted data
+ * @throws Error if public key not found in localStorage
+ */
+export async function encryptWithIssuerPublicKey(data: JsonSerializable): Promise<string> {
+  const publicKeyHex = localStorage.getItem('institutionSigningPublicKey');
+  if (!publicKeyHex) {
+    throw new Error('Institution signing public key not found in localStorage');
+  }
+  return encryptWithPublicKey(data, publicKeyHex);
+}
+
+/**
+ * Decrypt data with issuer's private key from localStorage
+ * Uses the institutionSigningPrivateKey stored in localStorage
+ *
+ * @param encryptedData - Base64url encoded encrypted data
+ * @returns Decrypted data (any JSON-serializable value)
+ * @throws Error if private key not found in localStorage
+ */
+export async function decryptWithIssuerPrivateKey(
+  encryptedData: string
+): Promise<JsonSerializable> {
+  const privateKeyHex = localStorage.getItem('institutionSigningPrivateKey');
+  if (!privateKeyHex) {
+    throw new Error('Institution signing private key not found in localStorage');
+  }
+  return decryptWithPrivateKey(encryptedData, privateKeyHex);
 }
