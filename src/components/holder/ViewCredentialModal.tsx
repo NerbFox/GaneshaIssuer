@@ -10,6 +10,7 @@ interface ViewCredentialModalProps {
   onClose: () => void;
   selectedCredential: VerifiableCredential | null;
   onDownload: (id: string) => void;
+  onDownloadPdf?: (id: string) => void;
 }
 
 export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
@@ -17,6 +18,7 @@ export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
   onClose,
   selectedCredential,
   onDownload,
+  onDownloadPdf,
 }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="View Credential" minHeight="700px">
@@ -47,6 +49,7 @@ export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
           }}
           onClose={onClose}
           onDownload={() => onDownload(selectedCredential.id)}
+          onDownloadPdf={onDownloadPdf ? () => onDownloadPdf(selectedCredential.id) : undefined}
         />
       )}
     </Modal>

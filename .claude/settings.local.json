@@ -1,6 +1,11 @@
 {
   "permissions": {
-    "allow": ["Bash(tree:*)"],
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx eslint:*)"
+    ],
     "deny": [],
     "ask": []
   }
