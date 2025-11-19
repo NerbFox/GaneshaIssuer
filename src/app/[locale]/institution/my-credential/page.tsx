@@ -1028,6 +1028,7 @@ export default function MyCredentialPage() {
     setIsSchemasLoading(true);
     try {
       const token = localStorage.getItem('institutionToken');
+      const institutionDid = localStorage.getItem('institutionDID');
 
       const headers: HeadersInit = {
         accept: 'application/json',
@@ -1054,13 +1055,19 @@ export default function MyCredentialPage() {
       console.log('Schemas fetched:', result);
 
       if (result.success && result.data) {
-        const schemasWithIds = addCompositeIds(result.data.data);
+        // Filter out schemas where issuer_did matches the institution's own DID
+        const filteredData = result.data.data.filter(
+          (schema: Schema) => schema.issuer_did !== institutionDid
+        );
+
+        const schemasWithIds = addCompositeIds(filteredData);
         console.log(
-          'Schemas with composite IDs:',
+          'Schemas with composite IDs (excluding own):',
           schemasWithIds.map((s) => ({
             id: s.id,
             version: s.version,
             compositeId: s.compositeId,
+            issuer_did: s.issuer_did,
           }))
         );
         setSchemas(schemasWithIds);
@@ -1681,13 +1688,19 @@ export default function MyCredentialPage() {
   };
 
   const handleSchemaSearch = (value: string) => {
+    const institutionDid = localStorage.getItem('institutionDID');
+
+    // Filter schemas by search term, also ensuring institution's own schemas are excluded
     const filtered = schemas.filter((schema) => {
       const searchLower = value.toLowerCase();
-      return (
+      const matchesSearch =
         schema.name.toLowerCase().includes(searchLower) ||
-        schema.issuer_name.toLowerCase().includes(searchLower)
-      );
+        schema.issuer_name.toLowerCase().includes(searchLower);
+      const notOwnSchema = schema.issuer_did !== institutionDid;
+
+      return matchesSearch && notOwnSchema;
     });
+
     // Ensure all filtered schemas have compositeId
     const filteredWithIds = filtered.map((schema, index) => ({
       ...schema,
