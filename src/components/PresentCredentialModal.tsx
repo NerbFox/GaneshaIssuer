@@ -12,8 +12,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import Modal from './Modal';
-import { ThemedText } from './ThemedText';
+import Modal from '@/components/shared/Modal';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { VerifiableCredential } from '@/utils/indexedDB';
 import { createVerifiablePresentation, signVPWithStoredKey } from '@/utils/vpSigner';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
