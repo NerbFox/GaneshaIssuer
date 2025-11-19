@@ -492,7 +492,7 @@ export default function SharedWithMePage() {
       if (!comparison.isComplete) {
         // Show orange warning for mismatch
         setInfoModalConfig({
-          title: '⚠️ Credential Mismatch Detected',
+          title: 'Credential Mismatch Detected',
           message: `Warning: The shared credentials do not match the requested credentials.\n\n${comparison.message}\n\nDo you still want to proceed with verification?`,
           buttonColor: 'orange',
           showCancelButton: true,
@@ -507,7 +507,7 @@ export default function SharedWithMePage() {
         setInfoModalConfig({
           title: 'Verify Credentials',
           message:
-            '🔍 You are about to verify the credentials in this Verifiable Presentation.\n\nThis will check the cryptographic signatures and validate all credentials. Once verified, you will see the detailed verification results.\n\nDo you want to proceed?',
+            'You are about to verify the credentials in this Verifiable Presentation.\n\nThis will check the cryptographic signatures and validate all credentials. Once verified, you will see the detailed verification results.\n\nDo you want to proceed?',
           buttonColor: 'blue',
           showCancelButton: true,
           onConfirm: () => {
@@ -909,7 +909,7 @@ export default function SharedWithMePage() {
 
             // Show error modal
             setInfoModalConfig({
-              title: '❌ Invalid QR Code',
+              title: 'Invalid QR Code',
               message: `${errorMessage}\n\nExpected format:\n{\n  "type": "VP_ID",\n  "vpId": "your-vp-id-here"\n}\n\nPlease scan a valid VP QR code.`,
               buttonColor: 'red',
               showCancelButton: false,
@@ -953,7 +953,7 @@ export default function SharedWithMePage() {
       if (result.success && result.found === false) {
         setShowScannedVPModal(false);
         setInfoModalConfig({
-          title: '⚠️ VP Already Used',
+          title: 'VP Already Used',
           message:
             'This Verifiable Presentation has already been verified or is no longer available.\n\nThe VP may have been:\n• Already verified by you or another verifier\n• Revoked by the holder\n• Expired\n\nPlease request a new VP from the holder if needed.',
           buttonColor: 'orange',
@@ -1106,7 +1106,7 @@ export default function SharedWithMePage() {
       label: 'HOLDER DID',
       sortKey: 'holderDid',
       render: (row) => (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-1">
           <ThemedText className="text-sm font-medium text-gray-900">
             {row.holderDid.length > 30 ? `${row.holderDid.substring(0, 30)}...` : row.holderDid}
           </ThemedText>
@@ -1121,7 +1121,7 @@ export default function SharedWithMePage() {
       label: 'CREDENTIALS SHARED',
       sortKey: 'credentialType',
       render: (row) => (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-1">
           <ThemedText className="text-sm font-medium text-gray-900">
             {row.credentialType.split(', ').length} Credential(s)
           </ThemedText>
@@ -1139,7 +1139,7 @@ export default function SharedWithMePage() {
       label: 'SHARED DATE',
       sortKey: 'sharedDate',
       render: (row) => (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-1">
           <ThemedText className="text-sm text-gray-900">{formatDate(row.sharedDate)}</ThemedText>
           <ThemedText className="text-xs text-gray-500">
             {new Date(row.sharedDate).toLocaleTimeString('en-US', {
@@ -1157,7 +1157,7 @@ export default function SharedWithMePage() {
       render: (row) => (
         <div className="flex flex-col gap-1">
           <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium w-fit ${
               row.verified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
             }`}
           >
@@ -1170,7 +1170,7 @@ export default function SharedWithMePage() {
       id: 'action',
       label: 'ACTION',
       render: (row) => (
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <button
             onClick={() => handleView(row.id)}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
@@ -1194,7 +1194,7 @@ export default function SharedWithMePage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0D2B45] mx-auto"></div>
           <p className="mt-4 text-gray-600">Verifying access...</p>
         </div>
@@ -1204,30 +1204,30 @@ export default function SharedWithMePage() {
 
   return (
     <InstitutionLayout activeTab="shared-with-me">
-      <div className="p-12">
+      <div className="p-12 space-y-8">
         <ThemedText fontSize={40} fontWeight={700} className="text-black mb-8">
           Shared With Me
         </ThemedText>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="text-center">
+            <div className="text-center space-y-4">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
               <ThemedText className="text-gray-600">Loading shared credentials...</ThemedText>
             </div>
           </div>
         ) : (
-          <>
+          <div className="space-y-8">
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
-              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Total Shared</ThemedText>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-blue-50 flex flex-col gap-2 rounded-2xl p-6">
+                <ThemedText className="text-sm text-gray-600">Total Shared</ThemedText>
                 <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                   {credentials.length}
                 </ThemedText>
               </div>
-              <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Verified</ThemedText>
+              <div className="bg-blue-50 flex flex-col gap-2 rounded-2xl p-6">
+                <ThemedText className="text-sm text-gray-600">Verified</ThemedText>
                 <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                   {verifiedCount}
                 </ThemedText>
@@ -1235,62 +1235,64 @@ export default function SharedWithMePage() {
             </div>
 
             {/* Data Table */}
-            <DataTable
-              data={filteredCredentials}
-              columns={columns}
-              onFilter={handleFilter}
-              searchPlaceholder="Search..."
-              onSearch={handleSearch}
-              enableSelection={true}
-              totalCount={filteredCredentials.length}
-              rowsPerPageOptions={[5, 10, 25, 50, 100]}
-              idKey="id"
-              topRightButtons={
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleOpenQRScanner}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+            <div className="space-y-4">
+              <DataTable
+                data={filteredCredentials}
+                columns={columns}
+                onFilter={handleFilter}
+                searchPlaceholder="Search..."
+                onSearch={handleSearch}
+                enableSelection={true}
+                totalCount={filteredCredentials.length}
+                rowsPerPageOptions={[5, 10, 25, 50, 100]}
+                idKey="id"
+                topRightButtons={
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleOpenQRScanner}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer shadow-sm"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                      />
-                    </svg>
-                    Scan a VP
-                  </button>
-                  <button
-                    onClick={handleOpenRequestVPModal}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-medium cursor-pointer"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                        />
+                      </svg>
+                      Scan a VP
+                    </button>
+                    <button
+                      onClick={handleOpenRequestVPModal}
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-medium cursor-pointer shadow-sm"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                    Request VP
-                  </button>
-                </div>
-              }
-            />
-          </>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      Request VP
+                    </button>
+                  </div>
+                }
+              />
+            </div>
+          </div>
         )}
       </div>
 
@@ -1298,13 +1300,13 @@ export default function SharedWithMePage() {
       {showFilterModal && (
         <div
           ref={filterModalRef}
-          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 p-6 w-80 z-50"
+          className="fixed bg-white rounded-lg shadow-xl border border-gray-200 p-6 w-80 z-50 space-y-6"
           style={{
             top: `${filterButtonPosition.top}px`,
             left: `${filterButtonPosition.left}px`,
           }}
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between">
             <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
               Filter Credentials
             </ThemedText>
@@ -1324,8 +1326,8 @@ export default function SharedWithMePage() {
           </div>
 
           {/* Verified Filter */}
-          <div>
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
+          <div className="space-y-2">
+            <ThemedText className="block text-sm font-medium text-gray-900">
               Verification Status
             </ThemedText>
             <select
@@ -1351,13 +1353,13 @@ export default function SharedWithMePage() {
         maxWidth="1000px"
         minHeight="700px"
       >
-        <div className="px-8 py-6">
+        <div className="px-10 py-8 space-y-8">
           {/* DID Input Section */}
-          <div className="grid grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-2 gap-8">
             {/* DID Prefix */}
-            <div>
-              <ThemedText className="text-sm text-gray-600 mb-2">
-                DID Prefix<span className="text-red-500">*</span>
+            <div className="space-y-2">
+              <ThemedText className="text-sm text-gray-600">
+                DID Prefix<span className="text-red-500 ml-1">*</span>
               </ThemedText>
               <select
                 value={vpDidPrefix}
@@ -1373,9 +1375,9 @@ export default function SharedWithMePage() {
             </div>
 
             {/* Holder DID */}
-            <div>
-              <ThemedText className="text-sm text-gray-600 mb-2">
-                Holder DID<span className="text-red-500">*</span>
+            <div className="space-y-2">
+              <ThemedText className="text-sm text-gray-600">
+                Holder DID<span className="text-red-500 ml-1">*</span>
               </ThemedText>
               <input
                 type="text"
@@ -1390,17 +1392,17 @@ export default function SharedWithMePage() {
           {/* Schemas Selection Table */}
           {isSchemasLoading ? (
             <div className="flex items-center justify-center py-20">
-              <div className="text-center">
+              <div className="text-center space-y-4">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
                 <ThemedText className="text-gray-600">Loading schemas...</ThemedText>
               </div>
             </div>
           ) : (
-            <>
-              <div className="mb-6">
-                <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-3">
-                  Select Credentials to Request
-                </ThemedText>
+            <div className="space-y-4">
+              <ThemedText fontSize={16} fontWeight={600} className="text-gray-900">
+                Select Credentials to Request
+              </ThemedText>
+              <div className="border border-gray-100 rounded-xl overflow-hidden">
                 <DataTable<SchemaWithCompositeId>
                   data={filteredSchemas.filter((s) => s.compositeId)}
                   columns={schemaColumns}
@@ -1415,10 +1417,10 @@ export default function SharedWithMePage() {
                   expandableRows={{
                     expandedRowId: expandedSchemaId,
                     renderExpandedContent: (schema: SchemaWithCompositeId) => (
-                      <div className="space-y-6 bg-white p-4 rounded-lg">
+                      <div className="space-y-8 bg-white p-6 rounded-lg border border-gray-100 m-4">
                         {/* VC Info */}
-                        <div>
-                          <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-3">
+                        <div className="space-y-4">
+                          <ThemedText fontSize={16} fontWeight={600} className="text-gray-900">
                             VC Info
                           </ThemedText>
                           <DataTable
@@ -1434,8 +1436,8 @@ export default function SharedWithMePage() {
                         </div>
 
                         {/* Attributes */}
-                        <div>
-                          <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-3">
+                        <div className="space-y-4">
+                          <ThemedText fontSize={16} fontWeight={600} className="text-gray-900">
                             Attributes
                           </ThemedText>
                           <DataTable
@@ -1453,30 +1455,30 @@ export default function SharedWithMePage() {
                     ),
                   }}
                 />
-
-                {filteredSchemas.length === 0 && (
-                  <div className="text-center py-12">
-                    <ThemedText className="text-gray-500">No schemas available</ThemedText>
-                  </div>
-                )}
               </div>
-            </>
+
+              {filteredSchemas.length === 0 && (
+                <div className="text-center py-12">
+                  <ThemedText className="text-gray-500">No schemas available</ThemedText>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Selected Schemas Summary */}
           {selectedCredentialsList.length > 0 && (
-            <div className="mb-6">
-              <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-3">
+            <div className="space-y-4">
+              <ThemedText fontSize={16} fontWeight={600} className="text-gray-900">
                 Selected Schemas ({selectedCredentialsList.length})
               </ThemedText>
-              <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
-                <div className="flex flex-wrap gap-2">
+              <div className="bg-gray-50 rounded-lg p-6 max-h-48 overflow-y-auto">
+                <div className="flex flex-wrap gap-3">
                   {selectedCredentialsList.map((schema) => (
                     <div
                       key={schema.compositeId}
-                      className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-gray-200"
+                      className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg border border-gray-200 shadow-sm"
                     >
-                      <div className="flex flex-col">
+                      <div className="flex flex-col gap-1">
                         <ThemedText className="text-sm font-medium text-gray-900">
                           {schema.name} v{schema.version}
                         </ThemedText>
@@ -1511,25 +1513,25 @@ export default function SharedWithMePage() {
           )}
 
           {/* Purpose Input */}
-          <div className="mb-6">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              Purpose <span className="text-red-500">*</span>
+          <div className="space-y-2">
+            <ThemedText className="block text-sm font-medium text-gray-900">
+              Purpose <span className="text-red-500 ml-1">*</span>
             </ThemedText>
             <textarea
               value={vpPurpose}
               onChange={(e) => setVpPurpose(e.target.value)}
               placeholder="Enter the purpose for requesting this Verifiable Presentation..."
               rows={4}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 resize-none"
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 resize-none"
             />
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
             <button
               onClick={handleCloseRequestVPModal}
               disabled={isSubmittingVP}
-              className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -1541,9 +1543,9 @@ export default function SharedWithMePage() {
                 !vpPurpose.trim() ||
                 isSubmittingVP
               }
-              className={`px-6 py-2.5 rounded-lg transition-colors text-sm font-medium ${
+              className={`px-6 py-3 rounded-lg transition-colors text-sm font-medium ${
                 vpHolderDid && selectedCredentials.size > 0 && vpPurpose.trim() && !isSubmittingVP
-                  ? 'bg-purple-500 text-white hover:bg-purple-600'
+                  ? 'bg-purple-500 text-white hover:bg-purple-600 shadow-sm'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
@@ -1576,10 +1578,10 @@ export default function SharedWithMePage() {
         maxWidth="1200px"
         minHeight="600px"
       >
-        <div className="px-8 py-6">
+        <div className="px-10 py-8 space-y-8">
           {isLoadingVPDetail ? (
             <div className="flex items-center justify-center py-20">
-              <div className="text-center">
+              <div className="text-center space-y-4">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
                 <ThemedText className="text-gray-600">Loading VP details...</ThemedText>
               </div>
@@ -1587,26 +1589,34 @@ export default function SharedWithMePage() {
           ) : selectedVPDetail ? (
             <div className="space-y-6">
               {/* Header Info */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
                 <div className="grid grid-cols-2 gap-6">
-                  <div className="space-x-2">
-                    <ThemedText className="text-sm text-gray-600 mb-1">VP ID</ThemedText>
-                    <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 font-mono">
+                  <div className="space-y-2">
+                    <ThemedText className="text-sm text-gray-600 block">VP ID</ThemedText>
+                    <ThemedText
+                      fontSize={13}
+                      fontWeight={600}
+                      className="text-gray-900 font-mono block"
+                    >
                       {selectedVPDetail.vpSharing.vp_id}
                     </ThemedText>
                   </div>
-                  <div className="space-x-2">
-                    <ThemedText className="text-sm text-gray-600 mb-1">VP Request ID</ThemedText>
-                    <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 font-mono">
+                  <div className="space-y-2">
+                    <ThemedText className="text-sm text-gray-600 block">VP Request ID</ThemedText>
+                    <ThemedText
+                      fontSize={13}
+                      fontWeight={600}
+                      className="text-gray-900 font-mono block"
+                    >
                       {selectedVPDetail.requestDetail.id}
                     </ThemedText>
                   </div>
-                  <div className="space-x-2">
-                    <ThemedText className="text-sm text-gray-600 mb-1">
+                  <div className="space-y-2">
+                    <ThemedText className="text-sm text-gray-600 block">
                       Verification Status
                     </ThemedText>
                     <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                      className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-medium ${
                         selectedVPDetail.requestDetail.verify_status === 'VERIFIED'
                           ? 'bg-green-100 text-green-700'
                           : selectedVPDetail.requestDetail.verify_status === 'REJECTED'
@@ -1617,8 +1627,8 @@ export default function SharedWithMePage() {
                       {selectedVPDetail.requestDetail.verify_status.replace('_', ' ')}
                     </span>
                   </div>
-                  <div className="space-x-2">
-                    <ThemedText className="text-sm text-gray-600 mb-1">Request Status</ThemedText>
+                  <div className="space-y-2">
+                    <ThemedText className="text-sm text-gray-600 block">Request Status</ThemedText>
                     <span
                       className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                         selectedVPDetail.requestDetail.status === 'ACCEPT'
@@ -1631,37 +1641,37 @@ export default function SharedWithMePage() {
                       {selectedVPDetail.requestDetail.status}
                     </span>
                   </div>
-                  <div className="col-span-2 space-x-2">
-                    <ThemedText className="text-sm text-gray-600 mb-1">Holder DID</ThemedText>
-                    <ThemedText fontSize={12} className="text-gray-900 font-mono break-all">
+                  <div className="col-span-2 space-y-2">
+                    <ThemedText className="text-sm text-gray-600 block">Holder DID</ThemedText>
+                    <ThemedText fontSize={13} className="text-gray-900 font-mono break-all block">
                       {selectedVPDetail.requestDetail.holder_did}
                     </ThemedText>
                   </div>
                 </div>
-                <div className="mt-4 space-x-2">
-                  <ThemedText className="text-sm text-gray-600 mb-1">Purpose</ThemedText>
-                  <ThemedText fontSize={14} className="text-gray-900">
+                <div className="mt-6 pt-5 border-t border-blue-200 space-y-2">
+                  <ThemedText className="text-sm text-gray-600 block">Purpose</ThemedText>
+                  <ThemedText fontSize={14} className="text-gray-900 leading-relaxed block">
                     {selectedVPDetail.requestDetail.purpose}
                   </ThemedText>
                 </div>
               </div>
 
               {/* Credentials Comparison */}
-              <div className="bg-white rounded-xl border border-gray-200">
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                  <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
+                  <ThemedText fontSize={17} fontWeight={600} className="text-gray-900 block">
                     Credentials Comparison
                   </ThemedText>
                 </div>
                 <div className="p-6">
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-2 gap-8">
                     {/* Requested Credentials */}
-                    <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <ThemedText fontSize={16} fontWeight={600} className="text-gray-900">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <ThemedText fontSize={15} fontWeight={600} className="text-gray-900 block">
                           Requested Credentials
                         </ThemedText>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                           {selectedVPDetail.requestDetail.requested_credentials.length} Required
                         </span>
                       </div>
@@ -1683,27 +1693,27 @@ export default function SharedWithMePage() {
                                 }`}
                               >
                                 <div className="flex items-start justify-between">
-                                  <div className="flex-1">
+                                  <div className="flex-1 space-y-1">
                                     <ThemedText
                                       fontSize={14}
                                       fontWeight={600}
-                                      className="text-gray-900"
+                                      className="text-gray-900 block"
                                     >
                                       {cred.schema_name}
                                     </ThemedText>
-                                    <ThemedText fontSize={12} className="text-gray-600 mt-1 pl-2">
+                                    <ThemedText fontSize={12} className="text-gray-600 block">
                                       Version {cred.schema_version}
                                     </ThemedText>
                                     <ThemedText
                                       fontSize={11}
-                                      className="text-gray-500 mt-1 font-mono"
+                                      className="text-gray-500 font-mono block"
                                     >
                                       {cred.schema_id.substring(0, 24)}...
                                     </ThemedText>
                                   </div>
-                                  <div>
+                                  <div className="ml-4">
                                     {isShared ? (
-                                      <div className="flex items-center gap-1 text-green-600">
+                                      <div className="flex items-center gap-1.5 text-green-600">
                                         <svg
                                           className="w-5 h-5"
                                           fill="currentColor"
@@ -1715,10 +1725,10 @@ export default function SharedWithMePage() {
                                             clipRule="evenodd"
                                           />
                                         </svg>
-                                        <span className="text-xs font-medium">Shared</span>
+                                        <span className="text-xs font-bold">Shared</span>
                                       </div>
                                     ) : (
-                                      <div className="flex items-center gap-1 text-red-600">
+                                      <div className="flex items-center gap-1.5 text-red-600">
                                         <svg
                                           className="w-5 h-5"
                                           fill="currentColor"
@@ -1730,7 +1740,7 @@ export default function SharedWithMePage() {
                                             clipRule="evenodd"
                                           />
                                         </svg>
-                                        <span className="text-xs font-medium">Missing</span>
+                                        <span className="text-xs font-bold">Missing</span>
                                       </div>
                                     )}
                                   </div>
@@ -1743,12 +1753,12 @@ export default function SharedWithMePage() {
                     </div>
 
                     {/* Shared Credentials */}
-                    <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <ThemedText fontSize={16} fontWeight={600} className="text-gray-900">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <ThemedText fontSize={15} fontWeight={600} className="text-gray-900 block">
                           Shared Credentials
                         </ThemedText>
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                           {selectedVPDetail.vpSharing.credentials.length} Shared
                         </span>
                       </div>
@@ -1770,27 +1780,27 @@ export default function SharedWithMePage() {
                               }`}
                             >
                               <div className="flex items-start justify-between">
-                                <div className="flex-1">
+                                <div className="flex-1 space-y-1">
                                   <ThemedText
                                     fontSize={14}
                                     fontWeight={600}
-                                    className="text-gray-900"
+                                    className="text-gray-900 block"
                                   >
                                     {cred.schema_name}
                                   </ThemedText>
-                                  <ThemedText fontSize={12} className="text-gray-600 mt-1 pl-2">
+                                  <ThemedText fontSize={12} className="text-gray-600 block">
                                     Version {cred.schema_version}
                                   </ThemedText>
                                   <ThemedText
                                     fontSize={11}
-                                    className="text-gray-500 mt-1 font-mono"
+                                    className="text-gray-500 font-mono block"
                                   >
                                     {cred.schema_id.substring(0, 24)}...
                                   </ThemedText>
                                 </div>
-                                <div>
+                                <div className="ml-4">
                                   {isRequested ? (
-                                    <div className="flex items-center gap-1 text-green-600">
+                                    <div className="flex items-center gap-1.5 text-green-600">
                                       <svg
                                         className="w-5 h-5"
                                         fill="currentColor"
@@ -1802,10 +1812,10 @@ export default function SharedWithMePage() {
                                           clipRule="evenodd"
                                         />
                                       </svg>
-                                      <span className="text-xs font-medium">Matched</span>
+                                      <span className="text-xs font-bold">Matched</span>
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-1 text-orange-600">
+                                    <div className="flex items-center gap-1.5 text-orange-600">
                                       <svg
                                         className="w-5 h-5"
                                         fill="currentColor"
@@ -1817,7 +1827,7 @@ export default function SharedWithMePage() {
                                           clipRule="evenodd"
                                         />
                                       </svg>
-                                      <span className="text-xs font-medium">Extra</span>
+                                      <span className="text-xs font-bold">Extra</span>
                                     </div>
                                   )}
                                 </div>
@@ -1830,7 +1840,7 @@ export default function SharedWithMePage() {
                   </div>
 
                   {/* Summary */}
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                  <div className="mt-6 p-5 bg-gray-50 rounded-lg border border-gray-200">
                     {(() => {
                       const comparison = compareCredentials(
                         selectedVPDetail.requestDetail.requested_credentials,
@@ -1851,15 +1861,15 @@ export default function SharedWithMePage() {
                                   clipRule="evenodd"
                                 />
                               </svg>
-                              <div className="space-x-2">
+                              <div className="space-y-1">
                                 <ThemedText
                                   fontSize={14}
                                   fontWeight={600}
-                                  className="text-green-700"
+                                  className="text-green-700 block"
                                 >
                                   All credentials matched!
                                 </ThemedText>
-                                <ThemedText fontSize={13} className="text-gray-600 mt-1">
+                                <ThemedText fontSize={13} className="text-gray-600 block">
                                   The holder provided all requested credentials. Ready for
                                   verification.
                                 </ThemedText>
@@ -1878,15 +1888,15 @@ export default function SharedWithMePage() {
                                   clipRule="evenodd"
                                 />
                               </svg>
-                              <div>
+                              <div className="space-y-1">
                                 <ThemedText
                                   fontSize={14}
                                   fontWeight={600}
-                                  className="text-orange-700"
+                                  className="text-orange-700 block"
                                 >
                                   Credentials mismatch detected
                                 </ThemedText>
-                                <ThemedText fontSize={13} className="text-gray-600 mt-1">
+                                <ThemedText fontSize={13} className="text-gray-600 block">
                                   {comparison.message}
                                 </ThemedText>
                               </div>
@@ -1900,42 +1910,42 @@ export default function SharedWithMePage() {
               </div>
 
               {/* Timestamps */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <ThemedText className="text-sm text-gray-600 mb-1">Request Created</ThemedText>
-                  <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 pl-2">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-gray-50 rounded-xl p-5 space-y-2">
+                  <ThemedText className="text-sm text-gray-600 block">Request Created</ThemedText>
+                  <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 block">
                     {formatDate(selectedVPDetail.requestDetail.createdAt)}
                   </ThemedText>
-                  <ThemedText fontSize={12} className="text-gray-500 mt-1 pl-2">
+                  <ThemedText fontSize={12} className="text-gray-500 block">
                     {new Date(selectedVPDetail.requestDetail.createdAt).toLocaleTimeString()}
                   </ThemedText>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <ThemedText className="text-sm text-gray-600 mb-1">Last Updated</ThemedText>
-                  <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 pl-2">
+                <div className="bg-gray-50 rounded-xl p-5 space-y-2">
+                  <ThemedText className="text-sm text-gray-600 block">Last Updated</ThemedText>
+                  <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 block">
                     {formatDate(selectedVPDetail.requestDetail.updatedAt)}
                   </ThemedText>
-                  <ThemedText fontSize={12} className="text-gray-500 mt-1 pl-2">
+                  <ThemedText fontSize={12} className="text-gray-500 block">
                     {new Date(selectedVPDetail.requestDetail.updatedAt).toLocaleTimeString()}
                   </ThemedText>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
                 <button
                   onClick={() => {
                     setShowViewModal(false);
                     setSelectedVPDetail(null);
                   }}
-                  className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                  className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
                 >
                   Close
                 </button>
                 {selectedVPDetail.requestDetail.verify_status === 'NOT_VERIFIED' && (
                   <button
                     onClick={() => handleVerify(selectedVPDetail.vpSharing.vp_id)}
-                    className="px-6 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
+                    className="px-8 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium shadow-md"
                   >
                     Verify Credentials
                   </button>
@@ -1955,12 +1965,12 @@ export default function SharedWithMePage() {
         minHeight="700px"
         disableClose={true}
       >
-        <div className="px-8 py-6">
+        <div className="px-6 py-6 space-y-6">
           {isLoadingVerification ? (
             <div className="flex items-center justify-center py-20">
-              <div className="text-center">
+              <div className="text-center space-y-4">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-                <ThemedText className="text-gray-600">Verifying credentials...</ThemedText>
+                <ThemedText className="text-gray-600 block">Verifying credentials...</ThemedText>
               </div>
             </div>
           ) : vpVerificationData ? (
@@ -1973,9 +1983,9 @@ export default function SharedWithMePage() {
                     : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
                 }`}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-6">
                   {vpVerificationData.verification.vp_valid ? (
-                    <div className="flex-shrink-0 w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+                    <div className="flex-shrink-0 w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
                       <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path
                           fillRule="evenodd"
@@ -1985,7 +1995,7 @@ export default function SharedWithMePage() {
                       </svg>
                     </div>
                   ) : (
-                    <div className="flex-shrink-0 w-16 h-16 bg-red-500 rounded-full flex items-center justify-center">
+                    <div className="flex-shrink-0 w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
                       <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path
                           fillRule="evenodd"
@@ -1995,19 +2005,21 @@ export default function SharedWithMePage() {
                       </svg>
                     </div>
                   )}
-                  <div className="flex-1">
+                  <div className="flex-1 space-y-2">
                     <ThemedText
-                      fontSize={24}
+                      fontSize={22}
                       fontWeight={700}
                       className={
-                        vpVerificationData.verification.vp_valid ? 'text-green-700' : 'text-red-700'
+                        vpVerificationData.verification.vp_valid
+                          ? 'text-green-700 block'
+                          : 'text-red-700 block'
                       }
                     >
                       {vpVerificationData.verification.vp_valid
-                        ? '✓ Verification Successful'
-                        : '✗ Verification Failed'}
+                        ? 'Verification Successful'
+                        : 'Verification Failed'}
                     </ThemedText>
-                    <ThemedText fontSize={14} className="text-gray-600 mt-1 pl-2">
+                    <ThemedText fontSize={14} className="text-gray-600 block">
                       {vpVerificationData.verification.vp_valid
                         ? 'All credentials have been verified and are valid.'
                         : 'One or more credentials failed verification.'}
@@ -2017,19 +2029,19 @@ export default function SharedWithMePage() {
               </div>
 
               {/* VP Information */}
-              <div className="bg-gray-50 rounded-xl p-6">
-                <ThemedText fontSize={18} fontWeight={600} className="text-gray-900 mb-4">
+              <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 space-y-5">
+                <ThemedText fontSize={17} fontWeight={600} className="text-gray-900 block">
                   Presentation Information
                 </ThemedText>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-x-2">
-                    <ThemedText className="text-sm text-gray-600 mb-1">Holder DID</ThemedText>
-                    <ThemedText fontSize={12} className="text-gray-900 font-mono break-all">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <ThemedText className="text-sm text-gray-600 block">Holder DID</ThemedText>
+                    <ThemedText fontSize={13} className="text-gray-900 font-mono break-all block">
                       {vpVerificationData.verification.holder_did}
                     </ThemedText>
                   </div>
-                  <div>
-                    <ThemedText className="text-sm text-gray-600 mb-1">
+                  <div className="space-y-2">
+                    <ThemedText className="text-sm text-gray-600 block">
                       Presentation Type
                     </ThemedText>
                     <div className="flex flex-wrap gap-2">
@@ -2047,36 +2059,36 @@ export default function SharedWithMePage() {
               </div>
 
               {/* Credentials Verification Details */}
-              <div className="bg-white rounded-xl border-2 border-gray-200">
-                <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-                  <ThemedText fontSize={20} fontWeight={600} className="text-gray-900">
+              <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
+                <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                  <ThemedText fontSize={18} fontWeight={600} className="text-gray-900 block">
                     Credentials Verification (
                     {vpVerificationData.verification.credentials_verification.length})
                   </ThemedText>
                 </div>
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-6">
                   {vpVerificationData.verification.credentials_verification.map(
                     (cred, idx: number) => {
                       const vcData = vpVerificationData.vp.verifiableCredential[idx];
                       return (
                         <div
                           key={idx}
-                          className={`rounded-xl border-2 overflow-hidden ${
+                          className={`rounded-lg border-2 overflow-hidden shadow-sm ${
                             cred.valid ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
                           }`}
                         >
                           {/* Credential Header */}
                           <div
-                            className={`px-6 py-4 border-b ${
+                            className={`px-5 py-4 border-b ${
                               cred.valid
-                                ? 'border-green-200 bg-green-100'
-                                : 'border-red-200 bg-red-100'
+                                ? 'border-green-200 bg-green-100/50'
+                                : 'border-red-200 bg-red-100/50'
                             }`}
                           >
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-4">
                                 {cred.valid ? (
-                                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-md">
                                     <svg
                                       className="w-6 h-6 text-white"
                                       fill="currentColor"
@@ -2090,7 +2102,7 @@ export default function SharedWithMePage() {
                                     </svg>
                                   </div>
                                 ) : (
-                                  <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center">
+                                  <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-md">
                                     <svg
                                       className="w-6 h-6 text-white"
                                       fill="currentColor"
@@ -2104,24 +2116,26 @@ export default function SharedWithMePage() {
                                     </svg>
                                   </div>
                                 )}
-                                <div>
+                                <div className="space-y-1">
                                   <ThemedText
-                                    fontSize={16}
+                                    fontSize={15}
                                     fontWeight={600}
-                                    className={cred.valid ? 'text-green-900' : 'text-red-900'}
+                                    className={
+                                      cred.valid ? 'text-green-900 block' : 'text-red-900 block'
+                                    }
                                   >
                                     Credential {idx + 1} -{' '}
                                     {vcData.type
                                       .filter((t: string) => t !== 'VerifiableCredential')
                                       .join(', ')}
                                   </ThemedText>
-                                  <ThemedText fontSize={12} className="text-gray-600 mt-1">
+                                  <ThemedText fontSize={12} className="text-gray-600 block">
                                     {cred.valid ? 'Valid & Verified' : 'Verification Failed'}
                                   </ThemedText>
                                 </div>
                               </div>
                               <span
-                                className={`px-4 py-2 rounded-full text-sm font-bold ${
+                                className={`px-5 py-1.5 rounded-full text-sm font-bold shadow-sm tracking-wide ${
                                   cred.valid ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
                                 }`}
                               >
@@ -2131,27 +2145,27 @@ export default function SharedWithMePage() {
                           </div>
 
                           {/* Credential Details */}
-                          <div className="p-6 bg-white">
-                            <div className="grid grid-cols-2 gap-6">
+                          <div className="p-5 bg-white">
+                            <div className="grid grid-cols-2 gap-8">
                               {/* Left Column */}
-                              <div className="space-y-4">
-                                <div>
-                                  <ThemedText className="text-xs text-gray-500 mb-1">
+                              <div className="space-y-5">
+                                <div className="space-y-2">
+                                  <ThemedText className="text-xs text-gray-500 font-bold tracking-wider block">
                                     ISSUER
                                   </ThemedText>
                                   <ThemedText
-                                    fontSize={12}
+                                    fontSize={13}
                                     fontWeight={600}
-                                    className="text-gray-900 mb-1"
+                                    className="text-gray-900 block"
                                   >
                                     {vcData.issuerName}
                                   </ThemedText>
                                 </div>
-                                <div>
-                                  <ThemedText className="text-xs text-gray-500 mb-1">
+                                <div className="space-y-2">
+                                  <ThemedText className="text-xs text-gray-500 font-bold tracking-wider block">
                                     VALID FROM
                                   </ThemedText>
-                                  <ThemedText fontSize={12} className="text-gray-900">
+                                  <ThemedText fontSize={13} className="text-gray-900 block">
                                     {vcData.validFrom &&
                                       new Date(vcData.validFrom).toLocaleString('en-US', {
                                         year: 'numeric',
@@ -2162,11 +2176,11 @@ export default function SharedWithMePage() {
                                       })}
                                   </ThemedText>
                                 </div>
-                                <div>
-                                  <ThemedText className="text-xs text-gray-500 mb-1">
+                                <div className="space-y-2">
+                                  <ThemedText className="text-xs text-gray-500 font-bold tracking-wider block">
                                     EXPIRES AT
                                   </ThemedText>
-                                  <ThemedText fontSize={12} className="text-gray-900">
+                                  <ThemedText fontSize={13} className="text-gray-900 block">
                                     {vcData.expiredAt &&
                                       new Date(vcData.expiredAt).toLocaleString('en-US', {
                                         year: 'numeric',
@@ -2180,12 +2194,12 @@ export default function SharedWithMePage() {
                               </div>
 
                               {/* Right Column */}
-                              <div className="space-y-4">
-                                <div>
-                                  <ThemedText className="text-xs text-gray-500 mb-2">
+                              <div className="space-y-5">
+                                <div className="space-y-2">
+                                  <ThemedText className="text-xs text-gray-500 font-bold tracking-wider block">
                                     CREDENTIAL SUBJECT
                                   </ThemedText>
-                                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                                  <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-100">
                                     {Object.entries(vcData.credentialSubject)
                                       .filter(([key]) => key !== 'id')
                                       .map(([key, value], subIdx: number) => (
@@ -2196,11 +2210,11 @@ export default function SharedWithMePage() {
                                           <ThemedText
                                             fontSize={12}
                                             fontWeight={600}
-                                            className="text-gray-700"
+                                            className="text-gray-700 block"
                                           >
                                             {key}:
                                           </ThemedText>
-                                          <ThemedText fontSize={12} className="text-gray-900">
+                                          <ThemedText fontSize={12} className="text-gray-900 block">
                                             {String(value)}
                                           </ThemedText>
                                         </div>
@@ -2208,15 +2222,15 @@ export default function SharedWithMePage() {
                                   </div>
                                 </div>
                                 {vcData.fileUrl && (
-                                  <div>
-                                    <ThemedText className="text-xs text-gray-500 mb-2">
+                                  <div className="space-y-2">
+                                    <ThemedText className="text-xs text-gray-500 font-bold tracking-wider block">
                                       DOCUMENT
                                     </ThemedText>
                                     <a
                                       href={vcData.fileUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+                                      className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium shadow-md"
                                     >
                                       <svg
                                         className="w-4 h-4"
@@ -2239,33 +2253,33 @@ export default function SharedWithMePage() {
                             </div>
 
                             {/* Proof Information */}
-                            <div className="mt-6 pt-6 border-t border-gray-200">
-                              <ThemedText className="text-xs text-gray-500 mb-2">
+                            <div className="mt-6 pt-5 border-t border-gray-100 space-y-3">
+                              <ThemedText className="text-xs text-gray-500 font-bold tracking-wider block">
                                 CRYPTOGRAPHIC PROOF
                               </ThemedText>
-                              <div className="bg-gray-50 rounded-lg p-4">
-                                <div className="grid grid-cols-2 gap-4 text-xs">
-                                  <div>
-                                    <span className="text-gray-500">Type:</span>
-                                    <span className="ml-2 text-gray-900 font-medium">
+                              <div className="bg-gray-50 rounded-lg p-5 border border-gray-100">
+                                <div className="grid grid-cols-2 gap-5 text-xs">
+                                  <div className="space-y-1">
+                                    <span className="text-gray-500 font-medium">Type:</span>
+                                    <span className="ml-2 text-gray-900 font-semibold block">
                                       {vcData.proof.type}
                                     </span>
                                   </div>
-                                  <div>
-                                    <span className="text-gray-500">Cryptosuite:</span>
-                                    <span className="ml-2 text-gray-900 font-medium">
+                                  <div className="space-y-1">
+                                    <span className="text-gray-500 font-medium">Cryptosuite:</span>
+                                    <span className="ml-2 text-gray-900 font-semibold block">
                                       {vcData.proof.cryptosuite}
                                     </span>
                                   </div>
-                                  <div>
-                                    <span className="text-gray-500">Purpose:</span>
-                                    <span className="ml-2 text-gray-900 font-medium">
+                                  <div className="space-y-1">
+                                    <span className="text-gray-500 font-medium">Purpose:</span>
+                                    <span className="ml-2 text-gray-900 font-semibold block">
                                       {vcData.proof.proofPurpose}
                                     </span>
                                   </div>
-                                  <div>
-                                    <span className="text-gray-500">Created:</span>
-                                    <span className="ml-2 text-gray-900 font-medium">
+                                  <div className="space-y-1">
+                                    <span className="text-gray-500 font-medium">Created:</span>
+                                    <span className="ml-2 text-gray-900 font-semibold block">
                                       {new Date(vcData.proof.created).toLocaleString()}
                                     </span>
                                   </div>
@@ -2281,7 +2295,7 @@ export default function SharedWithMePage() {
               </div>
 
               {/* Close Button */}
-              <div className="flex justify-end pt-4 border-t border-gray-200">
+              <div className="flex justify-end pt-6 border-t border-gray-200">
                 <button
                   onClick={handleCloseVerifyModal}
                   className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium shadow-lg"
@@ -2299,7 +2313,9 @@ export default function SharedWithMePage() {
         isOpen={showCloseConfirmation}
         onClose={() => setShowCloseConfirmation(false)}
         title="Close Verification?"
-        message="⚠️ Warning: Once you close this verification view, you will not be able to see these details again. The VP data will be permanently deleted from your local storage.\n\nAre you sure you want to close?"
+        message={`Warning: Once you close this verification view, you will not be able to see these details again. The VP data will be permanently deleted from your local storage.
+
+Are you sure you want to close?`}
         buttonColor="red"
         showCancelButton={true}
         cancelButtonText="Go Back"
@@ -2315,13 +2331,13 @@ export default function SharedWithMePage() {
         maxWidth="600px"
         minHeight="500px"
       >
-        <div className="px-8 py-6">
+        <div className="px-10 py-10">
           {!isScanning ? (
-            <div className="text-center py-10">
-              <div className="mb-6">
+            <div className="text-center py-8 space-y-8">
+              <div className="mb-8">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-24 w-24 mx-auto text-blue-500"
+                  className="h-28 w-28 mx-auto text-blue-500 opacity-90"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -2329,47 +2345,49 @@ export default function SharedWithMePage() {
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
+                    strokeWidth={1.5}
                     d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
                   />
                 </svg>
               </div>
-              <div className="grid grid-row-2">
-                <ThemedText fontSize={20} fontWeight={600} className="text-gray-900 mb-4">
+              <div className="space-y-4">
+                <ThemedText fontSize={22} fontWeight={600} className="text-gray-900">
                   Ready to Scan
                 </ThemedText>
-                <ThemedText className="text-gray-600 mb-8">
+                <ThemedText className="text-gray-600 px-4 leading-relaxed">
                   Click the button below to start scanning a VP QR code. You&apos;ll need to allow
                   camera access when prompted.
                 </ThemedText>
               </div>
               <button
                 onClick={startQRScanner}
-                className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium shadow-lg"
+                className="px-12 py-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors text-base font-medium shadow-lg mt-4"
               >
                 Start Camera
               </button>
             </div>
           ) : (
-            <div>
-              <div className="mb-4">
+            <div className="space-y-8">
+              <div className="mb-2">
                 <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 text-center">
                   Position the QR code within the frame
                 </ThemedText>
               </div>
               <div
                 id="qr-reader"
-                className="rounded-lg overflow-hidden border-4 border-blue-500 shadow-xl"
+                className="rounded-2xl overflow-hidden border-4 border-blue-500 shadow-xl"
               ></div>
               {qrScanError && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <ThemedText className="text-red-700 text-sm">{qrScanError}</ThemedText>
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <ThemedText className="text-red-700 text-sm text-center">
+                    {qrScanError}
+                  </ThemedText>
                 </div>
               )}
-              <div className="mt-6 text-center">
+              <div className="text-center pt-2">
                 <button
                   onClick={handleCloseQRScanner}
-                  className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                  className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
                 >
                   Cancel Scanning
                 </button>
@@ -2387,27 +2405,27 @@ export default function SharedWithMePage() {
         maxWidth="1400px"
         minHeight="700px"
       >
-        <div className="px-8 py-6">
+        <div className="px-10 py-8 space-y-8">
           {isLoadingScannedVP ? (
             <div className="flex items-center justify-center py-20">
-              <div className="text-center">
+              <div className="text-center space-y-4">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
                 <ThemedText className="text-gray-600">Verifying credentials...</ThemedText>
               </div>
             </div>
           ) : scannedVPData ? (
-            <div className="space-y-6">
+            <div className="space-y-8">
               {/* Verification Status Banner */}
               <div
-                className={`rounded-xl p-6 border-2 ${
+                className={`rounded-2xl p-6 border-2 shadow-lg ${
                   scannedVPData.verification.vp_valid
                     ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
                     : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
                 }`}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-6">
                   {scannedVPData.verification.vp_valid ? (
-                    <div className="flex-shrink-0 w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+                    <div className="flex-shrink-0 w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-10 w-10 text-white"
@@ -2424,7 +2442,7 @@ export default function SharedWithMePage() {
                       </svg>
                     </div>
                   ) : (
-                    <div className="flex-shrink-0 w-16 h-16 bg-red-500 rounded-full flex items-center justify-center">
+                    <div className="flex-shrink-0 w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-10 w-10 text-white"
@@ -2441,19 +2459,19 @@ export default function SharedWithMePage() {
                       </svg>
                     </div>
                   )}
-                  <div className="flex-1">
+                  <div className="flex-1 space-y-2">
                     <ThemedText
-                      fontSize={24}
+                      fontSize={22}
                       fontWeight={700}
-                      className={
+                      className={`${
                         scannedVPData.verification.vp_valid ? 'text-green-700' : 'text-red-700'
-                      }
+                      } block`}
                     >
                       {scannedVPData.verification.vp_valid
-                        ? '✅ Verification Successful'
-                        : '❌ Verification Failed'}
+                        ? 'Verification Successful'
+                        : 'Verification Failed'}
                     </ThemedText>
-                    <ThemedText fontSize={14} className="text-gray-600 mt-1 space-x-2">
+                    <ThemedText fontSize={14} className="text-gray-600 block font-medium">
                       VP ID: {scannedVPData.vpId}
                     </ThemedText>
                   </div>
@@ -2461,22 +2479,26 @@ export default function SharedWithMePage() {
               </div>
 
               {/* VP Information */}
-              <div className="bg-gray-50 rounded-xl p-6">
-                <ThemedText fontSize={18} fontWeight={600} className="text-gray-900 mb-4">
+              <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-200 space-y-6 shadow-sm">
+                <ThemedText fontSize={18} fontWeight={600} className="text-gray-900 block">
                   Presentation Information
                 </ThemedText>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-x-2">
-                    <ThemedText className="text-sm text-gray-600 mb-1">Holder DID</ThemedText>
-                    <ThemedText fontSize={13} fontWeight={600} className="text-gray-900 break-all">
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <ThemedText className="text-sm text-gray-600 block">Holder DID</ThemedText>
+                    <ThemedText
+                      fontSize={13}
+                      fontWeight={600}
+                      className="text-gray-900 break-all block"
+                    >
                       {scannedVPData.verification.holder_did}
                     </ThemedText>
                   </div>
-                  <div className="space-x-2">
-                    <ThemedText className="text-sm text-gray-600 mb-1">
+                  <div className="space-y-2">
+                    <ThemedText className="text-sm text-gray-600 block">
                       Total Credentials
                     </ThemedText>
-                    <ThemedText fontSize={13} fontWeight={600} className="text-blue-600">
+                    <ThemedText fontSize={14} fontWeight={600} className="text-blue-600 block">
                       {scannedVPData.vp.verifiableCredential.length}
                     </ThemedText>
                   </div>
@@ -2484,14 +2506,14 @@ export default function SharedWithMePage() {
               </div>
 
               {/* Credentials Verification Details */}
-              <div className="bg-white rounded-xl border-2 border-gray-200">
-                <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-                  <ThemedText fontSize={20} fontWeight={600} className="text-gray-900">
+              <div className="bg-white rounded-2xl border-2 border-gray-200 overflow-hidden shadow-md">
+                <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                  <ThemedText fontSize={20} fontWeight={600} className="text-gray-900 block">
                     Credentials Verification (
                     {scannedVPData.verification.credentials_verification.length})
                   </ThemedText>
                 </div>
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-6">
                   {scannedVPData.verification.credentials_verification.map((cred, idx: number) => {
                     const vcData = scannedVPData.vp.verifiableCredential.find(
                       (vc) => vc.id === cred.vc_id
@@ -2500,21 +2522,21 @@ export default function SharedWithMePage() {
                     return (
                       <div
                         key={idx}
-                        className={`p-5 rounded-xl border-2 ${
+                        className={`p-5 rounded-xl border-2 shadow-sm ${
                           cred.valid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
                         }`}
                       >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
+                        <div className="flex items-start justify-between mb-5">
+                          <div className="flex items-center gap-4">
                             <div
-                              className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                              className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center shadow-md ${
                                 cred.valid ? 'bg-green-500' : 'bg-red-500'
                               }`}
                             >
                               {cred.valid ? (
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
-                                  className="h-6 w-6 text-white"
+                                  className="h-7 w-7 text-white"
                                   fill="none"
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
@@ -2529,7 +2551,7 @@ export default function SharedWithMePage() {
                               ) : (
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
-                                  className="h-6 w-6 text-white"
+                                  className="h-7 w-7 text-white"
                                   fill="none"
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
@@ -2543,52 +2565,55 @@ export default function SharedWithMePage() {
                                 </svg>
                               )}
                             </div>
-                            <div>
+                            <div className="space-y-1">
                               <ThemedText
                                 fontSize={16}
                                 fontWeight={600}
-                                className={cred.valid ? 'text-green-800' : 'text-red-800'}
+                                className={`${cred.valid ? 'text-green-800' : 'text-red-800'} block`}
                               >
                                 Credential #{idx + 1}
                                 {vcData && ` - ${vcData.type[1] || vcData.type[0]}`}
                               </ThemedText>
                               <ThemedText
                                 fontSize={12}
-                                className={cred.valid ? 'text-green-700' : 'text-red-700'}
+                                className={`${cred.valid ? 'text-green-700' : 'text-red-700'} block font-medium`}
                               >
-                                {cred.valid ? 'Valid' : 'Invalid'}
+                                {cred.valid ? 'Valid & Verified' : 'Invalid'}
                               </ThemedText>
                             </div>
                           </div>
                         </div>
 
                         {vcData && (
-                          <div className="mt-4 space-y-4 bg-white rounded-lg p-4 border border-gray-200">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <ThemedText className="text-xs text-gray-500 mb-1">
+                          <div className="mt-5 space-y-5 bg-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                            <div className="grid grid-cols-2 gap-6">
+                              <div className="space-y-2">
+                                <ThemedText className="text-xs text-gray-500 font-bold tracking-wider">
                                   CREDENTIAL ID
                                 </ThemedText>
                                 <ThemedText
                                   fontSize={11}
                                   fontWeight={600}
-                                  className="text-gray-900 break-all"
+                                  className="text-gray-900 break-all block"
                                 >
                                   {vcData.id}
                                 </ThemedText>
                               </div>
-                              <div>
-                                <ThemedText className="text-xs text-gray-500 mb-1">
+                              <div className="space-y-2">
+                                <ThemedText className="text-xs text-gray-500 font-bold tracking-wider">
                                   ISSUER
                                 </ThemedText>
                                 <ThemedText
-                                  fontSize={12}
+                                  fontSize={13}
                                   fontWeight={600}
-                                  className="text-gray-900 mb-1"
+                                  className="text-gray-900 block"
                                 >
                                   {vcData.issuerName || 'Unknown Issuer'}
                                 </ThemedText>
-                                <ThemedText fontSize={10} className="text-gray-600 break-all">
+                                <ThemedText
+                                  fontSize={10}
+                                  className="text-gray-600 break-all block mt-1"
+                                >
                                   {typeof vcData.issuer === 'string'
                                     ? vcData.issuer
                                     : vcData.issuer.id}
@@ -2596,12 +2621,12 @@ export default function SharedWithMePage() {
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <ThemedText className="text-xs text-gray-500 mb-1">
+                            <div className="grid grid-cols-2 gap-6">
+                              <div className="space-y-2">
+                                <ThemedText className="text-xs text-gray-500 font-bold tracking-wider">
                                   VALID FROM
                                 </ThemedText>
-                                <ThemedText fontSize={12} className="text-gray-900">
+                                <ThemedText fontSize={13} className="text-gray-900 block">
                                   {vcData.validFrom &&
                                     new Date(vcData.validFrom).toLocaleString('en-US', {
                                       year: 'numeric',
@@ -2612,11 +2637,11 @@ export default function SharedWithMePage() {
                                     })}
                                 </ThemedText>
                               </div>
-                              <div>
-                                <ThemedText className="text-xs text-gray-500 mb-1">
+                              <div className="space-y-2">
+                                <ThemedText className="text-xs text-gray-500 font-bold tracking-wider">
                                   EXPIRES AT
                                 </ThemedText>
-                                <ThemedText fontSize={12} className="text-gray-900">
+                                <ThemedText fontSize={13} className="text-gray-900 block">
                                   {vcData.expiredAt &&
                                     new Date(vcData.expiredAt).toLocaleString('en-US', {
                                       year: 'numeric',
@@ -2630,27 +2655,27 @@ export default function SharedWithMePage() {
                             </div>
 
                             {/* Credential Subject Details */}
-                            <div>
-                              <ThemedText className="text-xs text-gray-500 mb-2" fontWeight={600}>
+                            <div className="space-y-3">
+                              <ThemedText className="text-xs text-gray-500 font-bold tracking-wider block">
                                 CREDENTIAL SUBJECT
                               </ThemedText>
-                              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                              <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-100">
                                 {Object.entries(vcData.credentialSubject).map(
                                   ([key, value]) =>
                                     key !== 'id' && (
                                       <div
                                         key={key}
-                                        className="flex justify-between items-start py-1"
+                                        className="flex justify-between items-start gap-4 border-b border-gray-200 pb-3 last:border-0 last:pb-0"
                                       >
                                         <ThemedText
-                                          fontSize={11}
-                                          className="text-gray-600 font-medium"
+                                          fontSize={12}
+                                          className="text-gray-600 font-medium block"
                                         >
                                           {key}:
                                         </ThemedText>
                                         <ThemedText
-                                          fontSize={11}
-                                          className="text-gray-900 text-right"
+                                          fontSize={12}
+                                          className="text-gray-900 text-right block flex-1"
                                         >
                                           {String(value) || '-'}
                                         </ThemedText>
@@ -2661,24 +2686,30 @@ export default function SharedWithMePage() {
                             </div>
 
                             {!cred.valid && cred.error && (
-                              <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded-lg">
-                                <ThemedText fontSize={12} className="text-red-800 font-medium">
+                              <div className="p-4 bg-red-100 border-2 border-red-300 rounded-lg">
+                                <ThemedText
+                                  fontSize={12}
+                                  className="text-red-800 font-semibold block"
+                                >
                                   ⚠️ Error: {cred.error}
                                 </ThemedText>
                               </div>
                             )}
 
                             {vcData.fileUrl && (
-                              <div className="mt-3">
+                              <div className="space-y-3">
+                                <ThemedText className="text-xs text-gray-500 font-bold tracking-wider block">
+                                  DOCUMENT
+                                </ThemedText>
                                 <a
                                   href={vcData.fileUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs font-medium"
+                                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-semibold shadow-md w-full"
                                 >
                                   <svg
                                     xmlns="http://www.w3.org/2000/svg"
-                                    className="h-4 w-4"
+                                    className="h-5 w-5"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
@@ -2703,10 +2734,10 @@ export default function SharedWithMePage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <div className="flex justify-end gap-4 pt-6 border-t-2 border-gray-200">
                 <button
                   onClick={handleCloseScannedVPModal}
-                  className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium shadow-lg"
+                  className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-semibold shadow-lg"
                 >
                   Close
                 </button>
