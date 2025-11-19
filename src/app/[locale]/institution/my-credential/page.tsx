@@ -31,6 +31,7 @@ import { UploadVCModal } from '@/components/UploadVCModal';
 import { RenewCredentialModal } from '@/components/RenewCredentialModal';
 import { UpdateCredentialModal } from '@/components/UpdateCredentialModal';
 import { RevokeCredentialModal } from '@/components/RevokeCredentialModal';
+import PresentCredentialModal from '@/components/PresentCredentialModal';
 
 /**
  * Renew-specific credential data
@@ -217,6 +218,12 @@ export default function MyCredentialPage() {
   const [revocationReason, setRevocationReason] = useState('');
   const [isRevoking, setIsRevoking] = useState(false);
 
+  // Present Credential Modal
+  const [showPresentModal, setShowPresentModal] = useState(false);
+  const [presentingCredential, setPresentingCredential] = useState<VerifiableCredential | null>(
+    null
+  );
+
   // Upload VC Modal
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [, setUploadedFile] = useState<File | null>(null);
@@ -356,9 +363,35 @@ export default function MyCredentialPage() {
     }
   };
 
-  const handlePresent = (id: string) => {
-    console.log('Present credential:', id);
-    // TODO: Implement present credential
+  const handlePresent = async (id: string) => {
+    try {
+      console.log('Present credential:', id);
+
+      // Fetch the full VC from IndexedDB
+      const vc = await getVCById(id);
+
+      if (!vc) {
+        setInfoModalConfig({
+          title: 'Credential Not Found',
+          message: 'The requested credential could not be found in storage.',
+          buttonColor: 'red',
+        });
+        setShowInfoModal(true);
+        return;
+      }
+
+      // Open present modal with the credential
+      setPresentingCredential(vc);
+      setShowPresentModal(true);
+    } catch (error) {
+      console.error('Error opening present modal:', error);
+      setInfoModalConfig({
+        title: 'Error',
+        message: 'Failed to open present modal. Please try again.',
+        buttonColor: 'red',
+      });
+      setShowInfoModal(true);
+    }
   };
 
   const handleUpdate = async (id: string) => {
@@ -948,13 +981,24 @@ export default function MyCredentialPage() {
         return;
       }
 
-      // Create a copy of the VC without the claimIdfield
-      const { claimId, ...vcWithoutRequestId } = vc;
+      // Create a copy of the VC without metadata fields (claimId, source)
+      // These fields are for local storage tracking only and should not be exported
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const vcCopy: any = { ...vc };
+      const metadataFields = ['claimId', 'source'] as const;
+      const removedMetadata: Record<string, string | undefined> = {};
 
-      // Convert VC to JSON string with pretty formatting (without claimId)
-      const jsonString = JSON.stringify(vcWithoutRequestId, null, 2);
-      console.log('claimId:', claimId);
-      console.log('vc without claimId download:', vcWithoutRequestId);
+      metadataFields.forEach((field) => {
+        if (field in vcCopy) {
+          removedMetadata[field] = vcCopy[field];
+          delete vcCopy[field];
+        }
+      });
+
+      // Convert VC to JSON string with pretty formatting (without metadata fields)
+      const jsonString = JSON.stringify(vcCopy, null, 2);
+      console.log('Removed metadata fields:', removedMetadata);
+      console.log('VC without metadata (ready for download):', vcCopy);
 
       // Create a blob and download link
       const blob = new Blob([jsonString], { type: 'application/json' });
@@ -2310,6 +2354,21 @@ export default function MyCredentialPage() {
         isRevoking={isRevoking}
         onSubmit={handleSubmitRevoke}
       />
+
+      {/* Present Credential Modal */}
+      {showPresentModal && presentingCredential && (
+        <PresentCredentialModal
+          isOpen={showPresentModal}
+          onClose={() => {
+            setShowPresentModal(false);
+            setPresentingCredential(null);
+          }}
+          credential={presentingCredential}
+          onSuccess={(vpId) => {
+            console.log('VP created successfully with ID:', vpId);
+          }}
+        />
+      )}
 
       {/* Info Modal */}
       <InfoModal

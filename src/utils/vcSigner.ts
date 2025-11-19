@@ -277,7 +277,7 @@ async function generateProof(
  * Sign Verifiable Credential with stored private key from localStorage
  *
  * @param vc - Verifiable Credential to sign
- * @returns Signed VC with Data Integrity Proof
+ * @returns Signed VC with Data Ifntegrity Proof
  * @throws Error if keys not found or signing fails
  */
 export async function signVCWithStoredKey(
