@@ -543,7 +543,7 @@ export default function SchemaPage() {
           // Include attribute positions if configured
           ...(data.attributePositions && { attribute_positions: data.attributePositions }),
           // Always include QR code position (use default if not provided)
-          qr_code_position: data.qrCodePosition || { x: 80, y: 80, size: 15 },
+          qr_code_position: data.qrCodePosition || { x: 82, y: 70, size: 15 },
         },
       };
 
@@ -564,7 +564,7 @@ export default function SchemaPage() {
         // Always include QR code position (use default if not provided)
         formData.append(
           'schema[qr_code_position]',
-          JSON.stringify(data.qrCodePosition || { x: 80, y: 80, size: 15 })
+          JSON.stringify(data.qrCodePosition || { x: 82, y: 70, size: 15 })
         );
 
         // Add image file if new image is uploaded
@@ -939,7 +939,7 @@ export default function SchemaPage() {
           // Include attribute positions if configured
           ...(data.attributePositions && { attribute_positions: data.attributePositions }),
           // Always include QR code position (use default if not provided)
-          qr_code_position: data.qrCodePosition || { x: 80, y: 80, size: 15 },
+          qr_code_position: data.qrCodePosition || { x: 82, y: 70, size: 15 },
         },
         issuer_did: issuerDid,
       };

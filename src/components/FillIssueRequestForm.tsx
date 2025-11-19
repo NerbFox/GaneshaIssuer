@@ -216,15 +216,17 @@ export default function FillIssueRequestForm({
       // Temporarily add clone to DOM for html2canvas
       clone.style.position = 'absolute';
       clone.style.left = '-9999px';
+      clone.style.paddingBottom = '20px';
       document.body.appendChild(clone);
 
       // Capture the clone as canvas
       const canvas = await html2canvas(clone, {
-        scale: 2, // Higher quality
+        scale: 3,
         useCORS: true, // Allow cross-origin images
         allowTaint: true,
         backgroundColor: null,
         logging: false,
+        windowHeight: clone.scrollHeight + 50,
       });
 
       // Remove the clone

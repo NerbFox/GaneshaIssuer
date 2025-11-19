@@ -68,7 +68,7 @@ export default function AttributePositionEditor({
 }: AttributePositionEditorProps) {
   const [fields, setFields] = useState<DraggableField[]>([]);
   const [qrCode, setQrCode] = useState<QRCodePosition>(
-    initialQRPosition || { x: 80, y: 80, size: 15 }
+    initialQRPosition || { x: 82, y: 70, size: 15 }
   );
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [selectedQR, setSelectedQR] = useState<boolean>(false);
@@ -266,10 +266,12 @@ export default function AttributePositionEditor({
     if (dragState.target === 'qr') {
       // Handle QR code movement and resizing
       if (dragState.isDragging) {
+        // QR is square: width is qrCode.size%, height in % is qrCode.size * imageAspectRatio
+        const qrHeightPercent = qrCode.size * imageAspectRatio;
         setQrCode({
           ...qrCode,
           x: Math.max(0, Math.min(100 - qrCode.size, dragState.startFieldX + deltaX)),
-          y: Math.max(0, Math.min(100 - qrCode.size, dragState.startFieldY + deltaY)),
+          y: Math.max(0, Math.min(100 - qrHeightPercent, dragState.startFieldY + deltaY)),
         });
       } else if (dragState.isResizing) {
         // For QR code, maintain square shape
@@ -291,7 +293,11 @@ export default function AttributePositionEditor({
           delta = Math.max(-deltaX, -deltaY);
         }
 
-        const newSize = Math.max(5, Math.min(50, dragState.startFieldWidth + delta));
+        // QR is square: limit size so it doesn't overflow vertically
+        // height in % = size * imageAspectRatio, so max size = 100 / imageAspectRatio
+        const maxSizeForHeight = 100 / imageAspectRatio;
+        const maxSize = Math.min(50, maxSizeForHeight);
+        const newSize = Math.max(5, Math.min(maxSize, dragState.startFieldWidth + delta));
 
         // Adjust position when resizing from west or north handles
         let newX = qrCode.x;
@@ -300,14 +306,23 @@ export default function AttributePositionEditor({
         if (handle === 'sw' || handle === 'nw') {
           // Moving left edge: adjust x position
           const sizeDiff = newSize - qrCode.size;
-          newX = Math.max(0, qrCode.x - sizeDiff);
+          newX = Math.max(0, Math.min(100 - newSize, qrCode.x - sizeDiff));
         }
 
         if (handle === 'ne' || handle === 'nw') {
           // Moving top edge: adjust y position
           const sizeDiff = newSize - qrCode.size;
-          newY = Math.max(0, qrCode.y - sizeDiff);
+          const newHeightPercent = newSize * imageAspectRatio;
+          newY = Math.max(
+            0,
+            Math.min(100 - newHeightPercent, qrCode.y - sizeDiff * imageAspectRatio)
+          );
         }
+
+        // Ensure final position is within bounds
+        const finalHeightPercent = newSize * imageAspectRatio;
+        newX = Math.max(0, Math.min(100 - newSize, newX));
+        newY = Math.max(0, Math.min(100 - finalHeightPercent, newY));
 
         setQrCode({
           x: newX,
@@ -549,10 +564,10 @@ export default function AttributePositionEditor({
           </ThemedText>
         </div>
 
-        <div className="flex-1 bg-gray-100 rounded-lg p-4 flex items-center justify-center overflow-hidden min-h-0">
+        <div className="flex-1 bg-gray-100 rounded-lg p-4 flex items-center justify-center overflow-auto min-h-0">
           <div
             ref={containerRef}
-            className="relative shadow-lg mx-auto"
+            className="relative shadow-lg"
             style={{
               width: '100%',
               maxWidth: '800px',
@@ -648,7 +663,7 @@ export default function AttributePositionEditor({
                 left: `${qrCode.x}%`,
                 top: `${qrCode.y}%`,
                 width: `${qrCode.size}%`,
-                height: `${qrCode.size}%`,
+                aspectRatio: '1 / 1',
               }}
               onMouseDown={(e) => handleQRMouseDown(e)}
               onClick={(e) => e.stopPropagation()}
