@@ -45,7 +45,7 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedAttributeIds, setSelectedAttributeIds] = useState<(string | number)[]>([]);
   const [attributePositions, setAttributePositions] = useState<AttributePositionData>({});
-  const [qrCodePosition, setQrCodePosition] = useState<QRCodePosition>({ x: 80, y: 80, size: 15 });
+  const [qrCodePosition, setQrCodePosition] = useState<QRCodePosition>({ x: 82, y: 70, size: 15 });
   const [showPositionEditor, setShowPositionEditor] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -118,6 +118,10 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
       const result = reader.result as string;
       setPreviewSrc(result);
       setImageLoading(false);
+
+      // Reset attribute positions and QR code when image changes
+      setAttributePositions({});
+      setQrCodePosition({ x: 82, y: 70, size: 15 });
     };
     reader.onerror = () => {
       setImageError('Failed to read image file');
@@ -188,6 +192,10 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
         const result = reader.result as string;
         setPreviewSrc(result);
         setImageLoading(false);
+
+        // Reset attribute positions and QR code when image changes
+        setAttributePositions({});
+        setQrCodePosition({ x: 82, y: 70, size: 15 });
       };
       reader.onerror = () => {
         setImageError('Failed to read image file');

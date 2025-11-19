@@ -26,7 +26,7 @@ export default function CredentialPreview({
   const [imageAspectRatio, setImageAspectRatio] = useState<number>(1 / 1.414);
 
   // Use default QR position if not provided
-  const effectiveQRPosition = qrPosition || { x: 80, y: 80, size: 15 };
+  const effectiveQRPosition = qrPosition || { x: 82, y: 70, size: 15 };
 
   // Load image and get its natural aspect ratio
   useEffect(() => {
@@ -101,35 +101,31 @@ export default function CredentialPreview({
             return (
               <div
                 key={attrName}
-                className="absolute flex items-center overflow-hidden"
+                className="absolute"
                 style={{
                   left: `${position.x}%`,
                   top: `${position.y}%`,
                   width: `${position.width}%`,
-                  height: `${position.height}%`,
-                  fontSize: `${position.fontSize}px`,
-                  fontFamily: fontFamily,
+                  minHeight: `${position.height}%`,
                   backgroundColor: bgColor,
-                  lineHeight: '1',
-                  padding: '0',
                 }}
               >
-                <span
-                  className="font-medium truncate"
+                <div
                   style={{
+                    fontSize: `${position.fontSize}px`,
+                    fontFamily: fontFamily,
                     color: fontColor,
                     opacity: hasValue ? 1 : 0.5,
                     fontStyle: hasValue ? 'normal' : 'italic',
-                    paddingLeft: '4px',
-                    paddingRight: '4px',
-                    lineHeight: '1',
-                    display: 'flex',
-                    alignItems: 'center',
-                    height: '100%',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    paddingTop: `${position.fontSize * 0.2}px`,
+                    lineHeight: `${position.fontSize * 1.8}px`,
                   }}
                 >
                   {displayValue}
-                </span>
+                </div>
               </div>
             );
           })}
@@ -141,7 +137,7 @@ export default function CredentialPreview({
               left: `${effectiveQRPosition.x}%`,
               top: `${effectiveQRPosition.y}%`,
               width: `${effectiveQRPosition.size}%`,
-              height: `${effectiveQRPosition.size}%`,
+              aspectRatio: '1 / 1',
             }}
           >
             {showQRCode ? (
