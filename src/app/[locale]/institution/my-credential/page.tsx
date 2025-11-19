@@ -2003,7 +2003,7 @@ export default function MyCredentialPage() {
               e.stopPropagation();
               handleRequestCredential(row.id, row.issuer_did);
             }}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
+            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer"
           >
             REQUEST
           </button>
@@ -2012,7 +2012,7 @@ export default function MyCredentialPage() {
               e.stopPropagation();
               toggleExpandSchema(row.compositeId);
             }}
-            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium"
+            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium cursor-pointer"
           >
             VIEW
           </button>
