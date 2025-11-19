@@ -641,7 +641,7 @@ export default function IssuedByMePage() {
     setShowRevokeInputModal(true);
   };
 
-  const handleRevokeConfirm = async (reason: string) => {
+  const handleRevokeConfirm = async (reason: string, vcId: string) => {
     setShowRevokeInputModal(false);
 
     if (!revokeCredentialId) return;
@@ -674,7 +674,12 @@ export default function IssuedByMePage() {
 
           // Encrypt the reason with holder's public key
           const encryptedReason = await encryptWithPublicKey(
-            { reason: reason } as JsonObject,
+            {
+              verifiable_credential: {
+                id: vcId,
+              },
+              reason: reason,
+            } as JsonObject,
             holderPublicKey
           );
 
@@ -1677,23 +1682,25 @@ export default function IssuedByMePage() {
       />
 
       {/* Revoke Input Modal */}
-      <InputModal
-        isOpen={showRevokeInputModal}
-        onClose={() => {
-          setShowRevokeInputModal(false);
-          setRevokeCredentialId(null);
-        }}
-        onConfirm={handleRevokeConfirm}
-        title="Revoke Credential"
-        message="Please provide a reason for revoking this credential:"
-        placeholder="Enter revocation reason..."
-        confirmText="Continue"
-        confirmButtonColor="red"
-        inputType="textarea"
-        required={true}
-        minLength={5}
-        maxLength={500}
-      />
+      {revokeCredentialId && (
+        <InputModal
+          isOpen={showRevokeInputModal}
+          onClose={() => {
+            setShowRevokeInputModal(false);
+            setRevokeCredentialId(null);
+          }}
+          onConfirm={(reason) => handleRevokeConfirm(reason, revokeCredentialId)}
+          title="Revoke Credential"
+          message="Please provide a reason for revoking this credential:"
+          placeholder="Enter revocation reason..."
+          confirmText="Continue"
+          confirmButtonColor="red"
+          inputType="textarea"
+          required={true}
+          minLength={5}
+          maxLength={500}
+        />
+      )}
 
       {/* Info Modal */}
       <InfoModal
