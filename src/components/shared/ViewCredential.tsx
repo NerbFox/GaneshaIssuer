@@ -30,12 +30,14 @@ interface ViewCredentialProps {
   };
   onClose: () => void;
   onDownload?: () => void;
+  onDownloadPdf?: () => void;
 }
 
 export const ViewCredential: React.FC<ViewCredentialProps> = ({
   credentialData,
   onClose,
   onDownload,
+  onDownloadPdf,
 }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -283,6 +285,28 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
               />
             </svg>
             DOWNLOAD
+          </button>
+        )}
+        {onDownloadPdf && (
+          <button
+            onClick={onDownloadPdf}
+            className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium cursor-pointer flex items-center gap-2"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
+            DOWNLOAD AS PDF
           </button>
         )}
         <button
