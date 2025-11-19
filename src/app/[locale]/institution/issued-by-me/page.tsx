@@ -1029,6 +1029,11 @@ export default function IssuedByMePage() {
       id: 'action',
       label: 'ACTION',
       render: (row) => {
+        // Don't show any action buttons for revoked credentials
+        if (row.status === 'REVOKED') {
+          return <div className="flex gap-2">-</div>;
+        }
+
         const showUpdateButton = row.schemaName !== 'Unknown Schema' && row.schemaId;
         const showRenewButton = showUpdateButton && row.activeUntil !== '-'; // Don't show renew for lifetime credentials
         return (
