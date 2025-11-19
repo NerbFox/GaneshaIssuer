@@ -32,10 +32,11 @@ import { ViewCredentialModal } from '@/components/holder/ViewCredentialModal';
 import { UploadVCModal } from '@/components/holder/UploadVCModal';
 import { UpdateCredentialModal } from '@/components/holder/UpdateCredentialModal';
 import { RevokeCredentialModal } from '@/components/holder/RevokeCredentialModal';
-import PresentCredentialModal from '@/components/PresentCredentialModal';
+import PresentCredentialModal from '@/components/holder/PresentCredentialModal';
 import PDFPreviewModal from '@/components/PDFPreviewModal';
 import { generatePDFWithQR, downloadPDF } from '@/utils/pdfGenerator';
 import { createAndStoreVP } from '@/utils/vpGenerator';
+import PresentMultipleCredentialsModal from '@/components/holder/PresentMultipleCredentialsModal';
 
 /**
  * Renew-specific credential data
@@ -228,6 +229,11 @@ export default function MyCredentialPage() {
     null
   );
 
+  // Present Multiple VCs as VP
+  const [showPresentMultipleModal, setShowPresentMultipleModal] = useState(false);
+  const [selectedVCsForVP, setSelectedVCsForVP] = useState<Set<string>>(new Set());
+  const [selectedVCsList, setSelectedVCsList] = useState<VerifiableCredential[]>([]);
+
   // Upload VC Modal
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [, setUploadedFile] = useState<File | null>(null);
@@ -407,6 +413,74 @@ export default function MyCredentialPage() {
       });
       setShowInfoModal(true);
     }
+  };
+
+  // Handle selection change for multiple VCs
+  const handleVCSelection = (selectedIds: number[], selectedIdValues?: (string | number)[]) => {
+    // Convert the selected IDs to a Set of strings
+    const idsSet = new Set(selectedIdValues?.map(String) || selectedIds.map(String));
+    setSelectedVCsForVP(idsSet);
+  };
+
+  // Handle opening the present multiple VCs modal
+  const handleOpenPresentMultiple = async () => {
+    if (selectedVCsForVP.size === 0) {
+      setInfoModalConfig({
+        title: 'No Credentials Selected',
+        message: 'Please select at least one credential to create a Verifiable Presentation.',
+        buttonColor: 'yellow',
+        hideActions: false,
+      });
+      setShowInfoModal(true);
+      return;
+    }
+
+    try {
+      // Fetch all selected VCs from IndexedDB
+      const vcs: VerifiableCredential[] = [];
+      for (const id of Array.from(selectedVCsForVP)) {
+        const vc = await getVCById(id);
+        if (vc) {
+          vcs.push(vc);
+        }
+      }
+
+      if (vcs.length === 0) {
+        setInfoModalConfig({
+          title: 'Error',
+          message: 'Could not load selected credentials.',
+          buttonColor: 'red',
+          hideActions: false,
+        });
+        setShowInfoModal(true);
+        return;
+      }
+
+      setSelectedVCsList(vcs);
+      setShowPresentMultipleModal(true);
+    } catch (error) {
+      console.error('Error loading selected credentials:', error);
+      setInfoModalConfig({
+        title: 'Error',
+        message: 'Failed to load selected credentials. Please try again.',
+        buttonColor: 'red',
+        hideActions: false,
+      });
+      setShowInfoModal(true);
+    }
+  };
+
+  // Handle closing the present multiple VCs modal
+  const handleClosePresentMultiple = () => {
+    setShowPresentMultipleModal(false);
+    setSelectedVCsList([]);
+    setSelectedVCsForVP(new Set());
+  };
+
+  // Handle successful VP creation
+  const handleVPSuccess = (vpId: string) => {
+    console.log('VP created successfully:', vpId);
+    // Don't close modal immediately - let user see QR code and close manually
   };
 
   const handleUpdate = async (id: string) => {
@@ -2311,6 +2385,8 @@ export default function MyCredentialPage() {
             searchPlaceholder="Search..."
             onSearch={handleSearch}
             enableSelection={true}
+            onSelectionChange={handleVCSelection}
+            selectedIds={selectedVCsForVP as Set<string | number>}
             onRowClick={(row) => handleView(row.id)}
             totalCount={filteredCredentials.length}
             rowsPerPageOptions={[5, 10, 25, 50, 100]}
@@ -2346,6 +2422,28 @@ export default function MyCredentialPage() {
                     </>
                   )}
                 </button>
+                {selectedVCsForVP.size > 0 && (
+                  <button
+                    onClick={handleOpenPresentMultiple}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-medium cursor-pointer shadow-sm"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    Present as VP ({selectedVCsForVP.size})
+                  </button>
+                )}
                 <button
                   onClick={handleOpenUploadModal}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
@@ -2595,6 +2693,16 @@ export default function MyCredentialPage() {
           onSuccess={(vpId) => {
             console.log('VP created successfully with ID:', vpId);
           }}
+        />
+      )}
+
+      {/* Present Multiple Credentials Modal */}
+      {showPresentMultipleModal && selectedVCsList.length > 0 && (
+        <PresentMultipleCredentialsModal
+          isOpen={showPresentMultipleModal}
+          onClose={handleClosePresentMultiple}
+          credentials={selectedVCsList}
+          onSuccess={handleVPSuccess}
         />
       )}
 
