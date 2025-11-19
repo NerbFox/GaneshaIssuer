@@ -33,6 +33,9 @@ import { UploadVCModal } from '@/components/holder/UploadVCModal';
 import { UpdateCredentialModal } from '@/components/holder/UpdateCredentialModal';
 import { RevokeCredentialModal } from '@/components/holder/RevokeCredentialModal';
 import PresentCredentialModal from '@/components/PresentCredentialModal';
+import PDFPreviewModal from '@/components/PDFPreviewModal';
+import { generatePDFWithQR, downloadPDF } from '@/utils/pdfGenerator';
+import { createAndStoreVP } from '@/utils/vpGenerator';
 
 /**
  * Renew-specific credential data
@@ -242,6 +245,12 @@ export default function MyCredentialPage() {
     message: '',
     buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
   });
+
+  // PDF Preview Modal State
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfCredentialName, setPdfCredentialName] = useState('');
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -1026,23 +1035,122 @@ export default function MyCredentialPage() {
 
   const handleDownloadPdf = async (id: string) => {
     try {
-      console.log('Download credential as PDF:', id);
-      // TODO: Implement PDF download functionality
+      console.log('📄 Starting PDF download for credential:', id);
+
+      // Show loading
       setInfoModalConfig({
-        title: 'Coming Soon',
-        message: 'PDF download functionality will be implemented soon.',
+        title: 'Generating PDF',
+        message: 'Please wait while we generate your PDF with QR code...',
         buttonColor: 'blue',
       });
       setShowInfoModal(true);
+
+      // Step 1: Get credential (VC) from IndexedDB
+      const vc = await getVCById(id);
+      if (!vc) {
+        throw new Error('Credential not found');
+      }
+
+      console.log('✅ Credential retrieved:', vc.id);
+
+      // Step 2: Get holder's private key to sign VP
+      const holderPrivateKey = localStorage.getItem('institutionSigningPrivateKey');
+      if (!holderPrivateKey) {
+        throw new Error('Private key not found. Please log in again.');
+      }
+
+      const holderDid = localStorage.getItem('institutionDID');
+      if (!holderDid) {
+        throw new Error('DID not found. Please log in again.');
+      }
+
+      // Step 3: Create and sign VP, then store to backend
+      console.log('🔐 Creating and storing VP...');
+      const vpId = await createAndStoreVP(vc, holderPrivateKey, holderDid);
+      console.log('✅ VP created and stored with ID:', vpId);
+
+      // Step 4: Get schema data for QR position
+      // Schema data is stored separately in IndexedDB
+      const { getSchemaDataByVCId } = await import('@/utils/indexedDB');
+      const schemaData = await getSchemaDataByVCId(vc.id);
+      if (!schemaData?.schema?.qr_code_position) {
+        throw new Error('QR code position not found in schema');
+      }
+
+      const qrPos = schemaData.schema.qr_code_position as unknown;
+      if (
+        !qrPos ||
+        typeof (qrPos as { x?: unknown }).x !== 'number' ||
+        typeof (qrPos as { y?: unknown }).y !== 'number' ||
+        typeof (qrPos as { size?: unknown }).size !== 'number'
+      ) {
+        throw new Error('Invalid QR code position in schema');
+      }
+
+      const qrPosition: { x: number; y: number; size: number } = qrPos as {
+        x: number;
+        y: number;
+        size: number;
+      };
+      console.log('✅ QR Position:', qrPosition);
+
+      // Step 5: Get background image URL
+      const backgroundImageUrl = vc.fileUrl || vc.imageLink;
+      if (!backgroundImageUrl) {
+        throw new Error('Background image URL not found');
+      }
+
+      console.log('✅ Background image URL:', backgroundImageUrl);
+
+      // Step 6: Generate PDF with QR code
+      console.log('📝 Generating PDF...');
+      const pdfBlob = await generatePDFWithQR(backgroundImageUrl, vpId, qrPosition);
+      console.log('✅ PDF generated successfully');
+
+      // Step 7: Create object URL for preview (better for iframe)
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+
+      // Close loading modal and open PDF preview
+      setShowInfoModal(false);
+
+      // Set PDF preview data
+      setPdfDataUrl(pdfUrl);
+      setPdfBlob(pdfBlob);
+      setPdfCredentialName(
+        `${vc.type.find((t) => t !== 'VerifiableCredential') || 'Credential'}_${new Date().toISOString().split('T')[0]}.pdf`
+      );
+      setShowPDFPreview(true);
+
+      console.log('✅ PDF preview opened');
     } catch (error) {
-      console.error('Error downloading credential as PDF:', error);
+      console.error('❌ Error downloading credential as PDF:', error);
       setInfoModalConfig({
         title: 'Download Failed',
-        message: 'Failed to download credential as PDF. Please try again.',
+        message: `Failed to download credential as PDF: ${error instanceof Error ? error.message : 'Unknown error'}`,
         buttonColor: 'red',
       });
       setShowInfoModal(true);
     }
+  };
+
+  // Handle PDF download from preview modal
+  const handleDownloadPdfFromPreview = () => {
+    if (pdfBlob && pdfCredentialName) {
+      downloadPDF(pdfBlob, pdfCredentialName);
+      console.log('✅ PDF downloaded:', pdfCredentialName);
+    }
+  };
+
+  // Handle PDF preview modal close
+  const handleClosePDFPreview = () => {
+    // Revoke object URL to prevent memory leak
+    if (pdfDataUrl) {
+      URL.revokeObjectURL(pdfDataUrl);
+    }
+    setShowPDFPreview(false);
+    setPdfDataUrl(null);
+    setPdfBlob(null);
+    setPdfCredentialName('');
   };
 
   const fetchSchemas = async () => {
@@ -2462,6 +2570,15 @@ export default function MyCredentialPage() {
         title={infoModalConfig.title}
         message={infoModalConfig.message}
         buttonColor={infoModalConfig.buttonColor}
+      />
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        isOpen={showPDFPreview}
+        pdfDataUrl={pdfDataUrl}
+        onClose={handleClosePDFPreview}
+        onDownload={handleDownloadPdfFromPreview}
+        credentialName={pdfCredentialName}
       />
 
       {/* Filter Popup */}

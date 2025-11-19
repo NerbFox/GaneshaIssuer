@@ -25,6 +25,7 @@
     "country-list": "^2.4.1",
     "html2canvas": "^1.4.1",
     "html5-qrcode": "^2.3.8",
+    "jspdf": "^3.0.3",
     "next": "15.5.4",
     "next-intl": "^3.24.1",
     "qrcode": "^1.5.4",
