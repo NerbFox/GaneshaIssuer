@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import InfoModal from '@/components/shared/InfoModal';
@@ -74,11 +74,19 @@ export default function UpdateCredentialForm({
     buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
   });
 
-  const [initialAttributes, setInitialAttributes] = useState<AttributeData[]>([]);
-
-  useEffect(() => {
-    setInitialAttributes(JSON.parse(JSON.stringify(attributes)));
-  }, [attributes]);
+  // Store initial attributes for comparison (initialized once with deep copy)
+  const [initialAttributes] = useState<AttributeData[]>(
+    JSON.parse(
+      JSON.stringify(
+        credentialData.attributes.map((attr) => ({
+          id: attr.id,
+          name: attr.name,
+          type: attr.type,
+          value: attr.value,
+        }))
+      )
+    )
+  );
 
   const handleAttributeValueChange = (id: number, value: string) => {
     setAttributes(attributes.map((attr) => (attr.id === id ? { ...attr, value } : attr)));
