@@ -33,6 +33,9 @@ import { UploadVCModal } from '@/components/holder/UploadVCModal';
 import { UpdateCredentialModal } from '@/components/holder/UpdateCredentialModal';
 import { RevokeCredentialModal } from '@/components/holder/RevokeCredentialModal';
 import PresentCredentialModal from '@/components/PresentCredentialModal';
+import PDFPreviewModal from '@/components/PDFPreviewModal';
+import { generatePDFWithQR, downloadPDF } from '@/utils/pdfGenerator';
+import { createAndStoreVP } from '@/utils/vpGenerator';
 
 /**
  * Renew-specific credential data
@@ -241,7 +244,14 @@ export default function MyCredentialPage() {
     title: '',
     message: '',
     buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+    hideActions: false,
   });
+
+  // PDF Preview Modal State
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfCredentialName, setPdfCredentialName] = useState('');
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -346,6 +356,7 @@ export default function MyCredentialPage() {
           title: 'Credential Not Found',
           message: 'The requested credential could not be found in storage.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -359,6 +370,7 @@ export default function MyCredentialPage() {
         title: 'Error Loading Credential',
         message: 'Failed to load credential details. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -376,6 +388,7 @@ export default function MyCredentialPage() {
           title: 'Credential Not Found',
           message: 'The requested credential could not be found in storage.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -390,6 +403,7 @@ export default function MyCredentialPage() {
         title: 'Error',
         message: 'Failed to open present modal. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -407,6 +421,7 @@ export default function MyCredentialPage() {
           title: 'Credential Not Found',
           message: 'The requested credential could not be found in storage.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -429,6 +444,7 @@ export default function MyCredentialPage() {
         title: 'Error Loading Credential',
         message: 'Failed to load credential details. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -446,6 +462,7 @@ export default function MyCredentialPage() {
           title: 'Credential Not Found',
           message: 'The requested credential could not be found in storage.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -460,6 +477,7 @@ export default function MyCredentialPage() {
         title: 'Error Loading Credential',
         message: 'Failed to load credential details. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -477,6 +495,7 @@ export default function MyCredentialPage() {
           title: 'Credential Not Found',
           message: 'The requested credential could not be found in storage.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -491,6 +510,7 @@ export default function MyCredentialPage() {
         title: 'Error Loading Credential',
         message: 'Failed to load credential details. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -502,6 +522,7 @@ export default function MyCredentialPage() {
         title: 'Missing Information',
         message: 'Please provide a reason for renewal.',
         buttonColor: 'yellow',
+        hideActions: false,
       });
       setShowInfoModal(true);
       return;
@@ -641,6 +662,7 @@ export default function MyCredentialPage() {
         message:
           'Your credential renewal request has been submitted successfully. The issuer will review your request.',
         buttonColor: 'green',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } catch (error) {
@@ -652,6 +674,7 @@ export default function MyCredentialPage() {
             ? error.message
             : 'Failed to submit renewal request. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } finally {
@@ -665,6 +688,7 @@ export default function MyCredentialPage() {
         title: 'Missing Information',
         message: 'Please provide a reason for update.',
         buttonColor: 'yellow',
+        hideActions: false,
       });
       setShowInfoModal(true);
       return;
@@ -721,6 +745,7 @@ export default function MyCredentialPage() {
           title: 'No Changes Detected',
           message: 'No attributes have been modified. Please make changes before submitting.',
           buttonColor: 'yellow',
+          hideActions: false,
         });
         setShowInfoModal(true);
         setIsUpdating(false);
@@ -782,6 +807,7 @@ export default function MyCredentialPage() {
         message:
           'Your credential update request has been submitted successfully. The issuer will review your request.',
         buttonColor: 'green',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } catch (error) {
@@ -793,6 +819,7 @@ export default function MyCredentialPage() {
             ? error.message
             : 'Failed to submit update request. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } finally {
@@ -806,6 +833,7 @@ export default function MyCredentialPage() {
         title: 'Missing Information',
         message: 'Please provide a reason for revocation.',
         buttonColor: 'yellow',
+        hideActions: false,
       });
       setShowInfoModal(true);
       return;
@@ -945,6 +973,7 @@ export default function MyCredentialPage() {
         message:
           'Your credential revocation request has been submitted successfully. The issuer will review your request.',
         buttonColor: 'green',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } catch (error) {
@@ -956,6 +985,7 @@ export default function MyCredentialPage() {
             ? error.message
             : 'Failed to submit revocation request. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } finally {
@@ -977,6 +1007,7 @@ export default function MyCredentialPage() {
           title: 'Credential Not Found',
           message: 'The requested credential could not be found in storage.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -1019,9 +1050,132 @@ export default function MyCredentialPage() {
         title: 'Download Failed',
         message: 'Failed to download credential. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
+  };
+
+  const handleDownloadPdf = async (id: string) => {
+    try {
+      console.log('📄 Starting PDF download for credential:', id);
+
+      // Show loading
+      setInfoModalConfig({
+        title: 'Generating PDF',
+        message: 'Please wait while we generate your PDF with QR code...',
+        buttonColor: 'blue',
+        hideActions: true,
+      });
+      setShowInfoModal(true);
+
+      // Step 1: Get credential (VC) from IndexedDB
+      const vc = await getVCById(id);
+      if (!vc) {
+        throw new Error('Credential not found');
+      }
+
+      console.log('✅ Credential retrieved:', vc.id);
+
+      // Step 2: Get holder's private key to sign VP
+      const holderPrivateKey = localStorage.getItem('institutionSigningPrivateKey');
+      if (!holderPrivateKey) {
+        throw new Error('Private key not found. Please log in again.');
+      }
+
+      const holderDid = localStorage.getItem('institutionDID');
+      if (!holderDid) {
+        throw new Error('DID not found. Please log in again.');
+      }
+
+      // Step 3: Create and sign VP, then store to backend
+      console.log('🔐 Creating and storing VP...');
+      const vpId = await createAndStoreVP(vc, holderPrivateKey, holderDid);
+      console.log('✅ VP created and stored with ID:', vpId);
+
+      // Step 4: Get schema data for QR position
+      // Schema data is stored separately in IndexedDB
+      const { getSchemaDataByVCId } = await import('@/utils/indexedDB');
+      const schemaData = await getSchemaDataByVCId(vc.id);
+      if (!schemaData?.schema?.qr_code_position) {
+        throw new Error('QR code position not found in schema');
+      }
+
+      const qrPos = schemaData.schema.qr_code_position as unknown;
+      if (
+        !qrPos ||
+        typeof (qrPos as { x?: unknown }).x !== 'number' ||
+        typeof (qrPos as { y?: unknown }).y !== 'number' ||
+        typeof (qrPos as { size?: unknown }).size !== 'number'
+      ) {
+        throw new Error('Invalid QR code position in schema');
+      }
+
+      const qrPosition: { x: number; y: number; size: number } = qrPos as {
+        x: number;
+        y: number;
+        size: number;
+      };
+      console.log('✅ QR Position:', qrPosition);
+
+      // Step 5: Get background image URL
+      const backgroundImageUrl = vc.fileUrl || vc.imageLink;
+      if (!backgroundImageUrl) {
+        throw new Error('Background image URL not found');
+      }
+
+      console.log('✅ Background image URL:', backgroundImageUrl);
+
+      // Step 6: Generate PDF with QR code
+      console.log('📝 Generating PDF...');
+      const pdfBlob = await generatePDFWithQR(backgroundImageUrl, vpId, qrPosition);
+      console.log('✅ PDF generated successfully');
+
+      // Step 7: Create object URL for preview (better for iframe)
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+
+      // Close loading modal and open PDF preview
+      setShowInfoModal(false);
+
+      // Set PDF preview data
+      setPdfDataUrl(pdfUrl);
+      setPdfBlob(pdfBlob);
+      setPdfCredentialName(
+        `${vc.type.find((t) => t !== 'VerifiableCredential') || 'Credential'}_${new Date().toISOString().split('T')[0]}.pdf`
+      );
+      setShowPDFPreview(true);
+
+      console.log('✅ PDF preview opened');
+    } catch (error) {
+      console.error('❌ Error downloading credential as PDF:', error);
+      setInfoModalConfig({
+        title: 'Download Failed',
+        message: `Failed to download credential as PDF: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        buttonColor: 'red',
+        hideActions: false,
+      });
+      setShowInfoModal(true);
+    }
+  };
+
+  // Handle PDF download from preview modal
+  const handleDownloadPdfFromPreview = () => {
+    if (pdfBlob && pdfCredentialName) {
+      downloadPDF(pdfBlob, pdfCredentialName);
+      console.log('✅ PDF downloaded:', pdfCredentialName);
+    }
+  };
+
+  // Handle PDF preview modal close
+  const handleClosePDFPreview = () => {
+    // Revoke object URL to prevent memory leak
+    if (pdfDataUrl) {
+      URL.revokeObjectURL(pdfDataUrl);
+    }
+    setShowPDFPreview(false);
+    setPdfDataUrl(null);
+    setPdfBlob(null);
+    setPdfCredentialName('');
   };
 
   const fetchSchemas = async () => {
@@ -1080,6 +1234,7 @@ export default function MyCredentialPage() {
         title: 'Error Fetching Schemas',
         message: `Failed to fetch schemas: ${errorMessage}`,
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } finally {
@@ -1097,6 +1252,7 @@ export default function MyCredentialPage() {
           title: 'Authentication Required',
           message: 'Holder DID not found. Please login again.',
           buttonColor: 'yellow',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -1107,6 +1263,7 @@ export default function MyCredentialPage() {
           title: 'Authentication Required',
           message: 'Authentication token not found. Please login again.',
           buttonColor: 'yellow',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -1119,6 +1276,7 @@ export default function MyCredentialPage() {
           title: 'Schema Not Found',
           message: 'The requested schema could not be found.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -1204,6 +1362,7 @@ export default function MyCredentialPage() {
           title: 'Request Successful',
           message: `Credential request successful!\n\nRequest ID: ${result.data.claimId}\nStatus: ${result.data.status}`,
           buttonColor: 'green',
+          hideActions: false,
         });
         setShowInfoModal(true);
         setShowRequestModal(false);
@@ -1217,6 +1376,7 @@ export default function MyCredentialPage() {
         title: 'Error',
         message: `Failed to request credential: ${errorMessage}\n\nPlease check the console for more details.`,
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -1604,6 +1764,7 @@ export default function MyCredentialPage() {
             title: 'Success',
             message: `Successfully claimed and stored ${items.length} new credential(s)!`,
             buttonColor: 'green',
+            hideActions: false,
           });
           setShowInfoModal(true);
         } else {
@@ -1623,6 +1784,7 @@ export default function MyCredentialPage() {
           title: 'Error Claiming Credentials',
           message: `Failed to claim credentials: ${errorMessage}\n\nPlease check the console for more details.`,
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
       }
@@ -1862,6 +2024,7 @@ export default function MyCredentialPage() {
         title: 'Success',
         message: 'Credential uploaded and stored successfully!',
         buttonColor: 'green',
+        hideActions: false,
       });
       setShowInfoModal(true);
       setShowUploadModal(false);
@@ -1877,6 +2040,7 @@ export default function MyCredentialPage() {
         title: 'Error Storing Credential',
         message: 'Failed to store credential. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -2050,7 +2214,7 @@ export default function MyCredentialPage() {
               e.stopPropagation();
               handleRequestCredential(row.id, row.issuer_did);
             }}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
+            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer"
           >
             REQUEST
           </button>
@@ -2059,7 +2223,7 @@ export default function MyCredentialPage() {
               e.stopPropagation();
               toggleExpandSchema(row.compositeId);
             }}
-            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium"
+            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium cursor-pointer"
           >
             VIEW
           </button>
@@ -2153,6 +2317,35 @@ export default function MyCredentialPage() {
             idKey="id"
             topRightButtons={
               <div className="flex gap-3">
+                <button
+                  onClick={fetchAndStoreCredentials}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                      </svg>
+                      Refresh
+                    </>
+                  )}
+                </button>
                 <button
                   onClick={handleOpenUploadModal}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
@@ -2285,6 +2478,7 @@ export default function MyCredentialPage() {
         }}
         selectedCredential={selectedCredential}
         onDownload={handleDownload}
+        onDownloadPdf={handleDownloadPdf}
       />
 
       {/* Upload VC Modal */}
@@ -2411,6 +2605,16 @@ export default function MyCredentialPage() {
         title={infoModalConfig.title}
         message={infoModalConfig.message}
         buttonColor={infoModalConfig.buttonColor}
+        hideActions={infoModalConfig.hideActions}
+      />
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        isOpen={showPDFPreview}
+        pdfDataUrl={pdfDataUrl}
+        onClose={handleClosePDFPreview}
+        onDownload={handleDownloadPdfFromPreview}
+        credentialName={pdfCredentialName}
       />
 
       {/* Filter Popup */}
