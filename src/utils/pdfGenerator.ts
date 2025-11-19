@@ -149,18 +149,21 @@ export async function generatePDFWithQR(
     const qrPdfY = pxToMm(qrY);
     const qrPdfSize = pxToMm(qrSize);
     const qrPdfImageSize = pxToMm(qrImageSize);
-    const padding = pxToMm(8);
 
     // White background for QR
     pdf.setFillColor(255, 255, 255);
     pdf.rect(qrPdfX, qrPdfY, qrPdfSize, qrPdfSize, 'F');
 
-    // Add QR code image
+    // Center QR code image within the white background
+    const offsetX = (qrPdfSize - qrPdfImageSize) / 2;
+    const offsetY = (qrPdfSize - qrPdfImageSize) / 2;
+
+    // Add QR code image (centered)
     pdf.addImage(
       qrDataUri,
       'PNG',
-      qrPdfX + padding,
-      qrPdfY + padding,
+      qrPdfX + offsetX,
+      qrPdfY + offsetY,
       qrPdfImageSize,
       qrPdfImageSize
     );

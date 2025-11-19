@@ -244,6 +244,7 @@ export default function MyCredentialPage() {
     title: '',
     message: '',
     buttonColor: 'blue' as 'blue' | 'green' | 'red' | 'yellow',
+    hideActions: false,
   });
 
   // PDF Preview Modal State
@@ -355,6 +356,7 @@ export default function MyCredentialPage() {
           title: 'Credential Not Found',
           message: 'The requested credential could not be found in storage.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -368,6 +370,7 @@ export default function MyCredentialPage() {
         title: 'Error Loading Credential',
         message: 'Failed to load credential details. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -416,6 +419,7 @@ export default function MyCredentialPage() {
           title: 'Credential Not Found',
           message: 'The requested credential could not be found in storage.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -438,6 +442,7 @@ export default function MyCredentialPage() {
         title: 'Error Loading Credential',
         message: 'Failed to load credential details. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -455,6 +460,7 @@ export default function MyCredentialPage() {
           title: 'Credential Not Found',
           message: 'The requested credential could not be found in storage.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -469,6 +475,7 @@ export default function MyCredentialPage() {
         title: 'Error Loading Credential',
         message: 'Failed to load credential details. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -486,6 +493,7 @@ export default function MyCredentialPage() {
           title: 'Credential Not Found',
           message: 'The requested credential could not be found in storage.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -500,6 +508,7 @@ export default function MyCredentialPage() {
         title: 'Error Loading Credential',
         message: 'Failed to load credential details. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -511,6 +520,7 @@ export default function MyCredentialPage() {
         title: 'Missing Information',
         message: 'Please provide a reason for renewal.',
         buttonColor: 'yellow',
+        hideActions: false,
       });
       setShowInfoModal(true);
       return;
@@ -650,6 +660,7 @@ export default function MyCredentialPage() {
         message:
           'Your credential renewal request has been submitted successfully. The issuer will review your request.',
         buttonColor: 'green',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } catch (error) {
@@ -661,6 +672,7 @@ export default function MyCredentialPage() {
             ? error.message
             : 'Failed to submit renewal request. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } finally {
@@ -674,6 +686,7 @@ export default function MyCredentialPage() {
         title: 'Missing Information',
         message: 'Please provide a reason for update.',
         buttonColor: 'yellow',
+        hideActions: false,
       });
       setShowInfoModal(true);
       return;
@@ -730,6 +743,7 @@ export default function MyCredentialPage() {
           title: 'No Changes Detected',
           message: 'No attributes have been modified. Please make changes before submitting.',
           buttonColor: 'yellow',
+          hideActions: false,
         });
         setShowInfoModal(true);
         setIsUpdating(false);
@@ -791,6 +805,7 @@ export default function MyCredentialPage() {
         message:
           'Your credential update request has been submitted successfully. The issuer will review your request.',
         buttonColor: 'green',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } catch (error) {
@@ -802,6 +817,7 @@ export default function MyCredentialPage() {
             ? error.message
             : 'Failed to submit update request. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } finally {
@@ -815,6 +831,7 @@ export default function MyCredentialPage() {
         title: 'Missing Information',
         message: 'Please provide a reason for revocation.',
         buttonColor: 'yellow',
+        hideActions: false,
       });
       setShowInfoModal(true);
       return;
@@ -954,6 +971,7 @@ export default function MyCredentialPage() {
         message:
           'Your credential revocation request has been submitted successfully. The issuer will review your request.',
         buttonColor: 'green',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } catch (error) {
@@ -965,6 +983,7 @@ export default function MyCredentialPage() {
             ? error.message
             : 'Failed to submit revocation request. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } finally {
@@ -986,6 +1005,7 @@ export default function MyCredentialPage() {
           title: 'Credential Not Found',
           message: 'The requested credential could not be found in storage.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -1028,6 +1048,7 @@ export default function MyCredentialPage() {
         title: 'Download Failed',
         message: 'Failed to download credential. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -1042,6 +1063,7 @@ export default function MyCredentialPage() {
         title: 'Generating PDF',
         message: 'Please wait while we generate your PDF with QR code...',
         buttonColor: 'blue',
+        hideActions: true,
       });
       setShowInfoModal(true);
 
@@ -1128,6 +1150,7 @@ export default function MyCredentialPage() {
         title: 'Download Failed',
         message: `Failed to download credential as PDF: ${error instanceof Error ? error.message : 'Unknown error'}`,
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -1209,6 +1232,7 @@ export default function MyCredentialPage() {
         title: 'Error Fetching Schemas',
         message: `Failed to fetch schemas: ${errorMessage}`,
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     } finally {
@@ -1226,6 +1250,7 @@ export default function MyCredentialPage() {
           title: 'Authentication Required',
           message: 'Holder DID not found. Please login again.',
           buttonColor: 'yellow',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -1236,6 +1261,7 @@ export default function MyCredentialPage() {
           title: 'Authentication Required',
           message: 'Authentication token not found. Please login again.',
           buttonColor: 'yellow',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -1248,6 +1274,7 @@ export default function MyCredentialPage() {
           title: 'Schema Not Found',
           message: 'The requested schema could not be found.',
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
         return;
@@ -1333,6 +1360,7 @@ export default function MyCredentialPage() {
           title: 'Request Successful',
           message: `Credential request successful!\n\nRequest ID: ${result.data.claimId}\nStatus: ${result.data.status}`,
           buttonColor: 'green',
+          hideActions: false,
         });
         setShowInfoModal(true);
         setShowRequestModal(false);
@@ -1346,6 +1374,7 @@ export default function MyCredentialPage() {
         title: 'Error',
         message: `Failed to request credential: ${errorMessage}\n\nPlease check the console for more details.`,
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -1733,6 +1762,7 @@ export default function MyCredentialPage() {
             title: 'Success',
             message: `Successfully claimed and stored ${items.length} new credential(s)!`,
             buttonColor: 'green',
+            hideActions: false,
           });
           setShowInfoModal(true);
         } else {
@@ -1752,6 +1782,7 @@ export default function MyCredentialPage() {
           title: 'Error Claiming Credentials',
           message: `Failed to claim credentials: ${errorMessage}\n\nPlease check the console for more details.`,
           buttonColor: 'red',
+          hideActions: false,
         });
         setShowInfoModal(true);
       }
@@ -1991,6 +2022,7 @@ export default function MyCredentialPage() {
         title: 'Success',
         message: 'Credential uploaded and stored successfully!',
         buttonColor: 'green',
+        hideActions: false,
       });
       setShowInfoModal(true);
       setShowUploadModal(false);
@@ -2006,6 +2038,7 @@ export default function MyCredentialPage() {
         title: 'Error Storing Credential',
         message: 'Failed to store credential. Please try again.',
         buttonColor: 'red',
+        hideActions: false,
       });
       setShowInfoModal(true);
     }
@@ -2570,6 +2603,7 @@ export default function MyCredentialPage() {
         title={infoModalConfig.title}
         message={infoModalConfig.message}
         buttonColor={infoModalConfig.buttonColor}
+        hideActions={infoModalConfig.hideActions}
       />
 
       {/* PDF Preview Modal */}
