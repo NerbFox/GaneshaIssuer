@@ -29,6 +29,7 @@ import {
 } from '@/services/credentialService';
 import { fetchPublicKeyForDID } from '@/services/didService';
 import { fetchSchemaByVersion, fetchSchemas } from '@/services/schemaService';
+import { storeIssuedCredentialsBatch } from '@/utils/indexedDB';
 
 interface VerifiableCredentialData {
   id: string;
@@ -240,11 +241,14 @@ export default function IssuedByMePage() {
             const schemaName = schemaInfo?.name || 'Unknown Schema';
             const isUnknownSchema = !schemaInfo || !schemaId;
 
-            // Determine credential status based on newest VC
+            // Determine credential status based on vc_status from decrypted data
             let credentialStatus = 'APPROVED';
-            if (newestVC.credentialStatus?.revoked) {
+
+            // Primary status check: use vc_status from decrypted data
+            if (vcContainer.vc_status === false) {
               credentialStatus = 'REVOKED';
             } else if (newestVC.expiredAt) {
+              // Secondary check: if vc_status is true, check expiration
               const expirationDate = new Date(newestVC.expiredAt);
               const now = new Date();
               if (expirationDate < now) {
@@ -290,6 +294,17 @@ export default function IssuedByMePage() {
       setCredentials(transformedCredentials);
       setFilteredCredentials(transformedCredentials);
       setLastRefresh(new Date());
+
+      // Store credentials in IndexedDB for later use (e.g., renew, update operations)
+      if (transformedCredentials.length > 0) {
+        try {
+          const storedIds = await storeIssuedCredentialsBatch(transformedCredentials);
+          console.log(`[IndexedDB] Stored ${storedIds.length} issued credentials`);
+        } catch (storageError) {
+          console.error('[IndexedDB] Failed to store credentials:', storageError);
+          // Don't fail the entire operation if storage fails
+        }
+      }
     } catch (err) {
       console.error('Error fetching credentials:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -542,6 +557,7 @@ export default function IssuedByMePage() {
             holderDid: credential.holderDid,
             holderPublicKey,
             vcId: vcId,
+            issuerVCDataId: credential.id, // ID of the issued credential record
           });
 
           if (!revokeResponse.ok) {
@@ -624,15 +640,15 @@ export default function IssuedByMePage() {
           const schemaData = schemaResponse.data;
           const expiredIn = schemaData.schema.expired_in;
 
+          // Expireable credential can't be renewed
+          if (!expiredIn) return;
+
           // Calculate new expiration date based on schema's expired_in
           // If expired_in is 0 or not set, the credential is lifetime (no expiration)
-          let expiredAtString: string | null = null;
-          if (expiredIn && expiredIn > 0) {
-            const now = new Date();
-            const expiredAt = new Date(now);
-            expiredAt.setFullYear(expiredAt.getFullYear() + expiredIn);
-            expiredAtString = expiredAt.toISOString();
-          }
+          const now = new Date();
+          const expiredAt = new Date(now);
+          expiredAt.setFullYear(expiredAt.getFullYear() + expiredIn);
+          const expiredAtString = expiredAt.toISOString();
 
           // Get institution information
           const institutionDataStr = localStorage.getItem('institutionData');
@@ -668,7 +684,7 @@ export default function IssuedByMePage() {
             schemaVersion: selectedCredential.schemaVersion,
             schemaName: selectedCredential.schemaName,
             credentialData,
-            expiredAt: expiredAtString || '',
+            expiredAt: expiredAtString,
             imageLink,
             institutionName,
             issuerVCDataId: selectedCredential.id, // ID of the issued credential record
@@ -1401,6 +1417,7 @@ export default function IssuedByMePage() {
               setSelectedCredential(null);
             }}
             currentVC={selectedCredential.vcHistory?.[0]}
+            vcHistory={selectedCredential.vcHistory}
           />
         )}
       </Modal>

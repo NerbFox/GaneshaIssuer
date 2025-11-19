@@ -63,6 +63,7 @@ export interface RevokeCredentialParams {
   holderDid: string;
   holderPublicKey: string;
   vcId: string;
+  issuerVCDataId: string; // ID of the issued credential in IndexedDB and API
 }
 
 export interface FetchVCsByIssuerDIDResponse {
@@ -422,15 +423,22 @@ export async function renewCredential(
 
 /**
  * Revoke a credential
- * Marks a credential as revoked
+ * Marks a credential as revoked by setting vc_status to false
+ * Updates both holder's and issuer's records
  */
 export async function revokeCredential(
   params: RevokeCredentialParams
 ): Promise<{ revokeResponse: Response }> {
-  const { issuerDid, holderDid, holderPublicKey, vcId } = params;
+  const { issuerDid, holderDid, holderPublicKey, vcId, issuerVCDataId } = params;
 
-  // Encrypt the credential info with holder's public key
-  const encryptedBody = await encryptWithPublicKey(
+  // Step 1: Fetch the issued credential from IndexedDB
+  const issuedCredential = await getIssuedCredentialById(issuerVCDataId);
+  if (!issuedCredential) {
+    throw new Error('Issued credential not found in IndexedDB');
+  }
+
+  // Step 2: Encrypt the credential info with holder's public key (for holder notification)
+  const encryptedBodyForHolder = await encryptWithPublicKey(
     {
       verifiable_credential: {
         id: vcId,
@@ -439,14 +447,44 @@ export async function revokeCredential(
     holderPublicKey
   );
 
-  // Call the revoke API
+  // Step 3: Call the revoke API (sends notification to holder)
   const revokeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.REVOKE_VC);
   const revokeResponse = await authenticatedPost(revokeUrl, {
     issuer_did: issuerDid,
     holder_did: holderDid,
     vc_id: vcId,
-    encrypted_body: encryptedBody,
+    encrypted_body: encryptedBodyForHolder,
   });
+
+  // Step 4: Get the existing VC history from IndexedDB
+  const existingVCHistory = issuedCredential.vcHistory || [];
+
+  // Step 5: Encrypt the updated data with vc_status set to false
+  const encryptedBodyForIssuer = await encryptWithIssuerPublicKey({
+    vc_status: false, // Mark as revoked
+    verifiable_credentials: existingVCHistory,
+  });
+
+  // Step 6: Update the issuer's VC data via PUT API
+  const updateUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_ID(issuerVCDataId));
+  const updateResponse = await authenticatedPut(updateUrl, {
+    issuer_did: issuerDid,
+    encrypted_body: encryptedBodyForIssuer,
+  });
+
+  if (!updateResponse.ok) {
+    const errorData = await updateResponse.json();
+    throw new Error(errorData.message || 'Failed to update issuer VC data');
+  }
+
+  // Step 7: Update IndexedDB with revoked status
+  const updatedIssuedCredential = {
+    ...issuedCredential,
+    status: 'REVOKED',
+  };
+
+  await storeIssuedCredential(updatedIssuedCredential);
+  console.log(`[IndexedDB] Updated issued credential with revoked status: ${issuerVCDataId}`);
 
   return { revokeResponse };
 }
