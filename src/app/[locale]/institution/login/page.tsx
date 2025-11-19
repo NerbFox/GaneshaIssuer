@@ -2,9 +2,9 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { ThemedText } from '@/components/ThemedText';
-import Button from '@/components/Button';
-import AuthContainer from '@/components/AuthContainer';
+import { ThemedText } from '@/components/shared/ThemedText';
+import Button from '@/components/shared/Button';
+import AuthContainer from '@/components/shared/AuthContainer';
 import { Link } from '@/i18n/routing';
 import { validateMnemonic, generateWalletFromMnemonic } from '@/utils/seedphrase-p256';
 import { createJWT } from '@/utils/jwt-es256';

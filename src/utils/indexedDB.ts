@@ -10,7 +10,8 @@ const DB_NAME = 'CredentialsDB';
 const STORE_NAME = 'credentials';
 const VP_SHARINGS_STORE = 'vp_sharings';
 const SCHEMA_DATA_STORE = 'schema_data';
-const DB_VERSION = 3; // Increment version to add schema_data store
+const ISSUED_CREDENTIALS_STORE = 'issued_credentials';
+const DB_VERSION = 4; // Increment version to add issued_credentials store
 
 export interface VerifiableCredential {
   '@context': string[];
@@ -62,6 +63,44 @@ export interface VPSharing {
   created_at: string;
 }
 
+export interface VerifiableCredentialData {
+  id: string;
+  type: string[];
+  issuer: { id: string; name: string };
+  credentialSubject: {
+    id: string;
+    [key: string]: unknown;
+  };
+  validFrom: string;
+  expiredAt: string;
+  credentialStatus?: {
+    id: string;
+    type: string;
+    revoked?: boolean;
+  };
+  proof?: unknown;
+  imageLink?: string;
+  fileUrl?: string;
+  fileId?: string;
+  issuerName?: string;
+  '@context'?: string[];
+}
+
+export interface IssuedCredential {
+  id: string; // Primary key
+  holderDid: string;
+  schemaName: string;
+  status: string;
+  activeUntil: string;
+  schemaId: string;
+  schemaVersion: number;
+  encryptedBody?: Record<string, unknown>;
+  createdAt: string;
+  vcId?: string;
+  vcHistory?: VerifiableCredentialData[]; // Array of all VCs (newest first)
+  issuerDid: string; // Add issuer DID for querying
+}
+
 /**
  * Open or create the IndexedDB database
  */
@@ -108,6 +147,19 @@ const openDB = (): Promise<IDBDatabase> => {
         schemaDataStore.createIndex('id', 'id', { unique: false });
         schemaDataStore.createIndex('issuer_did', 'issuer_did', { unique: false });
         schemaDataStore.createIndex('name', 'name', { unique: false });
+      }
+
+      // Create issued_credentials object store if it doesn't exist
+      if (!db.objectStoreNames.contains(ISSUED_CREDENTIALS_STORE)) {
+        const issuedCredentialsStore = db.createObjectStore(ISSUED_CREDENTIALS_STORE, {
+          keyPath: 'id',
+        });
+
+        // Create indexes for efficient querying
+        issuedCredentialsStore.createIndex('issuerDid', 'issuerDid', { unique: false });
+        issuedCredentialsStore.createIndex('holderDid', 'holderDid', { unique: false });
+        issuedCredentialsStore.createIndex('status', 'status', { unique: false });
+        issuedCredentialsStore.createIndex('schemaId', 'schemaId', { unique: false });
       }
     };
   });
@@ -895,6 +947,260 @@ export const clearAllSchemaData = async (): Promise<boolean> => {
     });
   } catch (error) {
     console.error('[IndexedDB] Error clearing schema data:', error);
+    throw error;
+  }
+};
+
+// =============================================================================
+// ISSUED CREDENTIALS OPERATIONS
+// =============================================================================
+
+/**
+ * Store a single issued credential in IndexedDB
+ */
+export const storeIssuedCredential = async (credential: IssuedCredential): Promise<boolean> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([ISSUED_CREDENTIALS_STORE], 'readwrite');
+      const objectStore = transaction.objectStore(ISSUED_CREDENTIALS_STORE);
+      const request = objectStore.put(credential);
+
+      request.onsuccess = () => {
+        console.log(`[IndexedDB] Issued credential stored successfully: ${credential.id}`);
+        resolve(true);
+      };
+
+      request.onerror = () => {
+        console.error(
+          `[IndexedDB] Failed to store issued credential: ${credential.id}`,
+          request.error
+        );
+        reject(new Error(`Failed to store issued credential: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error storing issued credential:', error);
+    throw error;
+  }
+};
+
+/**
+ * Store multiple issued credentials in IndexedDB
+ */
+export const storeIssuedCredentialsBatch = async (
+  credentials: IssuedCredential[]
+): Promise<string[]> => {
+  try {
+    const db = await openDB();
+    const storedIds: string[] = [];
+
+    // Validate all credentials have required 'id' field
+    const invalidCredentials: number[] = [];
+    credentials.forEach((credential, index) => {
+      if (!credential || !credential.id) {
+        invalidCredentials.push(index);
+        console.error(
+          `[IndexedDB] Issued credential at index ${index} is missing required 'id' field:`,
+          credential
+        );
+      }
+    });
+
+    if (invalidCredentials.length > 0) {
+      throw new Error(
+        `${invalidCredentials.length} issued credential(s) missing required 'id' field at indices: ${invalidCredentials.join(', ')}`
+      );
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([ISSUED_CREDENTIALS_STORE], 'readwrite');
+      const objectStore = transaction.objectStore(ISSUED_CREDENTIALS_STORE);
+
+      let completed = 0;
+      let hasError = false;
+      const errors: string[] = [];
+
+      credentials.forEach((credential, index) => {
+        const request = objectStore.put(credential);
+
+        request.onsuccess = () => {
+          storedIds.push(credential.id);
+          completed++;
+          console.log(
+            `[IndexedDB] Issued credential stored successfully: ${credential.id} (${completed}/${credentials.length})`
+          );
+
+          if (completed === credentials.length && !hasError) {
+            resolve(storedIds);
+          }
+        };
+
+        request.onerror = () => {
+          hasError = true;
+          const errorMsg = `Issued credential at index ${index} (id: ${credential.id}): ${request.error?.message}`;
+          errors.push(errorMsg);
+          console.error(
+            `[IndexedDB] Failed to store issued credential: ${credential.id}`,
+            request.error
+          );
+        };
+      });
+
+      transaction.onerror = () => {
+        reject(new Error('Transaction failed while storing issued credentials'));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+        if (hasError) {
+          reject(new Error(`Some issued credentials failed to store: ${errors.join('; ')}`));
+        }
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error storing issued credentials batch:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get a single issued credential by ID
+ */
+export const getIssuedCredentialById = async (id: string): Promise<IssuedCredential | null> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([ISSUED_CREDENTIALS_STORE], 'readonly');
+      const objectStore = transaction.objectStore(ISSUED_CREDENTIALS_STORE);
+      const request = objectStore.get(id);
+
+      request.onsuccess = () => {
+        resolve(request.result || null);
+      };
+
+      request.onerror = () => {
+        reject(new Error(`Failed to get issued credential: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error getting issued credential:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all issued credentials by issuer DID
+ */
+export const getIssuedCredentialsByIssuerDid = async (
+  issuerDid: string
+): Promise<IssuedCredential[]> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([ISSUED_CREDENTIALS_STORE], 'readonly');
+      const objectStore = transaction.objectStore(ISSUED_CREDENTIALS_STORE);
+      const index = objectStore.index('issuerDid');
+      const request = index.getAll(issuerDid);
+
+      request.onsuccess = () => {
+        resolve(request.result || []);
+      };
+
+      request.onerror = () => {
+        reject(
+          new Error(`Failed to get issued credentials by issuer DID: ${request.error?.message}`)
+        );
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error getting issued credentials by issuer DID:', error);
+    throw error;
+  }
+};
+
+/**
+ * Clear all issued credentials for a specific issuer DID
+ */
+export const clearIssuedCredentialsByIssuerDid = async (issuerDid: string): Promise<boolean> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([ISSUED_CREDENTIALS_STORE], 'readwrite');
+      const objectStore = transaction.objectStore(ISSUED_CREDENTIALS_STORE);
+      const index = objectStore.index('issuerDid');
+      const request = index.openCursor(IDBKeyRange.only(issuerDid));
+
+      request.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+        if (cursor) {
+          cursor.delete();
+          cursor.continue();
+        } else {
+          console.log(`[IndexedDB] All issued credentials cleared for issuer DID: ${issuerDid}`);
+          resolve(true);
+        }
+      };
+
+      request.onerror = () => {
+        reject(
+          new Error(`Failed to clear issued credentials for issuer DID: ${request.error?.message}`)
+        );
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error clearing issued credentials by issuer DID:', error);
+    throw error;
+  }
+};
+
+/**
+ * Clear all issued credentials from IndexedDB
+ */
+export const clearAllIssuedCredentials = async (): Promise<boolean> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([ISSUED_CREDENTIALS_STORE], 'readwrite');
+      const objectStore = transaction.objectStore(ISSUED_CREDENTIALS_STORE);
+      const request = objectStore.clear();
+
+      request.onsuccess = () => {
+        console.log('[IndexedDB] All issued credentials cleared successfully');
+        resolve(true);
+      };
+
+      request.onerror = () => {
+        reject(new Error(`Failed to clear issued credentials: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error clearing issued credentials:', error);
     throw error;
   }
 };

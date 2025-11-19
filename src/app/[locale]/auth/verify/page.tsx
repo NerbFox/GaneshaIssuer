@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
 
 export default function VerifyMagicLinkPage() {
   const router = useRouter();

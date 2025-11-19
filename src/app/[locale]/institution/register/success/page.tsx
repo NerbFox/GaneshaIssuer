@@ -1,8 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import Button from '@/components/Button';
-import AuthContainer from '@/components/AuthContainer';
+import Button from '@/components/shared/Button';
+import AuthContainer from '@/components/shared/AuthContainer';
 import { useRouter } from 'next/navigation';
 
 export default function RegistrationSuccessPage() {

@@ -2,26 +2,41 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import InstitutionLayout from '@/components/InstitutionLayout';
-import { ThemedText } from '@/components/ThemedText';
-import { DataTable, Column } from '@/components/DataTable';
-import Modal from '@/components/Modal';
-import FillIssueRequestForm, { IssueRequestFormData } from '@/components/FillIssueRequestForm';
-import ViewSchemaForm from '@/components/ViewSchemaForm';
-import { AttributePositionData, QRCodePosition } from '@/components/AttributePositionEditor';
-import { DateTimePicker } from '@/components/DateTimePicker';
-import InfoModal from '@/components/InfoModal';
-import ConfirmationModal from '@/components/ConfirmationModal';
+import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
+import { DataTable, Column } from '@/components/shared/DataTable';
+import Modal from '@/components/shared/Modal';
+import FillIssueRequestForm, {
+  IssueRequestFormData,
+} from '@/components/issuer/FillIssueRequestForm';
+import ViewSchemaForm from '@/components/shared/ViewSchemaForm';
+import { AttributePositionData, QRCodePosition } from '@/components/issuer/AttributePositionEditor';
+import { DateTimePicker } from '@/components/shared/DateTimePicker';
+import InfoModal from '@/components/shared/InfoModal';
+import ConfirmationModal from '@/components/shared/ConfirmationModal';
+import { redirectIfNotAuthenticated } from '@/utils/auth';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
+import { formatDateTime, formatNumber, formatTime, formatDate } from '@/utils/dateUtils';
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey } from '@/utils/vcSigner';
-import { redirectIfNotAuthenticated } from '@/utils/auth';
 import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
 import {
   decryptWithIssuerPrivateKey,
   encryptWithPublicKey,
   encryptWithIssuerPublicKey,
 } from '@/utils/encryptUtils';
+// TODO: Refactor to use service functions
+// import {
+//   fetchCredentialRequests,
+//   fetchPublicKeyForDID,
+//   processCredentialRequest,
+//   issueCredential,
+//   updateCredential,
+//   renewCredential,
+//   revokeCredential,
+//   uploadCredentialFile,
+// } from '@/services/credentialService';
+// import { fetchSchemaByVersion } from '@/services/schemaService';
 
 interface IssueRequest {
   id: string;
@@ -191,6 +206,7 @@ export default function IssueRequestPage() {
     message: '',
     onConfirm: () => {},
   });
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const filterModalRef = useRef<HTMLDivElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
@@ -373,6 +389,7 @@ export default function IssueRequestPage() {
       const pendingRequests = allRequests.filter((r) => r.status === 'PENDING');
       setRequests(pendingRequests);
       setFilteredRequests(pendingRequests);
+      setLastRefresh(new Date());
     } catch (err) {
       console.error('Error fetching issue requests:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -1601,18 +1618,6 @@ export default function IssueRequestPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-  };
-
   const truncateDid = (did: string, maxLength: number = 25): string => {
     if (did.length <= maxLength) {
       return did;
@@ -1737,7 +1742,7 @@ export default function IssueRequestPage() {
       label: 'REQUESTED AT',
       sortKey: 'createdAt',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{formatDate(row.createdAt)}</ThemedText>
+        <ThemedText className="text-sm text-gray-900">{formatDateTime(row.createdAt)}</ThemedText>
       ),
     },
     {
@@ -1812,13 +1817,13 @@ export default function IssueRequestPage() {
             <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
               <ThemedText className="text-sm text-gray-600 mb-2">Total Pending</ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                {totalPendingCount.toLocaleString()}
+                {formatNumber(totalPendingCount)}
               </ThemedText>
             </div>
             <div className="bg-green-50 grid grid-row-2 rounded-2xl p-6">
               <ThemedText className="text-sm text-gray-600 mb-2">Active Schema Requests</ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                {activeSchemaCount.toLocaleString()}
+                {formatNumber(activeSchemaCount)}
               </ThemedText>
             </div>
             <div className="bg-red-50 grid grid-row-2 rounded-2xl p-6">
@@ -1826,7 +1831,7 @@ export default function IssueRequestPage() {
                 Inactive Schema Requests
               </ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                {inactiveSchemaCount.toLocaleString()}
+                {formatNumber(inactiveSchemaCount)}
               </ThemedText>
             </div>
           </div>
@@ -1836,25 +1841,25 @@ export default function IssueRequestPage() {
             <div className="bg-purple-50 grid grid-row-2 rounded-2xl p-6">
               <ThemedText className="text-sm text-gray-600 mb-2">Issuance</ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                {issuanceCount.toLocaleString()}
+                {formatNumber(issuanceCount)}
               </ThemedText>
             </div>
             <div className="bg-cyan-50 grid grid-row-2 rounded-2xl p-6">
               <ThemedText className="text-sm text-gray-600 mb-2">Renewal</ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                {renewalCount.toLocaleString()}
+                {formatNumber(renewalCount)}
               </ThemedText>
             </div>
             <div className="bg-orange-50 grid grid-row-2 rounded-2xl p-6">
               <ThemedText className="text-sm text-gray-600 mb-2">Update</ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                {updateCount.toLocaleString()}
+                {formatNumber(updateCount)}
               </ThemedText>
             </div>
             <div className="bg-rose-50 grid grid-row-2 rounded-2xl p-6">
               <ThemedText className="text-sm text-gray-600 mb-2">Revoke</ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                {revocationCount.toLocaleString()}
+                {formatNumber(revocationCount)}
               </ThemedText>
             </div>
           </div>
@@ -1921,6 +1926,11 @@ export default function IssueRequestPage() {
                     <div className="h-8 w-px bg-gray-200" />
                   </>
                 ) : null}
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <ThemedText fontSize={12} className="text-gray-500">
+                    Last updated: {formatTime(lastRefresh)}
+                  </ThemedText>
+                </div>
                 <button
                   onClick={fetchRequests}
                   disabled={isLoading}
@@ -2162,10 +2172,13 @@ export default function IssueRequestPage() {
             const schemaName = schemaNames.get(schemaId) || 'Unknown Schema';
             const expiredIn = schemaExpiredIns.get(schemaId);
 
-            // Format schema expired in text
-            let validityPeriodText = 'Lifetime';
+            // Calculate "Will Expired At" date
+            let willExpiredAtText = 'Lifetime';
             if (expiredIn && expiredIn !== 0) {
-              validityPeriodText = `${expiredIn} ${expiredIn === 1 ? 'Year' : 'Years'}`;
+              const now = new Date();
+              const expiryDate = new Date(now);
+              expiryDate.setFullYear(expiryDate.getFullYear() + expiredIn);
+              willExpiredAtText = formatDateTime(expiryDate);
             }
 
             return (
@@ -2183,6 +2196,20 @@ export default function IssueRequestPage() {
                       {selectedRequest.id}
                     </div>
                   </div>
+
+                  {/* Schema ID */}
+                  {schemaId && (
+                    <div className="col-span-2">
+                      <label className="block mb-2">
+                        <ThemedText className="text-sm font-medium text-gray-700">
+                          Schema ID
+                        </ThemedText>
+                      </label>
+                      <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
+                        {schemaId}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Schema Name */}
                   <div>
@@ -2208,20 +2235,6 @@ export default function IssueRequestPage() {
                     </div>
                   </div>
 
-                  {/* Schema ID */}
-                  {schemaId && (
-                    <div className="col-span-2">
-                      <label className="block mb-2">
-                        <ThemedText className="text-sm font-medium text-gray-700">
-                          Schema ID
-                        </ThemedText>
-                      </label>
-                      <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
-                        {schemaId}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Holder DID */}
                   <div className="col-span-2">
                     <label className="block mb-2">
@@ -2246,43 +2259,6 @@ export default function IssueRequestPage() {
                     </div>
                   </div>
 
-                  {/* Request Type */}
-                  <div>
-                    <label className="block mb-2">
-                      <ThemedText className="text-sm font-medium text-gray-700">
-                        Request Type
-                      </ThemedText>
-                    </label>
-                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-                      <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRequestTypeColor(selectedRequest.type)}`}
-                      >
-                        {selectedRequest.type.charAt(0) +
-                          selectedRequest.type.slice(1).toLowerCase()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <label className="block mb-2">
-                      <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
-                    </label>
-                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-                      <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                          selectedRequest.status === 'PENDING'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : selectedRequest.status === 'APPROVED'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
-                        }`}
-                      >
-                        {selectedRequest.status}
-                      </span>
-                    </div>
-                  </div>
-
                   {/* Requested At */}
                   <div>
                     <label className="block mb-2">
@@ -2295,15 +2271,32 @@ export default function IssueRequestPage() {
                     </div>
                   </div>
 
-                  {/* Schema Expired In */}
+                  {/* Will Expired At */}
                   <div>
                     <label className="block mb-2">
                       <ThemedText className="text-sm font-medium text-gray-700">
-                        Schema Expired In
+                        Will Expired At
                       </ThemedText>
                     </label>
                     <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                      {validityPeriodText}
+                      {willExpiredAtText}
+                    </div>
+                  </div>
+
+                  {/* Request Type */}
+                  <div className="col-span-2">
+                    <label className="block mb-2">
+                      <ThemedText className="text-sm font-medium text-gray-700">
+                        Request Type
+                      </ThemedText>
+                    </label>
+                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                      <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRequestTypeColor(selectedRequest.type)}`}
+                      >
+                        {selectedRequest.type.charAt(0) +
+                          selectedRequest.type.slice(1).toLowerCase()}
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -3,8 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import Image from 'next/image';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
-import { ThemedText } from '@/components/ThemedText';
+import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
+import { ThemedText } from '@/components/shared/ThemedText';
 
 export default function HomePage() {
   const t = useTranslations('nav');

@@ -3,13 +3,13 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ThemedText } from '@/components/ThemedText';
-import Button from '@/components/Button';
-import Input from '@/components/Input';
-import CountrySelect from '@/components/CountrySelect';
-import PhoneInput from '@/components/PhoneInput';
-import WebsiteInput from '@/components/WebsiteInput';
-import AuthContainer from '@/components/AuthContainer';
+import { ThemedText } from '@/components/shared/ThemedText';
+import Button from '@/components/shared/Button';
+import Input from '@/components/shared/Input';
+import CountrySelect from '@/components/shared/CountrySelect';
+import PhoneInput from '@/components/shared/PhoneInput';
+import WebsiteInput from '@/components/shared/WebsiteInput';
+import AuthContainer from '@/components/shared/AuthContainer';
 import { Link } from '@/i18n/routing';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 

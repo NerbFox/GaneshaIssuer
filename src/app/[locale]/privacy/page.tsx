@@ -2,10 +2,10 @@
 
 import { useTranslations, useLocale } from 'next-intl';
 import Image from 'next/image';
-import { ThemedText } from '@/components/ThemedText';
-import Button from '@/components/Button';
+import { ThemedText } from '@/components/shared/ThemedText';
+import Button from '@/components/shared/Button';
 import { useRouter } from 'next/navigation';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
 import { privacyContent as privacyContentEn } from '@/content/privacy/en';
 import { privacyContent as privacyContentId } from '@/content/privacy/id';
 import { privacyContent as privacyContentKo } from '@/content/privacy/ko';

@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ThemedText } from '@/components/ThemedText';
-import Button from '@/components/Button';
-import AuthContainer from '@/components/AuthContainer';
+import { formatDateTime } from '@/utils/dateUtils';
+import { ThemedText } from '@/components/shared/ThemedText';
+import Button from '@/components/shared/Button';
+import AuthContainer from '@/components/shared/AuthContainer';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 import { authenticatedPost } from '@/utils/api-client';
@@ -85,7 +86,7 @@ DID Method: dcert
 Entity Type: Institution (i)
 Format: did:dcert:i{base64url_publickey}
 
-Generated on: ${new Date().toLocaleString()}
+Generated on: ${formatDateTime(new Date())}
 
 IMPORTANT SECURITY NOTES:
 ========================================

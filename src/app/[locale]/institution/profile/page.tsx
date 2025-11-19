@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import InstitutionLayout from '@/components/InstitutionLayout';
-import { ThemedText } from '@/components/ThemedText';
+import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 
 interface InstitutionData {

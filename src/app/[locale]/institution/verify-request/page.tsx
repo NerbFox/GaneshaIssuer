@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import InstitutionLayout from '@/components/InstitutionLayout';
-import { ThemedText } from '@/components/ThemedText';
-import { DataTable, Column } from '@/components/DataTable';
-import Modal from '@/components/Modal';
+import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
+import { DataTable, Column } from '@/components/shared/DataTable';
+import Modal from '@/components/shared/Modal';
 import { redirectIfJWTInvalid } from '@/utils/auth';
+import { formatDate } from '@/utils/dateUtils';
 import { buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 import { authenticatedGet } from '@/utils/api-client';
 
@@ -296,17 +297,6 @@ export default function VerifyRequestPage() {
       default:
         return 'bg-gray-100 text-gray-700';
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   // Show loading screen while checking authentication

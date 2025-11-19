@@ -2,14 +2,15 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import InstitutionLayout from '@/components/InstitutionLayout';
-import { ThemedText } from '@/components/ThemedText';
-import { DataTable, Column } from '@/components/DataTable';
+import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
+import { DataTable, Column } from '@/components/shared/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
-import Modal from '@/components/Modal';
+import Modal from '@/components/shared/Modal';
 import { buildApiUrlWithParams, buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 import { authenticatedPost } from '@/utils/api-client';
-import InfoModal from '@/components/InfoModal';
+import { formatDateTime, formatDate, formatTime } from '@/utils/dateUtils';
+import InfoModal from '@/components/shared/InfoModal';
 import {
   storeVPSharings,
   getAllVPSharings,
@@ -1024,17 +1025,6 @@ export default function SharedWithMePage() {
     }));
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date
-      .toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      })
-      .replace(/\//g, '/');
-  };
-
   // Schema columns for Request VP Modal
   const schemaColumns: Column<SchemaWithCompositeId>[] = [
     {
@@ -1142,10 +1132,7 @@ export default function SharedWithMePage() {
         <div className="flex flex-col">
           <ThemedText className="text-sm text-gray-900">{formatDate(row.sharedDate)}</ThemedText>
           <ThemedText className="text-xs text-gray-500">
-            {new Date(row.sharedDate).toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+            {formatTime(new Date(row.sharedDate))}
           </ThemedText>
         </div>
       ),
@@ -1907,7 +1894,7 @@ export default function SharedWithMePage() {
                     {formatDate(selectedVPDetail.requestDetail.createdAt)}
                   </ThemedText>
                   <ThemedText fontSize={12} className="text-gray-500 mt-1 pl-2">
-                    {new Date(selectedVPDetail.requestDetail.createdAt).toLocaleTimeString()}
+                    {formatTime(new Date(selectedVPDetail.requestDetail.createdAt))}
                   </ThemedText>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -1916,7 +1903,7 @@ export default function SharedWithMePage() {
                     {formatDate(selectedVPDetail.requestDetail.updatedAt)}
                   </ThemedText>
                   <ThemedText fontSize={12} className="text-gray-500 mt-1 pl-2">
-                    {new Date(selectedVPDetail.requestDetail.updatedAt).toLocaleTimeString()}
+                    {formatTime(new Date(selectedVPDetail.requestDetail.updatedAt))}
                   </ThemedText>
                 </div>
               </div>
@@ -2152,14 +2139,7 @@ export default function SharedWithMePage() {
                                     VALID FROM
                                   </ThemedText>
                                   <ThemedText fontSize={12} className="text-gray-900">
-                                    {vcData.validFrom &&
-                                      new Date(vcData.validFrom).toLocaleString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      })}
+                                    {vcData.validFrom && formatDateTime(new Date(vcData.validFrom))}
                                   </ThemedText>
                                 </div>
                                 <div>
@@ -2167,14 +2147,7 @@ export default function SharedWithMePage() {
                                     EXPIRES AT
                                   </ThemedText>
                                   <ThemedText fontSize={12} className="text-gray-900">
-                                    {vcData.expiredAt &&
-                                      new Date(vcData.expiredAt).toLocaleString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      })}
+                                    {vcData.expiredAt && formatDateTime(new Date(vcData.expiredAt))}
                                   </ThemedText>
                                 </div>
                               </div>
@@ -2266,7 +2239,7 @@ export default function SharedWithMePage() {
                                   <div>
                                     <span className="text-gray-500">Created:</span>
                                     <span className="ml-2 text-gray-900 font-medium">
-                                      {new Date(vcData.proof.created).toLocaleString()}
+                                      {formatDateTime(new Date(vcData.proof.created))}
                                     </span>
                                   </div>
                                 </div>
@@ -2602,14 +2575,7 @@ export default function SharedWithMePage() {
                                   VALID FROM
                                 </ThemedText>
                                 <ThemedText fontSize={12} className="text-gray-900">
-                                  {vcData.validFrom &&
-                                    new Date(vcData.validFrom).toLocaleString('en-US', {
-                                      year: 'numeric',
-                                      month: 'long',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
+                                  {vcData.validFrom && formatDateTime(new Date(vcData.validFrom))}
                                 </ThemedText>
                               </div>
                               <div>
@@ -2617,14 +2583,7 @@ export default function SharedWithMePage() {
                                   EXPIRES AT
                                 </ThemedText>
                                 <ThemedText fontSize={12} className="text-gray-900">
-                                  {vcData.expiredAt &&
-                                    new Date(vcData.expiredAt).toLocaleString('en-US', {
-                                      year: 'numeric',
-                                      month: 'long',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
+                                  {vcData.expiredAt && formatDateTime(new Date(vcData.expiredAt))}
                                 </ThemedText>
                               </div>
                             </div>

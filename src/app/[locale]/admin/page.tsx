@@ -6,12 +6,13 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 import { adminAuthenticatedGet, adminAuthenticatedPost } from '@/utils/api-client';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
-import { ThemedText } from '@/components/ThemedText';
-import Button from '@/components/Button';
-import { DataTable, Column } from '@/components/DataTable';
-import InfoModal from '@/components/InfoModal';
-import ConfirmationModal from '@/components/ConfirmationModal';
+import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
+import { ThemedText } from '@/components/shared/ThemedText';
+import Button from '@/components/shared/Button';
+import { DataTable, Column } from '@/components/shared/DataTable';
+import InfoModal from '@/components/shared/InfoModal';
+import ConfirmationModal from '@/components/shared/ConfirmationModal';
+import { formatTime } from '@/utils/dateUtils';
 
 interface Institution {
   id: string;
@@ -700,7 +701,7 @@ export default function AdminPage() {
                 </ThemedText>
               </div>
               <ThemedText fontSize={12} className="text-gray-500">
-                • Last updated: {lastRefresh.toLocaleTimeString()}
+                • Last updated: {formatTime(lastRefresh)}
               </ThemedText>
             </div>
           </div>

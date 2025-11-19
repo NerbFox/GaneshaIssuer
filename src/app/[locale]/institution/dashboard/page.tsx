@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import InstitutionLayout from '@/components/InstitutionLayout';
-import { ThemedText } from '@/components/ThemedText';
+import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { redirectIfJWTInvalid } from '@/utils/auth';
+import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { API_ENDPOINTS, buildApiUrlWithParams } from '@/utils/api';
 import { authenticatedGet } from '@/utils/api-client';
 import { decryptWithPrivateKey } from '@/utils/encryptUtils';
@@ -275,11 +276,7 @@ export default function InstitutionPage() {
     if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
     if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
 
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return formatDate(date);
   };
 
   const truncateDid = (did: string, maxLength: number = 25): string => {
@@ -330,19 +327,19 @@ export default function InstitutionPage() {
             <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
               <ThemedText className="text-sm text-gray-600 mb-2">Active Schemas</ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                {isLoading ? 0 : stats.activeSchemas.toLocaleString()}
+                {isLoading ? 0 : formatNumber(stats.activeSchemas)}
               </ThemedText>
             </div>
             <div className="bg-purple-50 grid grid-row-2 rounded-2xl p-6">
               <ThemedText className="text-sm text-gray-600 mb-2">Pending Requests</ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                {isLoading ? 0 : stats.pendingRequests.toLocaleString()}
+                {isLoading ? 0 : formatNumber(stats.pendingRequests)}
               </ThemedText>
             </div>
             <div className="bg-green-50 grid grid-row-2 rounded-2xl p-6">
               <ThemedText className="text-sm text-gray-600 mb-2">Active Credentials</ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                {isLoading ? 0 : stats.activeCredentials.toLocaleString()}
+                {isLoading ? 0 : formatNumber(stats.activeCredentials)}
               </ThemedText>
             </div>
             <div className="bg-amber-50 grid grid-row-2 rounded-2xl p-6">
@@ -362,13 +359,13 @@ export default function InstitutionPage() {
             <div className="bg-cyan-50 grid grid-row-2 rounded-2xl p-6">
               <ThemedText className="text-sm text-gray-600 mb-2">Total Issued</ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                {isLoading ? 0 : stats.totalIssued.toLocaleString()}
+                {isLoading ? 0 : formatNumber(stats.totalIssued)}
               </ThemedText>
             </div>
             <div className="bg-teal-50 grid grid-row-2 rounded-2xl p-6">
               <ThemedText className="text-sm text-gray-600 mb-2">Total Activities</ThemedText>
               <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                {isLoading ? 0 : stats.totalActivities.toLocaleString()}
+                {isLoading ? 0 : formatNumber(stats.totalActivities)}
               </ThemedText>
             </div>
           </div>

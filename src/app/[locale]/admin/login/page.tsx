@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
-import PageHeader from '@/components/PageHeader';
-import Button from '@/components/Button';
-import Input from '@/components/Input';
+import PageHeader from '@/components/shared/PageHeader';
+import Button from '@/components/shared/Button';
+import Input from '@/components/shared/Input';
 import { Link } from '@/i18n/routing';
-import { ThemedText } from '@/components/ThemedText';
+import { ThemedText } from '@/components/shared/ThemedText';
 
 export default function AdminLoginPage() {
   const router = useRouter();

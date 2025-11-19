@@ -2,14 +2,15 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import InstitutionLayout from '@/components/InstitutionLayout';
-import { ThemedText } from '@/components/ThemedText';
-import { DataTable, Column } from '@/components/DataTable';
-import Modal from '@/components/Modal';
-import ViewSchemaForm from '@/components/ViewSchemaForm';
+import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
+import { DataTable, Column } from '@/components/shared/DataTable';
+import Modal from '@/components/shared/Modal';
+import ViewSchemaForm from '@/components/shared/ViewSchemaForm';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { authenticatedGet } from '@/utils/api-client';
+import { formatDateTime } from '@/utils/dateUtils';
 
 interface HistoryRequest {
   id: string;
@@ -370,22 +371,6 @@ export default function HistoryPage() {
       default:
         return 'bg-gray-100 text-gray-700';
     }
-  };
-
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const datePart = date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    const timePart = date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-    return `${datePart} ${timePart}`;
   };
 
   const truncateDid = (did: string, maxLength: number = 25): string => {

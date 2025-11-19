@@ -88,6 +88,7 @@ export const API_ENDPOINTS = {
       CONFIRM_VC_INIT: `${CREDENTIALS_PATH}/confirm-vc/issuer-init`,
       VC: `${CREDENTIALS_ISSUER_PATH}/vc`,
       VC_BY_DID: (did: string) => `${CREDENTIALS_ISSUER_PATH}/vc/did/${did}`,
+      VC_BY_ID: (id: string) => `${CREDENTIALS_ISSUER_PATH}/vc/${id}`,
     },
   },
 

@@ -2,22 +2,23 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import InstitutionLayout from '@/components/InstitutionLayout';
-import { ThemedText } from '@/components/ThemedText';
-import { DataTable, Column } from '@/components/DataTable';
-import Modal from '@/components/Modal';
-import CreateSchemaForm, { SchemaFormData } from '@/components/CreateSchemaForm';
+import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
+import { DataTable, Column } from '@/components/shared/DataTable';
+import Modal from '@/components/shared/Modal';
+import CreateSchemaForm, { SchemaFormData } from '@/components/issuer/CreateSchemaForm';
 import UpdateSchemaForm, {
   SchemaFormData as UpdateSchemaFormData,
-} from '@/components/UpdateSchemaForm';
-import ViewSchemaForm from '@/components/ViewSchemaForm';
-import { AttributePositionData, QRCodePosition } from '@/components/AttributePositionEditor';
-import { DateTimePicker } from '@/components/DateTimePicker';
+} from '@/components/issuer/UpdateSchemaForm';
+import ViewSchemaForm from '@/components/shared/ViewSchemaForm';
+import { AttributePositionData, QRCodePosition } from '@/components/issuer/AttributePositionEditor';
+import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { buildApiUrl, buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { authenticatedFetch, authenticatedGet, authenticatedPost } from '@/utils/api-client';
-import InfoModal from '@/components/InfoModal';
-import ConfirmationModal from '@/components/ConfirmationModal';
+import { formatDateTime, formatNumber, formatTime } from '@/utils/dateUtils';
+import InfoModal from '@/components/shared/InfoModal';
+import ConfirmationModal from '@/components/shared/ConfirmationModal';
 
 interface Schema {
   id: string;
@@ -111,6 +112,7 @@ export default function SchemaPage() {
     message: '',
     onConfirm: () => {},
   });
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const filterModalRef = useRef<HTMLDivElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
@@ -153,6 +155,7 @@ export default function SchemaPage() {
 
       // Update schemas state
       setSchemas(transformedSchemas);
+      setLastRefresh(new Date());
       // Don't apply filters here - let the useEffect handle it
       return transformedSchemas;
     } catch (error) {
@@ -1061,17 +1064,7 @@ export default function SchemaPage() {
       label: 'CREATED AT',
       sortKey: 'createdAt',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">
-          {new Date(row.createdAt).toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-          })}
-        </ThemedText>
+        <ThemedText className="text-sm text-gray-900">{formatDateTime(row.createdAt)}</ThemedText>
       ),
     },
     {
@@ -1079,17 +1072,7 @@ export default function SchemaPage() {
       label: 'UPDATED AT',
       sortKey: 'updatedAt',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">
-          {new Date(row.updatedAt).toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-          })}
-        </ThemedText>
+        <ThemedText className="text-sm text-gray-900">{formatDateTime(row.updatedAt)}</ThemedText>
       ),
     },
     {
@@ -1174,7 +1157,7 @@ export default function SchemaPage() {
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
             <ThemedText className="text-sm text-gray-600 mb-2">Active Schemas</ThemedText>
             <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-              {activeCount.toLocaleString()}
+              {formatNumber(activeCount)}
             </ThemedText>
           </div>
         </div>
@@ -1317,6 +1300,12 @@ export default function SchemaPage() {
                     <div className="h-8 w-px bg-gray-300"></div>
                   </>
                 )}
+
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <ThemedText fontSize={12} className="text-gray-500">
+                    Last updated: {formatTime(lastRefresh)}
+                  </ThemedText>
+                </div>
 
                 <button
                   onClick={async () => {
