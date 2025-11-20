@@ -1636,6 +1636,71 @@ export default function MyCredentialPage() {
                   allSchemaData.push(schemaData);
                   console.log(`[VC Claim] Schema data extracted for updated VC: ${vc.id}`);
                 }
+              } else if (claimedVC.request_type === 'RENEWAL') {
+                // RENEWAL: Delete old VC and add new VC
+                console.log('[VC Claim] Processing RENEWAL request');
+
+                const vc = decryptedData.verifiable_credential as unknown as VerifiableCredential;
+
+                // Validate that the VC has required fields
+                if (!vc || typeof vc !== 'object') {
+                  throw new Error('Decrypted data is not a valid object');
+                }
+
+                if (!vc.id) {
+                  console.error('[VC Claim] Renewed VC is missing id field:', vc);
+                  throw new Error('Renewed VC is missing required "id" field');
+                }
+
+                // Delete any existing VC with the same ID (renewal overwrites old VC)
+                console.log(`[VC Claim] Checking for existing VC with id: ${vc.id}`);
+                try {
+                  const deleted = await deleteVC(vc.id);
+                  if (deleted) {
+                    console.log(`[VC Claim] Deleted old VC during renewal: ${vc.id}`);
+                    // Also delete associated schema_data
+                    try {
+                      await deleteSchemaData(vc.id);
+                      console.log(`[VC Claim] Deleted schema_data for old VC: ${vc.id}`);
+                    } catch {
+                      console.warn(`[VC Claim] No schema_data found for old VC: ${vc.id}`);
+                    }
+                  } else {
+                    console.log(
+                      `[VC Claim] No existing VC found to delete (first time renewal): ${vc.id}`
+                    );
+                  }
+                } catch (deleteError) {
+                  console.warn(`[VC Claim] Error deleting old VC during renewal:`, deleteError);
+                }
+
+                // Attach the claimId and source to the new VC for later confirmation
+                vc.claimId = claimedVC.claimId;
+                vc.source = claimedVC.source;
+
+                console.log(
+                  `[VC Claim] Renewed VC successfully: ${vc.id} (claimId: ${claimedVC.claimId}) from ${claimedVC.source}`
+                );
+                allDecryptedVCs.push(vc);
+
+                // Extract schema_data if present
+                if (claimedVC.schema_data) {
+                  console.log(`[VC Claim] Extracting schema_data for renewed VC: ${vc.id}`);
+                  const schemaData: SchemaData = {
+                    vc_id: vc.id,
+                    id: claimedVC.schema_data.id,
+                    version: claimedVC.schema_data.version,
+                    name: claimedVC.schema_data.name,
+                    schema: claimedVC.schema_data.schema,
+                    issuer_did: claimedVC.schema_data.issuer_did,
+                    issuer_name: claimedVC.schema_data.issuer_name,
+                    image_link: claimedVC.schema_data.image_link || null,
+                    expired_in: claimedVC.schema_data.expired_in,
+                    isActive: claimedVC.schema_data.isActive,
+                  };
+                  allSchemaData.push(schemaData);
+                  console.log(`[VC Claim] Schema data extracted for renewed VC: ${vc.id}`);
+                }
               } else {
                 // ISSUANCE (default): Add new VC
                 console.log('[VC Claim] Processing ISSUANCE request');
@@ -1799,10 +1864,28 @@ export default function MyCredentialPage() {
 
       console.log(`[VC Flow] Found ${decryptedVCs.length} new VCs to store`);
 
+      // Log all VC IDs and claim IDs for debugging
+      console.log('[VC Flow] VCs to be stored:');
+      decryptedVCs.forEach((vc, index) => {
+        console.log(`  [${index + 1}] VC ID: ${vc.id}, Claim ID: ${vc.claimId}`);
+      });
+
+      // Check for duplicate VC IDs
+      const vcIds = decryptedVCs.map((vc) => vc.id);
+      const uniqueVcIds = new Set(vcIds);
+      if (vcIds.length !== uniqueVcIds.size) {
+        console.warn(
+          `[VC Flow] WARNING: Found duplicate VC IDs! Total: ${vcIds.length}, Unique: ${uniqueVcIds.size}`
+        );
+        const duplicates = vcIds.filter((id, index) => vcIds.indexOf(id) !== index);
+        console.warn('[VC Flow] Duplicate VC IDs:', [...new Set(duplicates)]);
+      }
+
       // Step 3: Store VCs in IndexedDB
       console.log('[VC Flow] Storing VCs in IndexedDB...');
       const storedIds = await storeVCBatch(decryptedVCs);
       console.log(`[VC Flow] Stored ${storedIds.length} VCs in IndexedDB`);
+      console.log('[VC Flow] Stored VC IDs:', storedIds);
 
       // Step 3b: Store schema_data in IndexedDB
       if (schemaDataList.length > 0) {
@@ -1821,6 +1904,8 @@ export default function MyCredentialPage() {
       // Verify all VCs are stored by checking claimIds
       const { items, missing } = await areVCsStoredByRequestIds(claimIds);
       console.log(`[VC Flow] Verification: ${items.length} stored, ${missing.length} missing`);
+      console.log('[VC Flow] Stored items (with VC IDs):', items);
+      console.log('[VC Flow] Missing claim IDs:', missing);
 
       if (missing.length > 0) {
         console.warn('[VC Flow] Some VCs failed to store:', missing);
