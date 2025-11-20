@@ -2351,6 +2351,37 @@ export default function MyCredentialPage() {
     }));
   };
 
+  // Helper function to parse VC ID and extract schema_id and schema_version
+  // VC ID format: schema_id:schema_version:holder_did:timestamp
+  // Note: holder_did itself contains colons (e.g., did:dcert:...)
+  const parseVCId = (vcId: string): { schemaId: string; schemaVersion: number } | null => {
+    try {
+      const parts = vcId.split(':');
+      if (parts.length < 4) {
+        return null;
+      }
+      const schemaId = parts[0];
+      const schemaVersion = parseInt(parts[1], 10);
+      return { schemaId, schemaVersion };
+    } catch (error) {
+      console.error('Error parsing VC ID:', error);
+      return null;
+    }
+  };
+
+  // Helper function to check if user already has this credential
+  const hasCredential = (schemaId: string, schemaVersion: number): boolean => {
+    return credentials.some((credential) => {
+      const parsed = parseVCId(credential.id);
+      return (
+        parsed &&
+        parsed.schemaId === schemaId &&
+        parsed.schemaVersion === schemaVersion &&
+        credential.status === 'Active'
+      );
+    });
+  };
+
   // Schema columns for Request Modal
   const schemaColumns: Column<SchemaWithCompositeId>[] = [
     {
@@ -2372,28 +2403,38 @@ export default function MyCredentialPage() {
     {
       id: 'action',
       label: 'ACTION',
-      render: (row) => (
-        <div className="flex gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRequestCredential(row.id, row.issuer_did);
-            }}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer"
-          >
-            REQUEST
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleExpandSchema(row.compositeId);
-            }}
-            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium cursor-pointer"
-          >
-            VIEW
-          </button>
-        </div>
-      ),
+      render: (row) => {
+        const alreadyHas = hasCredential(row.id, row.version);
+        return (
+          <div className="flex gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!alreadyHas) {
+                  handleRequestCredential(row.id, row.issuer_did);
+                }
+              }}
+              disabled={alreadyHas}
+              className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                alreadyHas
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
+              }`}
+            >
+              REQUEST
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleExpandSchema(row.compositeId);
+              }}
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium cursor-pointer"
+            >
+              VIEW
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
