@@ -1360,7 +1360,7 @@ export default function SharedWithMePage() {
             </ThemedText>
             <button
               onClick={() => setShowFilterModal(false)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 cursor-pointer"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -1383,11 +1383,17 @@ export default function SharedWithMePage() {
               onChange={(e) =>
                 handleVerifiedChange(e.target.value as 'all' | 'verified' | 'unverified')
               }
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black cursor-pointer"
             >
-              <option value="all">All</option>
-              <option value="verified">Verified</option>
-              <option value="unverified">Unverified</option>
+              <option value="all" className="cursor-pointer">
+                All
+              </option>
+              <option value="verified" className="cursor-pointer">
+                Verified
+              </option>
+              <option value="unverified" className="cursor-pointer">
+                Unverified
+              </option>
             </select>
           </div>
         </div>
@@ -1415,7 +1421,7 @@ export default function SharedWithMePage() {
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 cursor-pointer bg-white"
               >
                 {didPrefixes.map((prefix) => (
-                  <option key={prefix} value={prefix}>
+                  <option key={prefix} value={prefix} className="cursor-pointer">
                     {prefix}
                   </option>
                 ))}
@@ -1536,7 +1542,7 @@ export default function SharedWithMePage() {
                       </div>
                       <button
                         onClick={() => handleRemoveFromSelection(schema.compositeId)}
-                        className="text-red-500 hover:text-red-700 transition-colors"
+                        className="text-red-500 hover:text-red-700 transition-colors cursor-pointer"
                         aria-label="Remove schema"
                       >
                         <svg
@@ -1579,7 +1585,7 @@ export default function SharedWithMePage() {
             <button
               onClick={handleCloseRequestVPModal}
               disabled={isSubmittingVP}
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               Cancel
             </button>
@@ -1593,7 +1599,7 @@ export default function SharedWithMePage() {
               }
               className={`px-6 py-3 rounded-lg transition-colors text-sm font-medium ${
                 vpHolderDid && selectedCredentials.size > 0 && vpPurpose.trim() && !isSubmittingVP
-                  ? 'bg-purple-500 text-white hover:bg-purple-600 shadow-sm'
+                  ? 'bg-purple-500 text-white hover:bg-purple-600 shadow-sm cursor-pointer'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
@@ -1986,14 +1992,14 @@ export default function SharedWithMePage() {
                     setShowViewModal(false);
                     setSelectedVPDetail(null);
                   }}
-                  className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                  className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium cursor-pointer"
                 >
                   Close
                 </button>
                 {selectedVPDetail.requestDetail.verify_status === 'NOT_VERIFIED' && (
                   <button
                     onClick={() => handleVerify(selectedVPDetail.vpSharing.vp_id)}
-                    className="px-8 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium shadow-md"
+                    className="px-8 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium shadow-md cursor-pointer"
                   >
                     Verify Credentials
                   </button>
@@ -2334,7 +2340,7 @@ export default function SharedWithMePage() {
               <div className="flex justify-end pt-6 border-t border-gray-200">
                 <button
                   onClick={handleCloseVerifyModal}
-                  className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium shadow-lg"
+                  className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium shadow-lg cursor-pointer"
                 >
                   Close Verification
                 </button>
@@ -2397,7 +2403,7 @@ Are you sure you want to close?`}
               </div>
               <button
                 onClick={startQRScanner}
-                className="px-12 py-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors text-base font-medium shadow-lg mt-4"
+                className="px-12 py-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors text-base font-medium shadow-lg mt-4 cursor-pointer"
               >
                 Start Camera
               </button>
@@ -2423,7 +2429,7 @@ Are you sure you want to close?`}
               <div className="text-center pt-2">
                 <button
                   onClick={handleCloseQRScanner}
-                  className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                  className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium cursor-pointer"
                 >
                   Cancel Scanning
                 </button>
@@ -2763,7 +2769,7 @@ Are you sure you want to close?`}
               <div className="flex justify-end gap-4 pt-6 border-t-2 border-gray-200">
                 <button
                   onClick={handleCloseScannedVPModal}
-                  className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-semibold shadow-lg"
+                  className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-semibold shadow-lg cursor-pointer"
                 >
                   Close
                 </button>
