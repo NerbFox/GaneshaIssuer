@@ -397,7 +397,7 @@ export default function MyRequestPage() {
             </ThemedText>
             <button
               onClick={() => setShowFilterModal(false)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 cursor-pointer"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -418,12 +418,20 @@ export default function MyRequestPage() {
               onChange={(e) =>
                 handleStatusChange(e.target.value as 'all' | 'Pending' | 'Approved' | 'Rejected')
               }
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black cursor-pointer"
             >
-              <option value="all">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
+              <option value="all" className="cursor-pointer">
+                All
+              </option>
+              <option value="Pending" className="cursor-pointer">
+                Pending
+              </option>
+              <option value="Approved" className="cursor-pointer">
+                Approved
+              </option>
+              <option value="Rejected" className="cursor-pointer">
+                Rejected
+              </option>
             </select>
           </div>
 
@@ -439,13 +447,23 @@ export default function MyRequestPage() {
                   e.target.value as 'all' | 'ISSUANCE' | 'RENEWAL' | 'UPDATE' | 'REVOCATION'
                 )
               }
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black cursor-pointer"
             >
-              <option value="all">All</option>
-              <option value="ISSUANCE">Issuance</option>
-              <option value="RENEWAL">Renewal</option>
-              <option value="UPDATE">Update</option>
-              <option value="REVOCATION">Revocation</option>
+              <option value="all" className="cursor-pointer">
+                All
+              </option>
+              <option value="ISSUANCE" className="cursor-pointer">
+                Issuance
+              </option>
+              <option value="RENEWAL" className="cursor-pointer">
+                Renewal
+              </option>
+              <option value="UPDATE" className="cursor-pointer">
+                Update
+              </option>
+              <option value="REVOCATION" className="cursor-pointer">
+                Revocation
+              </option>
             </select>
           </div>
 
