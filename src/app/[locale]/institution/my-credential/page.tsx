@@ -25,12 +25,12 @@ import {
 import { validateVCComprehensive } from '@/utils/vcValidator';
 import { hashVC } from '@/utils/vcUtils';
 import InfoModal from '@/components/shared/InfoModal';
-import Modal from '@/components/shared/Modal';
 import { authenticatedPost } from '@/utils/api-client';
 import { RequestCredentialModal } from '@/components/holder/RequestCredentialModal';
 import { ViewCredentialModal } from '@/components/holder/ViewCredentialModal';
 import { UploadVCModal } from '@/components/holder/UploadVCModal';
 import { UpdateCredentialModal } from '@/components/holder/UpdateCredentialModal';
+import { RenewCredentialModal } from '@/components/holder/RenewCredentialModal';
 import { RevokeCredentialModal } from '@/components/holder/RevokeCredentialModal';
 import PresentCredentialModal from '@/components/holder/PresentCredentialModal';
 import PDFPreviewModal from '@/components/PDFPreviewModal';
@@ -2596,51 +2596,20 @@ export default function MyCredentialPage() {
         onSave={handleSaveUploadedVC}
       />
 
-      {/* Renew Credential Modal - Inline Implementation */}
-      <Modal
+      {/* Renew Credential Modal */}
+      <RenewCredentialModal
         isOpen={showRenewModal}
         onClose={() => {
           setShowRenewModal(false);
           setRenewingCredential(null);
           setRenewalReason('');
         }}
-        title="Renew Credential"
-        maxWidth="600px"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Renewal Reason <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              value={renewalReason}
-              onChange={(e) => setRenewalReason(e.target.value)}
-              placeholder="Enter reason for renewal..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows={4}
-            />
-          </div>
-          <div className="flex gap-3 justify-end">
-            <button
-              onClick={() => {
-                setShowRenewModal(false);
-                setRenewingCredential(null);
-                setRenewalReason('');
-              }}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmitRenew}
-              disabled={isRenewing || !renewalReason.trim()}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isRenewing ? 'Renewing...' : 'Renew Credential'}
-            </button>
-          </div>
-        </div>
-      </Modal>
+        renewingCredential={renewingCredential}
+        renewalReason={renewalReason}
+        onReasonChange={setRenewalReason}
+        isRenewing={isRenewing}
+        onSubmit={handleSubmitRenew}
+      />
 
       {/* Update Credential Modal */}
       <UpdateCredentialModal
