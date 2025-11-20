@@ -16,7 +16,7 @@ import InfoModal from '@/components/shared/InfoModal';
 import ConfirmationModal from '@/components/shared/ConfirmationModal';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
 import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
-import { formatDateTime, formatNumber, formatTime, formatDate } from '@/utils/dateUtils';
+import { formatDateTime, formatNumber, formatTime } from '@/utils/dateUtils';
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey } from '@/utils/vcSigner';
 import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
@@ -25,18 +25,6 @@ import {
   encryptWithPublicKey,
   encryptWithIssuerPublicKey,
 } from '@/utils/encryptUtils';
-// TODO: Refactor to use service functions
-// import {
-//   fetchCredentialRequests,
-//   fetchPublicKeyForDID,
-//   processCredentialRequest,
-//   issueCredential,
-//   updateCredential,
-//   renewCredential,
-//   revokeCredential,
-//   uploadCredentialFile,
-// } from '@/services/credentialService';
-// import { fetchSchemaByVersion } from '@/services/schemaService';
 
 interface IssueRequest {
   id: string;
@@ -2267,7 +2255,7 @@ export default function IssueRequestPage() {
                       </ThemedText>
                     </label>
                     <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-                      {formatDate(selectedRequest.createdAt)}
+                      {formatDateTime(selectedRequest.createdAt)}
                     </div>
                   </div>
 
