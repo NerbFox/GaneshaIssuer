@@ -1,11 +1,12 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { ThemedText } from '@/components/shared/ThemedText';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   title: string;
   message: string;
   confirmText?: string;
@@ -23,8 +24,18 @@ export default function ConfirmationModal({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   confirmButtonColor = 'blue',
-  isLoading = false,
+  isLoading: externalLoading = false,
 }: ConfirmationModalProps) {
+  const [internalLoading, setInternalLoading] = useState(false);
+  const isLoading = externalLoading || internalLoading;
+
+  // Reset internal loading state when modal opens/closes
+  useEffect(() => {
+    if (!isOpen) {
+      setInternalLoading(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const getButtonColorClasses = (color: string) => {
@@ -38,6 +49,15 @@ export default function ConfirmationModal({
       case 'blue':
       default:
         return 'bg-blue-500 hover:bg-blue-600';
+    }
+  };
+
+  const handleConfirm = async () => {
+    setInternalLoading(true);
+    try {
+      await onConfirm();
+    } finally {
+      setInternalLoading(false);
     }
   };
 
@@ -71,7 +91,7 @@ export default function ConfirmationModal({
               {cancelText}
             </button>
             <button
-              onClick={onConfirm}
+              onClick={handleConfirm}
               disabled={isLoading}
               className={`px-5 py-2 text-white rounded-lg transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${getButtonColorClasses(confirmButtonColor)}`}
             >

@@ -51,6 +51,7 @@ interface ViewCredentialFormProps {
   onClose: () => void;
   currentVC?: VerifiableCredentialData;
   vcHistory?: VerifiableCredentialData[];
+  vcStatus?: boolean; // The vc_status from encrypted_body wrapper
 }
 
 export default function ViewCredentialForm({
@@ -58,6 +59,7 @@ export default function ViewCredentialForm({
   onClose,
   currentVC,
   vcHistory,
+  vcStatus,
 }: ViewCredentialFormProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -121,13 +123,9 @@ export default function ViewCredentialForm({
         schemaId: credential.schemaId,
         schemaVersion: credential.schemaVersion,
         status:
-          // Only the newest version (index 0) can be APPROVED
-          // All historical versions (including expired) are marked as REVOKED
-          currentIndex === 0
-            ? displayVC.credentialStatus?.revoked
-              ? 'REVOKED'
-              : 'APPROVED'
-            : 'REVOKED',
+          // Only the newest version (index 0) can be APPROVED or REVOKED
+          // All historical versions are marked as REVOKED
+          currentIndex === 0 ? (vcStatus === false ? 'REVOKED' : 'APPROVED') : 'REVOKED',
         validFrom: displayVC.validFrom,
         expiredAt: displayVC.expiredAt,
         attributes: currentAttributes,

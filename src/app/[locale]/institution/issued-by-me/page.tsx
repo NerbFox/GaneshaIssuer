@@ -67,6 +67,7 @@ interface IssuedCredential {
   vcId?: string;
   vcHistory?: VerifiableCredentialData[]; // Array of all VCs (newest first)
   issuerDid: string; // Add issuer DID for IndexedDB
+  vcStatus?: boolean; // The vc_status from encrypted_body wrapper
 }
 
 interface SchemaAttribute {
@@ -117,6 +118,17 @@ export default function IssuedByMePage() {
     message: '',
     onConfirm: () => {},
   });
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState<{
+    title: string;
+    message: string;
+    onClose?: () => void;
+    buttonText?: string;
+    buttonColor?: 'blue' | 'green' | 'red' | 'yellow';
+  }>({
+    title: '',
+    message: '',
+  });
   const [schemas, setSchemas] = useState<
     {
       id: string;
@@ -137,16 +149,6 @@ export default function IssuedByMePage() {
   >([]);
   const [showSchemaModal, setShowSchemaModal] = useState(false);
   const [schemaData, setSchemaData] = useState<Schema | null>(null);
-  const [showInfoModal, setShowInfoModal] = useState(false);
-  const [infoModalConfig, setInfoModalConfig] = useState<{
-    title: string;
-    message: string;
-    buttonText?: string;
-    buttonColor?: 'blue' | 'green' | 'red' | 'yellow';
-  }>({
-    title: '',
-    message: '',
-  });
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const filterModalRef = useRef<HTMLDivElement>(null);
@@ -283,6 +285,7 @@ export default function IssuedByMePage() {
               vcId: newestVC.id,
               vcHistory: vcHistory, // Store the entire history
               issuerDid: institutionDID, // Add issuer DID for IndexedDB
+              vcStatus: vcContainer.vc_status, // Store the vc_status from encrypted_body wrapper
             });
           }
         } catch (error) {
@@ -480,6 +483,7 @@ export default function IssuedByMePage() {
         expiredAt: expiredAt.toISOString(),
         imageLink,
         institutionName,
+        issuerVCDataId: credential.id,
       });
 
       if (!updateResponse.ok) {
@@ -487,20 +491,20 @@ export default function IssuedByMePage() {
         throw new Error(errorData.message || 'Failed to update credential');
       }
 
-      // Show success confirmation
+      // Show success information
       setShowUpdateModal(false);
       setSelectedCredential(null);
-      setConfirmationConfig({
+      setInfoModalConfig({
         title: 'Update Credential',
         message: `The credential has been updated successfully.\n\nThe holder can claim the updated credential.`,
-        confirmText: 'OK',
-        confirmButtonColor: 'green',
-        onConfirm: () => {
-          setShowConfirmation(false);
+        buttonText: 'OK',
+        buttonColor: 'green',
+        onClose: () => {
+          setShowInfoModal(false);
           fetchCredentials();
         },
       });
-      setShowConfirmation(true);
+      setShowInfoModal(true);
     } catch (error) {
       console.error('Error updating credential:', error);
       setConfirmationConfig({
@@ -1423,6 +1427,7 @@ export default function IssuedByMePage() {
             }}
             currentVC={selectedCredential.vcHistory?.[0]}
             vcHistory={selectedCredential.vcHistory}
+            vcStatus={selectedCredential.vcStatus}
           />
         )}
       </Modal>
@@ -1452,7 +1457,7 @@ export default function IssuedByMePage() {
       {/* Info Modal */}
       <InfoModal
         isOpen={showInfoModal}
-        onClose={() => setShowInfoModal(false)}
+        onClose={infoModalConfig.onClose ? infoModalConfig.onClose : () => setShowInfoModal(false)}
         title={infoModalConfig.title}
         message={infoModalConfig.message}
         buttonText={infoModalConfig.buttonText}
