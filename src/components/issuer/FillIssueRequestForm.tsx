@@ -39,7 +39,7 @@ interface FillIssueRequestFormProps {
   onSubmit: (data: IssueRequestFormData) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
-  reason?: string;
+  holderReason?: string;
 }
 
 export interface IssueRequestFormData {
@@ -79,7 +79,7 @@ export default function FillIssueRequestForm({
   onSubmit,
   onCancel,
   isSubmitting = false,
-  reason,
+  holderReason,
 }: FillIssueRequestFormProps) {
   const [attributes, setAttributes] = useState<AttributeData[]>(initialAttributes);
   const [searchTerm, setSearchTerm] = useState('');
@@ -678,17 +678,6 @@ export default function FillIssueRequestForm({
         </div>
       )}
 
-      {reason && (
-        <div className="mb-6">
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Reason</ThemedText>
-          </label>
-          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
-            {reason}
-          </div>
-        </div>
-      )}
-
       {/* Attributes Section */}
       <div className="mb-6">
         <div className="mb-4">
@@ -697,6 +686,13 @@ export default function FillIssueRequestForm({
           </ThemedText>
         </div>
 
+        {/* Holder Reason (if present) */}
+        {holderReason && (
+          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <span className="font-semibold text-yellow-800">Reason:</span>
+            <span className="ml-2 text-yellow-900">{holderReason}</span>
+          </div>
+        )}
         {/* Data Table */}
         <DataTable
           data={filteredAttributes}
