@@ -144,6 +144,8 @@ interface RevokeRequestBody extends Record<string, unknown> {
 }
 
 export default function IssueRequestPage() {
+  // Add state for holderReason at top level
+  const [holderReason, setHolderReason] = useState<string | undefined>(undefined);
   const router = useRouter();
   const [requests, setRequests] = useState<IssueRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<IssueRequest[]>([]);
@@ -205,6 +207,33 @@ export default function IssueRequestPage() {
   ): Promise<{ schema_id: string; schema_version: number } | null> => {
     // Only decrypt if we have a private key available
     if (typeof window !== 'undefined') {
+      // Guard: skip if missing, empty, or too short
+      if (!encryptedBody || typeof encryptedBody !== 'string' || encryptedBody.length < 10) {
+        // Most valid ECIES payloads are >100 chars base64url
+        return null;
+      }
+      // Try to decode base64url and check length
+      try {
+        // Use the same base64UrlToUint8Array as in decryptWithPrivateKey
+        // Import here to avoid circular deps
+        const base64UrlToUint8Array = (base64: string) => {
+          const paddedBase64 = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+          const binary = atob(paddedBase64.replace(/-/g, '+').replace(/_/g, '/'));
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+          return bytes;
+        };
+        const decoded = base64UrlToUint8Array(encryptedBody);
+        if (decoded.length < 113) {
+          // Not a valid ECIES payload
+          return null;
+        }
+      } catch {
+        // If decoding fails, skip
+        return null;
+      }
       try {
         const decryptedBody = await decryptWithIssuerPrivateKey(encryptedBody);
         console.log('decryptedBody', decryptedBody);
@@ -845,6 +874,7 @@ export default function IssueRequestPage() {
             // Extract current attribute values from decrypted body
             // For UPDATE, RENEWAL, and REVOKE requests, pre-populate with current values
             const currentAttributes: Record<string, string | number | boolean> = {};
+            let holderReason: string | undefined = undefined;
 
             // Extract attributes directly from the root level of decrypted body
             // (excluding metadata fields like schema_id, schema_version, issuer_did, holder_did, vc_id)
@@ -855,8 +885,13 @@ export default function IssueRequestPage() {
               'holder_did',
               'vc_id',
               'attributes',
+              'changed_attributes',
+              'reason',
             ];
             Object.entries(fullDecryptedBody).forEach(([key, value]) => {
+              if (key === 'reason' && typeof value === 'string') {
+                holderReason = value;
+              }
               if (
                 !excludedKeys.includes(key) &&
                 (typeof value === 'string' ||
@@ -886,8 +921,18 @@ export default function IssueRequestPage() {
               });
             }
 
+            // For UPDATE, also check changed_attributes for reason
+            if (
+              fullDecryptedBody.changed_attributes &&
+              typeof fullDecryptedBody.changed_attributes === 'object' &&
+              fullDecryptedBody.changed_attributes !== null
+            ) {
+              // If reason is present at root, already extracted above
+            }
+
             console.log('Current attributes from decrypted body:', currentAttributes);
             setRequestAttributes(currentAttributes);
+            setHolderReason(holderReason);
 
             // Store the current vc_id for UPDATE, RENEWAL, REVOKE requests
             if (fullDecryptedBody.vc_id && typeof fullDecryptedBody.vc_id === 'string') {
@@ -2138,6 +2183,7 @@ export default function IssueRequestPage() {
               setCurrentVcId(null);
             }}
             isSubmitting={isSubmittingCredential}
+            holderReason={holderReason}
           />
         ) : null}
       </Modal>
