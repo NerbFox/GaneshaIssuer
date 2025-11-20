@@ -71,6 +71,12 @@ export const sidebarNavigation: NavigationSection[] = [
         href: '/institution/my-request',
         icon: 'FolderIcon.svg',
       },
+      {
+        id: 'vp-request',
+        label: 'VP Request',
+        href: '/institution/vp-request',
+        icon: 'FolderIcon.svg',
+      },
     ],
   },
   {
