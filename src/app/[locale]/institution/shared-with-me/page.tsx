@@ -1055,7 +1055,7 @@ export default function SharedWithMePage() {
               e.stopPropagation();
               toggleExpandSchema(row.compositeId);
             }}
-            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium"
+            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium cursor-pointer"
           >
             VIEW
           </button>
@@ -1162,7 +1162,7 @@ export default function SharedWithMePage() {
         <div className="flex gap-3">
           <button
             onClick={() => handleView(row.id)}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
           >
             VIEW
           </button>
@@ -1413,7 +1413,7 @@ export default function SharedWithMePage() {
 
             {/* Holder DID */}
             <div className="space-y-2">
-              <ThemedText className="text-sm text-gray-600">
+              <ThemedText className="text-sm text-gray-600 cursor-text">
                 Holder DID<span className="text-red-500 ml-1">*</span>
               </ThemedText>
               <input
@@ -1421,7 +1421,7 @@ export default function SharedWithMePage() {
                 value={vpHolderDid}
                 onChange={(e) => setVpHolderDid(e.target.value)}
                 placeholder="abcdefghijklmnopqrstuvwxyz1234567890"
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 cursor-text"
               />
             </div>
           </div>
