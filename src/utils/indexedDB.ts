@@ -11,7 +11,7 @@ const STORE_NAME = 'credentials';
 const VP_SHARINGS_STORE = 'vp_sharings';
 const SCHEMA_DATA_STORE = 'schema_data';
 const ISSUED_CREDENTIALS_STORE = 'issued_credentials';
-const DB_VERSION = 4; // Increment version to add issued_credentials store
+const DB_VERSION = 5; // Increment version to add vcId index to issued_credentials store
 
 export interface VerifiableCredential {
   '@context': string[];
@@ -160,6 +160,16 @@ const openDB = (): Promise<IDBDatabase> => {
         issuedCredentialsStore.createIndex('holderDid', 'holderDid', { unique: false });
         issuedCredentialsStore.createIndex('status', 'status', { unique: false });
         issuedCredentialsStore.createIndex('schemaId', 'schemaId', { unique: false });
+        issuedCredentialsStore.createIndex('vcId', 'vcId', { unique: false });
+      } else if (event.oldVersion < 5) {
+        // If upgrading from version < 5, add vcId index
+        const transaction = (event.target as IDBOpenDBRequest).transaction;
+        if (transaction) {
+          const issuedCredentialsStore = transaction.objectStore(ISSUED_CREDENTIALS_STORE);
+          if (!issuedCredentialsStore.indexNames.contains('vcId')) {
+            issuedCredentialsStore.createIndex('vcId', 'vcId', { unique: false });
+          }
+        }
       }
     };
   });
@@ -1176,6 +1186,38 @@ export const getIssuedCredentialsByIssuerDid = async (
     });
   } catch (error) {
     console.error('[IndexedDB] Error getting issued credentials by issuer DID:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get issued credentials by VC ID
+ * Since vcId may not be unique across all credentials, this returns an array
+ */
+export const getIssuedCredentialsByVcId = async (vcId: string): Promise<IssuedCredential[]> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([ISSUED_CREDENTIALS_STORE], 'readonly');
+      const objectStore = transaction.objectStore(ISSUED_CREDENTIALS_STORE);
+      const index = objectStore.index('vcId');
+      const request = index.getAll(vcId);
+
+      request.onsuccess = () => {
+        resolve(request.result || []);
+      };
+
+      request.onerror = () => {
+        reject(new Error(`Failed to get issued credentials by VC ID: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error getting issued credentials by VC ID:', error);
     throw error;
   }
 };

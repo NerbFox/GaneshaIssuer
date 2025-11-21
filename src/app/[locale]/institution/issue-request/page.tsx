@@ -19,12 +19,13 @@ import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { formatDateTime, formatNumber, formatTime } from '@/utils/dateUtils';
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey } from '@/utils/vcSigner';
-import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
+import { authenticatedGet, authenticatedPost, authenticatedPut } from '@/utils/api-client';
 import {
   decryptWithIssuerPrivateKey,
   encryptWithPublicKey,
   encryptWithIssuerPublicKey,
 } from '@/utils/encryptUtils';
+import { getIssuedCredentialsByVcId, storeIssuedCredential } from '@/utils/indexedDB';
 
 interface IssueRequest {
   id: string;
@@ -930,6 +931,78 @@ export default function IssueRequestPage() {
               // If reason is present at root, already extracted above
             }
 
+            // For UPDATE and RENEWAL requests, try to fetch attributes from IndexedDB first
+            if (
+              (request.type === 'UPDATE' || request.type === 'RENEWAL') &&
+              fullDecryptedBody.vc_id &&
+              typeof fullDecryptedBody.vc_id === 'string'
+            ) {
+              console.log(
+                `[${request.type}] Attempting to fetch attributes from IndexedDB for VC ID:`,
+                fullDecryptedBody.vc_id
+              );
+              try {
+                const issuedCredentials = await getIssuedCredentialsByVcId(
+                  fullDecryptedBody.vc_id as string
+                );
+                if (issuedCredentials.length > 0) {
+                  // Use the first match (should only be one)
+                  const issuedCredential = issuedCredentials[0];
+                  console.log(
+                    `[${request.type}] Found credential in IndexedDB:`,
+                    issuedCredential.id
+                  );
+
+                  // Use encryptedBody from IndexedDB if available
+                  if (issuedCredential.encryptedBody) {
+                    console.log(
+                      `[${request.type}] Using attributes from IndexedDB encryptedBody:`,
+                      issuedCredential.encryptedBody
+                    );
+                    Object.entries(issuedCredential.encryptedBody).forEach(([key, value]) => {
+                      if (
+                        typeof value === 'string' ||
+                        typeof value === 'number' ||
+                        typeof value === 'boolean'
+                      ) {
+                        currentAttributes[key] = value;
+                      }
+                    });
+                  }
+                  // If encryptedBody is not available, try vcHistory
+                  else if (issuedCredential.vcHistory && issuedCredential.vcHistory.length > 0) {
+                    const latestVC = issuedCredential.vcHistory[0];
+                    console.log(
+                      `[${request.type}] Using attributes from IndexedDB vcHistory (latest VC):`,
+                      latestVC.id
+                    );
+                    if (latestVC.credentialSubject) {
+                      Object.entries(latestVC.credentialSubject).forEach(([key, value]) => {
+                        // Skip the 'id' field which is the holder DID
+                        if (
+                          key !== 'id' &&
+                          (typeof value === 'string' ||
+                            typeof value === 'number' ||
+                            typeof value === 'boolean')
+                        ) {
+                          currentAttributes[key] = value;
+                        }
+                      });
+                    }
+                  }
+                } else {
+                  console.warn(
+                    `[${request.type}] No credentials found in IndexedDB for VC ID:`,
+                    fullDecryptedBody.vc_id
+                  );
+                  console.log(`[${request.type}] Falling back to decrypted body attributes`);
+                }
+              } catch (error) {
+                console.error(`[${request.type}] Error fetching from IndexedDB:`, error);
+                console.log(`[${request.type}] Falling back to decrypted body attributes`);
+              }
+            }
+
             console.log('Current attributes from decrypted body:', currentAttributes);
             setRequestAttributes(currentAttributes);
             setHolderReason(holderReason);
@@ -1499,6 +1572,120 @@ export default function IssueRequestPage() {
       console.log('API result:', result);
 
       if (result.success) {
+        // For UPDATE and RENEWAL requests, update the issuer's VC data with new VC history
+        if ((requestType === 'UPDATE' || requestType === 'RENEWAL') && currentVcId) {
+          try {
+            console.log(`[${requestType}] Updating issuer VC data with new VC history...`);
+
+            // Step 1: Fetch the existing credential from IndexedDB using vcId
+            const issuedCredentials = await getIssuedCredentialsByVcId(currentVcId);
+
+            if (issuedCredentials.length === 0) {
+              console.warn(
+                `[${requestType}] No credentials found in IndexedDB for VC ID: ${currentVcId}`
+              );
+              console.warn(
+                `[${requestType}] Skipping issuer VC data update - credential not in IndexedDB`
+              );
+            } else {
+              const issuedCredential = issuedCredentials[0];
+              const issuerVCDataId = issuedCredential.id;
+              console.log(`[${requestType}] Found credential in IndexedDB: ${issuerVCDataId}`);
+
+              // Step 2: Get the existing VC history from IndexedDB
+              const existingVCHistory = issuedCredential.vcHistory || [];
+              console.log(
+                `[${requestType}] Existing VC history has ${existingVCHistory.length} VCs`
+              );
+
+              // Step 3: Prepend the new signed VC to the history (newest first)
+              const updatedVCHistory = [signedVC, ...existingVCHistory];
+              console.log(
+                `[${requestType}] Updated VC history now has ${updatedVCHistory.length} VCs`
+              );
+
+              // Step 4: Encrypt the updated history with issuer's public key
+              const encryptedBodyForIssuer = await encryptWithIssuerPublicKey({
+                vc_status: true,
+                verifiable_credentials: updatedVCHistory,
+              });
+              console.log(`[${requestType}] Encrypted updated VC history for issuer`);
+
+              // Step 5: Update the issuer's VC data via PUT API
+              const updateIssuerUrl = buildApiUrl(
+                API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_ID(issuerVCDataId)
+              );
+              const updateIssuerResponse = await authenticatedPut(updateIssuerUrl, {
+                issuer_did: selectedRequest.issuer_did,
+                encrypted_body: encryptedBodyForIssuer,
+              });
+
+              if (!updateIssuerResponse.ok) {
+                const errorData = await updateIssuerResponse.json();
+                console.error(`[${requestType}] Failed to update issuer VC data:`, errorData);
+                throw new Error(errorData.message || 'Failed to update issuer VC data');
+              }
+
+              console.log(`[${requestType}] Successfully updated issuer VC data via API`);
+
+              // Step 6: Update IndexedDB with the new VC in history
+              // Transform VC history to match VerifiableCredentialData structure (same as credentialService.ts)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const vcHistoryForStorage = updatedVCHistory.map((vc: any) => ({
+                id: vc.id,
+                type: vc.type,
+                issuer:
+                  typeof vc.issuer === 'string'
+                    ? { id: vc.issuer, name: vc.issuerName || '' }
+                    : vc.issuer,
+                credentialSubject: vc.credentialSubject,
+                validFrom: vc.validFrom,
+                expiredAt: vc.expiredAt || '',
+                credentialStatus: vc.credentialStatus,
+                proof: vc.proof,
+                imageLink: vc.imageLink || undefined,
+                fileUrl: vc.fileUrl,
+                fileId: vc.fileId,
+                issuerName: vc.issuerName,
+                '@context': vc['@context'],
+              }));
+
+              // Extract credential data from the newest VC (for encryptedBody field)
+              const encryptedBody: Record<string, unknown> = {};
+              if (signedVC.credentialSubject) {
+                Object.entries(signedVC.credentialSubject).forEach(([key, value]) => {
+                  if (key !== 'id') {
+                    encryptedBody[key] = value;
+                  }
+                });
+              }
+
+              // Update the issued credential following the same pattern as credentialService.ts
+              const updatedIssuedCredential = {
+                ...issuedCredential,
+                vcHistory: vcHistoryForStorage,
+                vcId: signedVC.id,
+                activeUntil: expiredAt || '-', // Use '-' for lifetime credentials (same as issued-by-me page)
+                encryptedBody: encryptedBody,
+                createdAt: signedVC.validFrom,
+                status: 'APPROVED',
+              };
+
+              await storeIssuedCredential(updatedIssuedCredential);
+              console.log(`[${requestType}] Updated credential in IndexedDB: ${issuerVCDataId}`);
+            }
+          } catch (updateError) {
+            console.error(
+              `[${requestType}] Error updating issuer VC data:`,
+              updateError instanceof Error ? updateError.message : updateError
+            );
+            console.warn(
+              `[${requestType}] VC was ${requestType === 'RENEWAL' ? 'renewed' : 'updated'} successfully, but issuer VC data update failed`
+            );
+            // Don't throw - the credential was still processed successfully
+          }
+        }
+
         const actionWord =
           requestType === 'UPDATE' ? 'updated' : requestType === 'RENEWAL' ? 'renewed' : 'issued';
 
