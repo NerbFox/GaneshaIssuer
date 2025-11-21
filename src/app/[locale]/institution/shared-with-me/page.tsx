@@ -650,6 +650,23 @@ export default function SharedWithMePage() {
     return { isComplete, message, missing };
   };
 
+  // Helper function to check if VP and all credentials are verified
+  const getVerificationStatus = (verification: {
+    vp_valid: boolean;
+    credentials_verification: Array<{ valid: boolean }>;
+  }) => {
+    const allCredentialsValid = verification.credentials_verification.every((cred) => cred.valid);
+    const isFullyVerified = verification.vp_valid && allCredentialsValid;
+
+    return {
+      isFullyVerified,
+      statusText: isFullyVerified ? 'Verified' : 'Not Verified',
+      statusDescription: isFullyVerified
+        ? 'All credentials have been verified and are valid.'
+        : 'One or more credentials failed verification.',
+    };
+  };
+
   const handleOpenRequestVPModal = () => {
     setShowRequestVPModal(true);
     fetchSchemas();
@@ -2009,13 +2026,13 @@ export default function SharedWithMePage() {
               {/* Verification Status Banner */}
               <div
                 className={`rounded-xl p-6 border-2 ${
-                  vpVerificationData.verification.vp_valid
+                  getVerificationStatus(vpVerificationData.verification).isFullyVerified
                     ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
                     : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
                 }`}
               >
                 <div className="flex items-center gap-6">
-                  {vpVerificationData.verification.vp_valid ? (
+                  {getVerificationStatus(vpVerificationData.verification).isFullyVerified ? (
                     <div className="flex-shrink-0 w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
                       <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path
@@ -2041,19 +2058,15 @@ export default function SharedWithMePage() {
                       fontSize={22}
                       fontWeight={700}
                       className={
-                        vpVerificationData.verification.vp_valid
+                        getVerificationStatus(vpVerificationData.verification).isFullyVerified
                           ? 'text-green-700 block'
                           : 'text-red-700 block'
                       }
                     >
-                      {vpVerificationData.verification.vp_valid
-                        ? 'Verification Successful'
-                        : 'Verification Failed'}
+                      {getVerificationStatus(vpVerificationData.verification).statusText}
                     </ThemedText>
                     <ThemedText fontSize={14} className="text-gray-600 block">
-                      {vpVerificationData.verification.vp_valid
-                        ? 'All credentials have been verified and are valid.'
-                        : 'One or more credentials failed verification.'}
+                      {getVerificationStatus(vpVerificationData.verification).statusDescription}
                     </ThemedText>
                   </div>
                 </div>
@@ -2070,6 +2083,40 @@ export default function SharedWithMePage() {
                     <ThemedText fontSize={13} className="text-gray-900 font-mono break-all block">
                       {vpVerificationData.verification.holder_did}
                     </ThemedText>
+                  </div>
+                  <div className="space-y-2">
+                    <ThemedText className="text-sm text-gray-600 block">Holder Verified</ThemedText>
+                    <span
+                      className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold ${
+                        vpVerificationData.verification.vp_valid
+                          ? 'bg-green-100 text-green-700 border border-green-200'
+                          : 'bg-red-100 text-red-700 border border-red-200'
+                      }`}
+                    >
+                      {vpVerificationData.verification.vp_valid ? (
+                        <>
+                          <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Valid
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Invalid
+                        </>
+                      )}
+                    </span>
                   </div>
                   <div className="space-y-2">
                     <ThemedText className="text-sm text-gray-600 block">
@@ -2407,13 +2454,13 @@ Are you sure you want to close?`}
               {/* Verification Status Banner */}
               <div
                 className={`rounded-2xl p-6 border-2 shadow-lg ${
-                  scannedVPData.verification.vp_valid
+                  getVerificationStatus(scannedVPData.verification).isFullyVerified
                     ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
                     : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
                 }`}
               >
                 <div className="flex items-center gap-6">
-                  {scannedVPData.verification.vp_valid ? (
+                  {getVerificationStatus(scannedVPData.verification).isFullyVerified ? (
                     <div className="flex-shrink-0 w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -2453,12 +2500,12 @@ Are you sure you want to close?`}
                       fontSize={22}
                       fontWeight={700}
                       className={`${
-                        scannedVPData.verification.vp_valid ? 'text-green-700' : 'text-red-700'
+                        getVerificationStatus(scannedVPData.verification).isFullyVerified
+                          ? 'text-green-700'
+                          : 'text-red-700'
                       } block`}
                     >
-                      {scannedVPData.verification.vp_valid
-                        ? 'Verification Successful'
-                        : 'Verification Failed'}
+                      {getVerificationStatus(scannedVPData.verification).statusText}
                     </ThemedText>
                     <ThemedText fontSize={14} className="text-gray-600 block font-medium">
                       VP ID: {scannedVPData.vpId}
@@ -2472,7 +2519,7 @@ Are you sure you want to close?`}
                 <ThemedText fontSize={18} fontWeight={600} className="text-gray-900 block">
                   Presentation Information
                 </ThemedText>
-                <div className="grid grid-cols-2 gap-8">
+                <div className="grid grid-cols-3 gap-8">
                   <div className="space-y-2">
                     <ThemedText className="text-sm text-gray-600 block">Holder DID</ThemedText>
                     <ThemedText
@@ -2482,6 +2529,40 @@ Are you sure you want to close?`}
                     >
                       {scannedVPData.verification.holder_did}
                     </ThemedText>
+                  </div>
+                  <div className="space-y-2">
+                    <ThemedText className="text-sm text-gray-600 block">Holder Verified</ThemedText>
+                    <span
+                      className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold ${
+                        scannedVPData.verification.vp_valid
+                          ? 'bg-green-100 text-green-700 border border-green-200'
+                          : 'bg-red-100 text-red-700 border border-red-200'
+                      }`}
+                    >
+                      {scannedVPData.verification.vp_valid ? (
+                        <>
+                          <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Valid
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Invalid
+                        </>
+                      )}
+                    </span>
                   </div>
                   <div className="space-y-2">
                     <ThemedText className="text-sm text-gray-600 block">
