@@ -17,7 +17,7 @@ import { ThemedText } from '@/components/shared/ThemedText';
 import { VerifiableCredential } from '@/utils/indexedDB';
 import { createVerifiablePresentation, signVPWithStoredKey } from '@/utils/vpSigner';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
-import { authenticatedPost } from '@/utils/api-client';
+import { authenticatedPost, authenticatedDelete } from '@/utils/api-client';
 import QRCode from 'qrcode';
 
 interface PresentCredentialModalProps {
@@ -37,6 +37,23 @@ export default function PresentCredentialModal({
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [vpId, setVpId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const vpIdRef = React.useRef<string | null>(null);
+
+  // Track current VP ID
+  React.useEffect(() => {
+    vpIdRef.current = vpId;
+  }, [vpId]);
+
+  // Delete VP when modal is closed or component unmounts
+  useEffect(() => {
+    return () => {
+      // Cleanup function runs when modal closes or component unmounts
+      const currentVpId = vpIdRef.current;
+      if (currentVpId) {
+        deleteVP(currentVpId);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) {
@@ -46,11 +63,53 @@ export default function PresentCredentialModal({
     }
   }, [isOpen]);
 
+  /**
+   * Delete a VP by ID
+   */
+  const deleteVP = async (vpIdToDelete: string) => {
+    try {
+      const url = buildApiUrl(API_ENDPOINTS.PRESENTATIONS.DELETE(vpIdToDelete));
+      console.log('[Present VP] Deleting old VP:', vpIdToDelete);
+
+      const response = await authenticatedDelete(url);
+
+      if (response.ok) {
+        console.log('[Present VP] VP deleted successfully:', vpIdToDelete);
+      } else {
+        // Parse error details
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+
+        // Treat "already deleted" as success since the goal is achieved
+        if (errorData.message?.includes('already been deleted')) {
+          console.log('[Present VP] VP already deleted:', vpIdToDelete);
+        } else {
+          console.error(
+            '[Present VP] Failed to delete VP:',
+            vpIdToDelete,
+            'Status:',
+            response.status,
+            'Error:',
+            errorData
+          );
+        }
+      }
+    } catch (err) {
+      console.error('[Present VP] Error deleting VP:', err);
+      // Non-blocking error - don't show to user
+    }
+  };
+
   const handleGenerateVP = async () => {
     setIsGenerating(true);
     setError(null);
 
     try {
+      // Delete old VP if regenerating
+      if (vpId) {
+        console.log('[Present VP] Regenerating - deleting old VP:', vpId);
+        await deleteVP(vpId);
+      }
+
       const holderDid = localStorage.getItem('institutionDID');
       if (!holderDid) {
         throw new Error('Holder DID not found in localStorage');
@@ -385,7 +444,6 @@ export default function PresentCredentialModal({
         {isGenerating && (
           <div className="text-center py-8 mb-6">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
-            <ThemedText className="text-gray-600">Creating Verifiable Presentation...</ThemedText>
           </div>
         )}
 
