@@ -1626,6 +1626,7 @@ export default function IssueRequestPage() {
                 API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_ID(issuerVCDataId)
               );
               const updateIssuerResponse = await authenticatedPut(updateIssuerUrl, {
+                vc_id: vcIdToUse,
                 issuer_did: selectedRequest.issuer_did,
                 encrypted_body: encryptedBodyForIssuer,
               });

@@ -314,6 +314,7 @@ export async function updateCredential(
   // Step 11: Update the issuer's VC data via PUT API
   const updateIssuerUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_ID(issuerVCDataId));
   const updateIssuerResponse = await authenticatedPut(updateIssuerUrl, {
+    vc_id: newVcId,
     issuer_did: issuerDid,
     encrypted_body: encryptedBodyForIssuer,
   });
@@ -440,6 +441,7 @@ export async function renewCredential(
   // Step 10: Update the issuer's VC data via PUT API
   const updateUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_ID(issuerVCDataId));
   const updateResponse = await authenticatedPut(updateUrl, {
+    vc_id: vcId,
     issuer_did: issuerDid,
     encrypted_body: encryptedBodyForIssuer,
   });
@@ -538,6 +540,7 @@ export async function revokeCredential(
   // Step 7: Update the issuer's VC data via PUT API
   const updateUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_ID(issuerVCDataId));
   const updateResponse = await authenticatedPut(updateUrl, {
+    vc_id: vcId,
     issuer_did: issuerDid,
     encrypted_body: encryptedBodyForIssuer,
   });
