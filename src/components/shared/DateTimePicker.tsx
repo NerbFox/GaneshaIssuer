@@ -196,7 +196,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
           <button
             type="button"
             onClick={handleClearDateTime}
-            className="absolute inset-y-0 right-1 flex items-center text-gray-400 hover:text-red-500 focus:outline-none z-10"
+            className="absolute inset-y-0 right-1 flex items-center text-gray-400 hover:text-red-500 focus:outline-none z-10 cursor-pointer"
             aria-label="Clear date and time"
             title="Clear"
           >
@@ -235,7 +235,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
           <button
             type="button"
             onClick={handleTimeClick}
-            className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-blue-500 focus:outline-none"
+            className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-blue-500 focus:outline-none cursor-pointer"
             aria-label="Set current time"
             title="Set current time"
           >

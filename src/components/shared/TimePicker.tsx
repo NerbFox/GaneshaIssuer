@@ -124,7 +124,7 @@ export default function TimePicker({ value, onChange, disabled = false }: TimePi
           <button
             type="button"
             onClick={handleClearTime}
-            className="px-3 py-2 text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
+            className="px-3 py-2 text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center cursor-pointer"
             title="Clear time"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
