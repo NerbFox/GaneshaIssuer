@@ -16,7 +16,7 @@ import { ThemedText } from '../shared/ThemedText';
 import { VerifiableCredential } from '@/utils/indexedDB';
 import { createVerifiablePresentation, signVPWithStoredKey } from '@/utils/vpSigner';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
-import { authenticatedPost } from '@/utils/api-client';
+import { authenticatedPost, authenticatedDelete } from '@/utils/api-client';
 import QRCode from 'qrcode';
 
 interface PresentMultipleCredentialsModalProps {
@@ -37,6 +37,7 @@ export default function PresentMultipleCredentialsModal({
   const [vpId, setVpId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedCredentials, setExpandedCredentials] = useState<Set<string>>(new Set());
+  const vpIdRef = React.useRef<string | null>(null);
 
   const toggleCredential = (credentialId: string) => {
     setExpandedCredentials((prev) => {
@@ -50,6 +51,22 @@ export default function PresentMultipleCredentialsModal({
     });
   };
 
+  // Track current VP ID
+  React.useEffect(() => {
+    vpIdRef.current = vpId;
+  }, [vpId]);
+
+  // Delete VP when modal is closed or component unmounts
+  useEffect(() => {
+    return () => {
+      // Cleanup function runs when modal closes or component unmounts
+      const currentVpId = vpIdRef.current;
+      if (currentVpId) {
+        deleteVP(currentVpId);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!isOpen) {
       setQrCodeDataUrl(null);
@@ -59,11 +76,53 @@ export default function PresentMultipleCredentialsModal({
     }
   }, [isOpen]);
 
+  /**
+   * Delete a VP by ID
+   */
+  const deleteVP = async (vpIdToDelete: string) => {
+    try {
+      const url = buildApiUrl(API_ENDPOINTS.PRESENTATIONS.DELETE(vpIdToDelete));
+      console.log('[Present Multiple VP] Deleting old VP:', vpIdToDelete);
+
+      const response = await authenticatedDelete(url);
+
+      if (response.ok) {
+        console.log('[Present Multiple VP] VP deleted successfully:', vpIdToDelete);
+      } else {
+        // Parse error details
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+
+        // Treat "already deleted" as success since the goal is achieved
+        if (errorData.message?.includes('already been deleted')) {
+          console.log('[Present Multiple VP] VP already deleted:', vpIdToDelete);
+        } else {
+          console.error(
+            '[Present Multiple VP] Failed to delete VP:',
+            vpIdToDelete,
+            'Status:',
+            response.status,
+            'Error:',
+            errorData
+          );
+        }
+      }
+    } catch (err) {
+      console.error('[Present Multiple VP] Error deleting VP:', err);
+      // Non-blocking error - don't show to user
+    }
+  };
+
   const handleGenerateVP = async () => {
     setIsGenerating(true);
     setError(null);
 
     try {
+      // Delete old VP if regenerating
+      if (vpId) {
+        console.log('[Present Multiple VP] Regenerating - deleting old VP:', vpId);
+        await deleteVP(vpId);
+      }
+
       const holderDid = localStorage.getItem('institutionDID');
       if (!holderDid) {
         throw new Error('Holder DID not found in localStorage');
@@ -413,7 +472,6 @@ export default function PresentMultipleCredentialsModal({
           <div className="flex items-center justify-center py-20">
             <div className="text-center space-y-4">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mb-4"></div>
-              <ThemedText className="text-gray-600">Creating Verifiable Presentation...</ThemedText>
             </div>
           </div>
         )}

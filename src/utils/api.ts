@@ -122,6 +122,7 @@ export const API_ENDPOINTS = {
     REQUEST_DETAIL: (vpReqId: string) => `${PRESENTATIONS_PATH}/request/${vpReqId}`,
     BASE: PRESENTATIONS_PATH,
     DETAIL: (vpId: string) => `${PRESENTATIONS_PATH}/${vpId}`,
+    DELETE: (vpId: string) => `${PRESENTATIONS_PATH}/${vpId}`,
     VERIFY: (vpId: string) => `${PRESENTATIONS_PATH}/${vpId}/verify`,
     CLAIM: `${PRESENTATIONS_PATH}/claim`,
     CONFIRM: `${PRESENTATIONS_PATH}/confirm`,
