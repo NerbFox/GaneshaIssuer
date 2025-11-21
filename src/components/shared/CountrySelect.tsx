@@ -109,6 +109,7 @@ const customStyles: StylesConfig<CountryOption, false> = {
     ...provided,
     padding: '8px',
     color: '#6b7280',
+    cursor: 'pointer',
     '&:hover': {
       color: '#374151',
     },
