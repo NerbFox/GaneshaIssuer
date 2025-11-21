@@ -78,7 +78,7 @@ export default function DatePicker({ value, onChange, disabled = false }: DatePi
           <button
             type="button"
             onClick={handleClearDate}
-            className="px-3 py-2 text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
+            className="px-3 py-2 text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center cursor-pointer"
             title="Clear date"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

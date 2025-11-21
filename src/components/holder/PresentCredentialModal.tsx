@@ -496,7 +496,7 @@ export default function PresentCredentialModal({
                   <button
                     onClick={handleGenerateVP}
                     disabled={isGenerating}
-                    className="p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     title="Regenerate VP with new ID"
                   >
                     <svg
@@ -537,14 +537,14 @@ export default function PresentCredentialModal({
         <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
           <button
             onClick={onClose}
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium cursor-pointer"
           >
             Close
           </button>
           {!qrCodeDataUrl && !isGenerating && error && (
             <button
               onClick={handleGenerateVP}
-              className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-medium"
+              className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-medium cursor-pointer"
             >
               Retry
             </button>

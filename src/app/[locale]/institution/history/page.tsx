@@ -689,7 +689,7 @@ export default function HistoryPage() {
                   e.target.value as 'all' | 'PENDING' | 'APPROVED' | 'REJECTED'
                 )
               }
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black cursor-pointer"
             >
               <option value="all">All Actions</option>
               <option value="PENDING">Pending</option>
@@ -706,7 +706,7 @@ export default function HistoryPage() {
             <select
               value={filterActionBy}
               onChange={(e) => handleActionByChange(e.target.value as 'all' | 'holder' | 'issuer')}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black cursor-pointer"
             >
               <option value="all">All</option>
               <option value="holder">Holder</option>

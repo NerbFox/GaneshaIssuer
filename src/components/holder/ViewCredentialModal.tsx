@@ -143,7 +143,7 @@ export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
             <div className="flex items-center justify-between px-8 py-4 border-b border-gray-200">
               <button
                 onClick={handlePrevious}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
                 aria-label="Previous credential"
               >
                 <svg
@@ -169,7 +169,7 @@ export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
 
               <button
                 onClick={handleNext}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
                 aria-label="Next credential"
               >
                 <svg
@@ -226,7 +226,7 @@ export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
                 <button
                   key={index}
                   onClick={() => handleDotClick(index)}
-                  className={`h-2.5 rounded-full transition-all duration-300 ${
+                  className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
                     index === currentIndex
                       ? 'w-8 bg-blue-500'
                       : 'w-2.5 bg-gray-300 hover:bg-gray-400'

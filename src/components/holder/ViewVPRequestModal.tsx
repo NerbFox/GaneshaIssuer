@@ -425,7 +425,7 @@ export const ViewVPRequestModal: React.FC<ViewVPRequestModalProps> = ({
           <button
             onClick={handleDecline}
             disabled={isLoading || isProcessing || request.status !== 'Pending'}
-            className="px-6 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-500 flex items-center gap-2"
+            className="px-6 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-500 flex items-center gap-2 cursor-pointer"
           >
             {isProcessing ? (
               <>
@@ -439,7 +439,7 @@ export const ViewVPRequestModal: React.FC<ViewVPRequestModalProps> = ({
           <button
             onClick={handleAccept}
             disabled={isLoading || isProcessing || request.status !== 'Pending'}
-            className="px-6 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-500 flex items-center gap-2"
+            className="px-6 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-500 flex items-center gap-2 cursor-pointer"
           >
             {isProcessing ? (
               <>
