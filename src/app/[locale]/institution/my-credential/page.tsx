@@ -45,37 +45,7 @@ import PresentMultipleCredentialsModal from '@/components/holder/PresentMultiple
 interface VCRenewCredentialData {
   // VC Identification
   vc_id: string;
-
-  // Schema Information (derived from credential type)
-  schema_id: string;
-  schema_version: number;
-  schema_name: string;
-
-  // Credential Subject Data - all dynamic fields
-  attributes: {
-    [key: string]: string | number | boolean;
-  };
-
-  // Mandatory Subject Fields
-  id: string; // Subject DID
-
-  // Validity Period
-  valid_from: string;
-  expiration_date: string | null;
-
-  // VC Metadata
-  vc_type: string[];
-  vc_context: string[];
-
-  // Issuer Information
-  issuer: string;
-  issuer_name: string;
-
-  // Renewal specific
-  renewal_reason: string;
-
-  // Optional image reference
-  image_link?: string | null;
+  reason: string;
 }
 
 /**
@@ -83,39 +53,8 @@ interface VCRenewCredentialData {
  * Prepared from VerifiableCredential for revocation request
  */
 interface VCRevokeCredentialData {
-  // VC Identification
   vc_id: string;
-
-  // Schema Information (derived from credential type)
-  schema_id: string;
-  schema_version: number;
-  schema_name: string;
-
-  // Credential Subject Data - all dynamic fields
-  attributes: {
-    [key: string]: string | number | boolean;
-  };
-
-  // Mandatory Subject Fields
-  id: string; // Subject DID
-
-  // Validity Period
-  valid_from: string;
-  expiration_date: string | null;
-
-  // VC Metadata
-  vc_type: string[];
-  vc_context: string[];
-
-  // Issuer Information
-  issuer: string;
-  issuer_name: string;
-
-  // Revoke specific
-  revocation_reason: string;
-
-  // Optional image reference
-  image_link?: string | null;
+  reason: string;
 }
 
 interface Credential {
@@ -642,6 +581,8 @@ export default function MyCredentialPage() {
       const credentialSubject = renewingCredential.credentialSubject;
       const { id: subjectId, ...rawAttributes } = credentialSubject;
 
+      console.log('Excluding id', subjectId, 'from attributes for renewal:', rawAttributes);
+
       // Convert attributes to proper types
       const attributes: { [key: string]: string | number | boolean } = {};
       Object.entries(rawAttributes).forEach(([key, value]) => {
@@ -653,42 +594,10 @@ export default function MyCredentialPage() {
         }
       });
 
-      // Extract schema ID and version from VC id
-      // Format: {schema_id}:{schema_version}:{holder_did}:{timestamp}
-      const vcIdParts = renewingCredential.id.split(':');
-      let schemaId = 'Unknown';
-      let schemaVersion = 1;
-
-      if (vcIdParts.length >= 2) {
-        schemaId = vcIdParts[0];
-        schemaVersion = parseInt(vcIdParts[1], 10) || 1;
-      }
-
-      // Get schema name from the credential type
-      const schemaName = Array.isArray(renewingCredential.type)
-        ? renewingCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown'
-        : 'Unknown';
-
       // Prepare renewal data according to VCRenewCredentialData interface
       const renewalData: VCRenewCredentialData = {
         vc_id: renewingCredential.id,
-        schema_id: schemaId,
-        schema_version: schemaVersion,
-        schema_name: schemaName,
-        attributes: attributes,
-        id: subjectId,
-        valid_from: renewingCredential.validFrom,
-        expiration_date: renewingCredential.expiredAt,
-        vc_type: Array.isArray(renewingCredential.type)
-          ? renewingCredential.type
-          : [renewingCredential.type],
-        vc_context: Array.isArray(renewingCredential['@context'])
-          ? renewingCredential['@context']
-          : [renewingCredential['@context']],
-        issuer: renewingCredential.issuer,
-        issuer_name: renewingCredential.issuerName,
-        renewal_reason: renewalReason.trim(),
-        image_link: renewingCredential.imageLink || null,
+        reason: renewalReason.trim(),
       };
 
       console.log('Renewal data prepared:', renewalData);
@@ -830,7 +739,7 @@ export default function MyCredentialPage() {
       const updateData = {
         vc_id: updatingCredential.id,
         changed_attributes: changedAttributes,
-        update_reason: updateReason.trim(),
+        reason: updateReason.trim(),
       };
 
       console.log('Update data prepared:', updateData);
@@ -953,6 +862,8 @@ export default function MyCredentialPage() {
       const credentialSubject = revokingCredential.credentialSubject;
       const { id: subjectId, ...rawAttributes } = credentialSubject;
 
+      console.log('Excluding id', subjectId, 'from attributes for revocation:', rawAttributes);
+
       // Convert attributes to proper types
       const attributes: { [key: string]: string | number | boolean } = {};
       Object.entries(rawAttributes).forEach(([key, value]) => {
@@ -964,42 +875,10 @@ export default function MyCredentialPage() {
         }
       });
 
-      // Extract schema ID and version from VC id
-      // Format: {schema_id}:{schema_version}:{holder_did}:{timestamp}
-      const vcIdParts = revokingCredential.id.split(':');
-      let schemaId = 'Unknown';
-      let schemaVersion = 1;
-
-      if (vcIdParts.length >= 2) {
-        schemaId = vcIdParts[0];
-        schemaVersion = parseInt(vcIdParts[1], 10) || 1;
-      }
-
-      // Get schema name from the credential type
-      const schemaName = Array.isArray(revokingCredential.type)
-        ? revokingCredential.type.find((t) => t !== 'VerifiableCredential') || 'Unknown'
-        : 'Unknown';
-
       // Prepare revocation data according to VCRevokeCredentialData interface
       const revocationData: VCRevokeCredentialData = {
         vc_id: revokingCredential.id,
-        schema_id: schemaId,
-        schema_version: schemaVersion,
-        schema_name: schemaName,
-        attributes: attributes,
-        id: subjectId,
-        valid_from: revokingCredential.validFrom,
-        expiration_date: revokingCredential.expiredAt,
-        vc_type: Array.isArray(revokingCredential.type)
-          ? revokingCredential.type
-          : [revokingCredential.type],
-        vc_context: Array.isArray(revokingCredential['@context'])
-          ? revokingCredential['@context']
-          : [revokingCredential['@context']],
-        issuer: revokingCredential.issuer,
-        issuer_name: revokingCredential.issuerName,
-        revocation_reason: revocationReason.trim(),
-        image_link: revokingCredential.imageLink || null,
+        reason: revocationReason.trim(),
       };
 
       console.log('Revocation data prepared:', revocationData);
