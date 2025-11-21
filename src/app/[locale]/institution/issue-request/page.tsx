@@ -377,13 +377,21 @@ export default function IssueRequestPage() {
 
           if (schemaResponse.ok) {
             const schemaData: SchemaApiResponse = await schemaResponse.json();
-            // Store schema name with version suffix
-            const schemaNameWithVersion = `${schemaData.data.name} v${schemaVersion}`;
-            schemaNameMap.set(schemaId, schemaNameWithVersion);
-            // If expired_in is null or 0, set to 0 for lifetime
-            const expiredIn = schemaData.data.schema.expired_in;
-            schemaExpiredInMap.set(schemaId, expiredIn || 0);
-            schemaIsActiveMap.set(schemaId, schemaData.data.isActive);
+            // Check if data exists before accessing properties
+            if (schemaData.data) {
+              // Store schema name with version suffix
+              const schemaNameWithVersion = `${schemaData.data.name} v${schemaVersion}`;
+              schemaNameMap.set(schemaId, schemaNameWithVersion);
+              // If expired_in is null or 0, set to 0 for lifetime
+              const expiredIn = schemaData.data.schema.expired_in;
+              schemaExpiredInMap.set(schemaId, expiredIn || 0);
+              schemaIsActiveMap.set(schemaId, schemaData.data.isActive);
+            } else {
+              // Schema data is null
+              schemaNameMap.set(schemaId, 'Unknown Schema');
+              schemaExpiredInMap.set(schemaId, 0);
+              schemaIsActiveMap.set(schemaId, false);
+            }
           } else {
             // Schema not found or error
             schemaNameMap.set(schemaId, 'Unknown Schema');
