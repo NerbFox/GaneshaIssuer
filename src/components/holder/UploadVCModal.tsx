@@ -154,9 +154,9 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
                     clipRule="evenodd"
                   />
                 </svg>
-                <div>
+                <div className="grid grid-rows-2">
                   <ThemedText fontSize={14} fontWeight={600}>
-                    ✓ All validations passed
+                    All validations passed
                   </ThemedText>
                   <ThemedText fontSize={12} className="text-green-600 mt-1">
                     Structure validated → API validated → No duplicates found
@@ -203,7 +203,7 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
             </ThemedText>
             <div className="border border-gray-200 rounded-lg bg-gray-50 max-h-96 overflow-y-auto">
               <div className="p-6 space-y-6">
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="bg-white rounded-lg p-4 border border-gray-200 grid grid-cols-2">
                   <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
                     ID
                   </ThemedText>
@@ -215,7 +215,7 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
                   </ThemedText>
                 </div>
 
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="bg-white rounded-lg p-4 border border-gray-200 grid grid-cols-2">
                   <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
                     Type
                   </ThemedText>
@@ -224,7 +224,7 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
                   </ThemedText>
                 </div>
 
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="bg-white rounded-lg p-4 border border-gray-200 grid grid-cols-2">
                   <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
                     Issuer
                   </ThemedText>
@@ -236,7 +236,7 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
                   </ThemedText>
                 </div>
 
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="bg-white rounded-lg p-4 border border-gray-200 grid grid-cols-2">
                   <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
                     Issuer Name
                   </ThemedText>
@@ -246,7 +246,7 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 grid grid-cols-2">
                     <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
                       Valid From
                     </ThemedText>
@@ -254,7 +254,7 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
                       {formatDate(uploadedVC.validFrom)}
                     </ThemedText>
                   </div>
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 grid grid-cols-2">
                     <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
                       Expired At
                     </ThemedText>

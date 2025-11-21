@@ -195,37 +195,37 @@ export const validateVCWithAPI = async (
   errors: string[];
 }> => {
   try {
-    console.group('🔍 VC API Validation');
-    console.log('📄 Full VC Object:', JSON.stringify(vc, null, 2));
+    console.group('VC API Validation');
+    console.log('Full VC Object:', JSON.stringify(vc, null, 2));
 
     // Get authentication token
     const token = localStorage.getItem('institutionToken');
 
     if (!token) {
-      console.error('❌ Authentication token not found');
+      console.error('Authentication token not found');
       console.groupEnd();
       return {
         isValid: false,
-        errors: ['Authentication token not found. Please log in again.'],
+        errors: ['Please log in again to continue.'],
       };
     }
 
-    console.log('✅ Authentication token found');
+    console.log('Authentication token found');
 
     // Extract required fields
     const vcId = vc.id;
     const credentialSubject = vc.credentialSubject;
     const expiredAt = vc.expiredAt;
 
-    console.log('📋 Extracted fields:', {
+    console.log('Extracted fields:', {
       vcId,
       credentialSubjectId: credentialSubject.id,
       expiredAt,
     });
 
     // Generate VC hash - hashVC expects a SignedVerifiableCredential (VC with proof)
-    console.log('🔧 Preparing to hash VC...');
-    console.log('📋 VC keys:', Object.keys(vc).sort());
+    console.log('Preparing to hash VC...');
+    console.log('VC keys:', Object.keys(vc).sort());
 
     // IMPORTANT: Remove metadata fields that are added after signing
     // These fields (source, claimId) are added when storing to IndexedDB
@@ -235,37 +235,31 @@ export const validateVCWithAPI = async (
     const presentMetadataFields = metadataFields.filter((field) => field in vcForHashing);
 
     if (presentMetadataFields.length > 0) {
-      console.warn(
-        '⚠️ Metadata fields detected (will be excluded from hash):',
-        presentMetadataFields
-      );
+      console.warn('Metadata fields detected (will be excluded from hash):', presentMetadataFields);
       presentMetadataFields.forEach((field) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         delete (vcForHashing as any)[field];
       });
-      console.log('✓ Removed metadata fields for hash calculation');
+      console.log('Removed metadata fields for hash calculation');
     }
 
     // Note: fileId and fileUrl are included in the hash because they are set before signing
-    console.log(
-      '📋 VC keys for hashing (after removing metadata):',
-      Object.keys(vcForHashing).sort()
-    );
+    console.log('VC keys for hashing (after removing metadata):', Object.keys(vcForHashing).sort());
 
     // Create a canonical version for hashing (sorted keys at all levels)
     const canonicalVC = JSON.stringify(vcForHashing, Object.keys(vcForHashing).sort());
-    console.log('📝 Canonical VC string (first 200 chars):', canonicalVC.substring(0, 200) + '...');
+    console.log('Canonical VC string (first 200 chars):', canonicalVC.substring(0, 200) + '...');
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vcHash = hashVC(vcForHashing as any);
 
-    console.log('🔐 Generated VC Hash:', vcHash);
-    console.log('📏 Hash length:', vcHash.length, 'characters');
+    console.log('Generated VC Hash:', vcHash);
+    console.log('Hash length:', vcHash.length, 'characters');
 
     // Get holder DID from credentialSubject.id
     const holderDid = credentialSubject.id;
 
-    console.log('👤 Holder DID:', holderDid);
+    console.log('Holder DID:', holderDid);
 
     // Prepare request body
     const requestBody = {
@@ -277,11 +271,11 @@ export const validateVCWithAPI = async (
       holder_did: holderDid,
     };
 
-    console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
     // Call API endpoint with Bearer token
     const apiUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.VALIDATE_VC);
-    console.log('🌐 API URL:', apiUrl);
+    console.log('API URL:', apiUrl);
 
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -292,39 +286,41 @@ export const validateVCWithAPI = async (
       body: JSON.stringify(requestBody),
     });
 
-    console.log('📥 Response status:', response.status, response.statusText);
+    console.log('Response status:', response.status, response.statusText);
 
     const data = await response.json();
-    console.log('📥 Response data:', JSON.stringify(data, null, 2));
+    console.log('Response data:', JSON.stringify(data, null, 2));
 
     if (!response.ok) {
-      console.error('❌ Response not OK:', data.message || 'API validation failed');
+      console.error('Response not OK:', data.message || 'API validation failed');
       console.groupEnd();
       return {
         isValid: false,
-        errors: [data.message || 'API validation failed'],
+        errors: [data.message || 'Unable to verify credential. Please try again later.'],
       };
     }
 
     // Check if API response indicates validation success
     if (data.success === false) {
-      console.error('❌ API returned success=false:', data.message || 'VC validation failed');
+      console.error('API returned success=false:', data.message || 'VC validation failed');
       console.groupEnd();
       return {
         isValid: false,
-        errors: [data.message || 'VC validation failed'],
+        errors: [
+          data.message || 'This credential could not be verified. Please check your credential.',
+        ],
       };
     }
 
     // Check the data.is_valid field from the response
     if (data.data && data.data.is_valid === false) {
-      console.error('❌ VC validation failed. Detailed validation results:');
+      console.error('VC validation failed. Detailed validation results:');
       console.log('  - DID valid:', data.data.did_valid);
       console.log('  - Expiration valid:', data.data.expiration_valid);
       console.log('  - Hash valid:', data.data.hash_valid);
 
       if (data.data.hash_valid === false) {
-        console.error('🔐 Hash mismatch detected:');
+        console.error('Hash mismatch detected:');
         console.log('  - Client-generated hash:', vcHash);
         console.log(
           '  - Blockchain hash (expected):',
@@ -346,16 +342,16 @@ export const validateVCWithAPI = async (
       } else {
         // Provide specific error messages based on validation flags
         if (data.data.did_valid === false) {
-          errors.push('DID validation failed');
+          errors.push('The credential holder information could not be verified.');
         }
         if (data.data.expiration_valid === false) {
-          errors.push('Expiration validation failed');
+          errors.push('This credential has expired or is not yet valid.');
         }
         if (data.data.hash_valid === false) {
-          errors.push('Hash validation failed - VC data may have been modified');
+          errors.push('This credential has been modified and is no longer valid.');
         }
         if (errors.length === 0) {
-          errors.push(data.message || 'VC validation failed');
+          errors.push(data.message || 'This credential could not be verified.');
         }
       }
 
@@ -366,7 +362,7 @@ export const validateVCWithAPI = async (
       };
     }
 
-    console.log('✅ VC validation successful!');
+    console.log('VC validation successful!');
     console.groupEnd();
 
     return {
@@ -374,11 +370,13 @@ export const validateVCWithAPI = async (
       errors: [],
     };
   } catch (error) {
-    console.error('❌ Error validating VC with API:', error);
+    console.error('Error validating VC with API:', error);
     console.groupEnd();
     return {
       isValid: false,
-      errors: [`API validation error: ${error instanceof Error ? error.message : 'Unknown error'}`],
+      errors: [
+        `Unable to verify credential: ${error instanceof Error ? error.message : 'Please try again later.'}`,
+      ],
     };
   }
 };
@@ -408,7 +406,7 @@ export const checkVCDuplicate = async (
     console.error('Error checking VC duplicate:', error);
     return {
       isDuplicate: false,
-      error: `Database check error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      error: `Unable to check credential: ${error instanceof Error ? error.message : 'Please try again.'}`,
     };
   }
 };
@@ -425,15 +423,15 @@ export const validateVCComprehensive = async (
   vc?: VerifiableCredential;
   stage?: 'structure' | 'api' | 'duplicate';
 }> => {
-  console.group('🚀 Comprehensive VC Validation');
-  console.log('📄 File content length:', fileContent.length, 'characters');
+  console.group('Comprehensive VC Validation');
+  console.log('File content length:', fileContent.length, 'characters');
 
   // Stage 1: Structure validation
-  console.log('\n📋 Stage 1: Structure Validation');
+  console.log('\nStage 1: Structure Validation');
   const parseResult = parseAndValidateVC(fileContent);
 
   if (!parseResult.isValid || !parseResult.vc) {
-    console.error('❌ Structure validation failed:', parseResult.errors);
+    console.error('Structure validation failed:', parseResult.errors);
     console.groupEnd();
     return {
       isValid: false,
@@ -442,16 +440,16 @@ export const validateVCComprehensive = async (
     };
   }
 
-  console.log('✅ Structure validation passed');
+  console.log('Structure validation passed');
   const vc = parseResult.vc;
-  console.log('📄 Parsed VC ID:', vc.id);
+  console.log('Parsed VC ID:', vc.id);
 
   // Stage 2: API validation
-  console.log('\n🌐 Stage 2: API Validation');
+  console.log('\nStage 2: API Validation');
   const apiValidation = await validateVCWithAPI(vc);
 
   if (!apiValidation.isValid) {
-    console.error('❌ API validation failed:', apiValidation.errors);
+    console.error('API validation failed:', apiValidation.errors);
     console.groupEnd();
     return {
       isValid: false,
@@ -461,14 +459,14 @@ export const validateVCComprehensive = async (
     };
   }
 
-  console.log('✅ API validation passed');
+  console.log('API validation passed');
 
   // Stage 3: Duplicate check
-  console.log('\n🔍 Stage 3: Duplicate Check');
+  console.log('\nStage 3: Duplicate Check');
   const duplicateCheck = await checkVCDuplicate(vc.id);
 
   if (duplicateCheck.error) {
-    console.error('❌ Duplicate check error:', duplicateCheck.error);
+    console.error('Duplicate check error:', duplicateCheck.error);
     console.groupEnd();
     return {
       isValid: false,
@@ -479,7 +477,7 @@ export const validateVCComprehensive = async (
   }
 
   if (duplicateCheck.isDuplicate) {
-    console.warn('⚠️ Duplicate VC found in storage');
+    console.warn('Duplicate VC found in storage');
     console.groupEnd();
     return {
       isValid: false,
@@ -489,10 +487,10 @@ export const validateVCComprehensive = async (
     };
   }
 
-  console.log('✅ No duplicate found');
+  console.log('No duplicate found');
 
   // All validations passed
-  console.log('\n✅ All validations passed successfully!');
+  console.log('\nAll validations passed successfully!');
   console.groupEnd();
 
   return {
