@@ -29,6 +29,7 @@ import {
 } from '@/services/credentialService';
 import { fetchPublicKeyForDID } from '@/services/didService';
 import { fetchSchemaByVersion, fetchSchemas } from '@/services/schemaService';
+import { storeIssuedCredentialsBatch } from '@/utils/indexedDB';
 
 interface VerifiableCredentialData {
   id: string;
@@ -66,6 +67,7 @@ interface IssuedCredential {
   vcId?: string;
   vcHistory?: VerifiableCredentialData[]; // Array of all VCs (newest first)
   issuerDid: string; // Add issuer DID for IndexedDB
+  vcStatus?: boolean; // The vc_status from encrypted_body wrapper
 }
 
 interface SchemaAttribute {
@@ -116,6 +118,17 @@ export default function IssuedByMePage() {
     message: '',
     onConfirm: () => {},
   });
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalConfig, setInfoModalConfig] = useState<{
+    title: string;
+    message: string;
+    onClose?: () => void;
+    buttonText?: string;
+    buttonColor?: 'blue' | 'green' | 'red' | 'yellow';
+  }>({
+    title: '',
+    message: '',
+  });
   const [schemas, setSchemas] = useState<
     {
       id: string;
@@ -136,16 +149,6 @@ export default function IssuedByMePage() {
   >([]);
   const [showSchemaModal, setShowSchemaModal] = useState(false);
   const [schemaData, setSchemaData] = useState<Schema | null>(null);
-  const [showInfoModal, setShowInfoModal] = useState(false);
-  const [infoModalConfig, setInfoModalConfig] = useState<{
-    title: string;
-    message: string;
-    buttonText?: string;
-    buttonColor?: 'blue' | 'green' | 'red' | 'yellow';
-  }>({
-    title: '',
-    message: '',
-  });
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const filterModalRef = useRef<HTMLDivElement>(null);
@@ -240,11 +243,14 @@ export default function IssuedByMePage() {
             const schemaName = schemaInfo?.name || 'Unknown Schema';
             const isUnknownSchema = !schemaInfo || !schemaId;
 
-            // Determine credential status based on newest VC
+            // Determine credential status based on vc_status from decrypted data
             let credentialStatus = 'APPROVED';
-            if (newestVC.credentialStatus?.revoked) {
+
+            // Primary status check: use vc_status from decrypted data
+            if (vcContainer.vc_status === false) {
               credentialStatus = 'REVOKED';
             } else if (newestVC.expiredAt) {
+              // Secondary check: if vc_status is true, check expiration
               const expirationDate = new Date(newestVC.expiredAt);
               const now = new Date();
               if (expirationDate < now) {
@@ -279,6 +285,7 @@ export default function IssuedByMePage() {
               vcId: newestVC.id,
               vcHistory: vcHistory, // Store the entire history
               issuerDid: institutionDID, // Add issuer DID for IndexedDB
+              vcStatus: vcContainer.vc_status, // Store the vc_status from encrypted_body wrapper
             });
           }
         } catch (error) {
@@ -290,6 +297,17 @@ export default function IssuedByMePage() {
       setCredentials(transformedCredentials);
       setFilteredCredentials(transformedCredentials);
       setLastRefresh(new Date());
+
+      // Store credentials in IndexedDB for later use (e.g., renew, update operations)
+      if (transformedCredentials.length > 0) {
+        try {
+          const storedIds = await storeIssuedCredentialsBatch(transformedCredentials);
+          console.log(`[IndexedDB] Stored ${storedIds.length} issued credentials`);
+        } catch (storageError) {
+          console.error('[IndexedDB] Failed to store credentials:', storageError);
+          // Don't fail the entire operation if storage fails
+        }
+      }
     } catch (err) {
       console.error('Error fetching credentials:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -465,6 +483,7 @@ export default function IssuedByMePage() {
         expiredAt: expiredAt.toISOString(),
         imageLink,
         institutionName,
+        issuerVCDataId: credential.id,
       });
 
       if (!updateResponse.ok) {
@@ -472,20 +491,20 @@ export default function IssuedByMePage() {
         throw new Error(errorData.message || 'Failed to update credential');
       }
 
-      // Show success confirmation
+      // Show success information
       setShowUpdateModal(false);
       setSelectedCredential(null);
-      setConfirmationConfig({
+      setInfoModalConfig({
         title: 'Update Credential',
         message: `The credential has been updated successfully.\n\nThe holder can claim the updated credential.`,
-        confirmText: 'OK',
-        confirmButtonColor: 'green',
-        onConfirm: () => {
-          setShowConfirmation(false);
+        buttonText: 'OK',
+        buttonColor: 'green',
+        onClose: () => {
+          setShowInfoModal(false);
           fetchCredentials();
         },
       });
-      setShowConfirmation(true);
+      setShowInfoModal(true);
     } catch (error) {
       console.error('Error updating credential:', error);
       setConfirmationConfig({
@@ -542,6 +561,7 @@ export default function IssuedByMePage() {
             holderDid: credential.holderDid,
             holderPublicKey,
             vcId: vcId,
+            issuerVCDataId: credential.id, // ID of the issued credential record
           });
 
           if (!revokeResponse.ok) {
@@ -624,15 +644,15 @@ export default function IssuedByMePage() {
           const schemaData = schemaResponse.data;
           const expiredIn = schemaData.schema.expired_in;
 
+          // Expireable credential can't be renewed
+          if (!expiredIn) return;
+
           // Calculate new expiration date based on schema's expired_in
           // If expired_in is 0 or not set, the credential is lifetime (no expiration)
-          let expiredAtString: string | null = null;
-          if (expiredIn && expiredIn > 0) {
-            const now = new Date();
-            const expiredAt = new Date(now);
-            expiredAt.setFullYear(expiredAt.getFullYear() + expiredIn);
-            expiredAtString = expiredAt.toISOString();
-          }
+          const now = new Date();
+          const expiredAt = new Date(now);
+          expiredAt.setFullYear(expiredAt.getFullYear() + expiredIn);
+          const expiredAtString = expiredAt.toISOString();
 
           // Get institution information
           const institutionDataStr = localStorage.getItem('institutionData');
@@ -668,7 +688,7 @@ export default function IssuedByMePage() {
             schemaVersion: selectedCredential.schemaVersion,
             schemaName: selectedCredential.schemaName,
             credentialData,
-            expiredAt: expiredAtString || '',
+            expiredAt: expiredAtString,
             imageLink,
             institutionName,
             issuerVCDataId: selectedCredential.id, // ID of the issued credential record
@@ -1013,6 +1033,11 @@ export default function IssuedByMePage() {
       id: 'action',
       label: 'ACTION',
       render: (row) => {
+        // Don't show any action buttons for revoked credentials
+        if (row.status === 'REVOKED') {
+          return <div className="flex gap-2">-</div>;
+        }
+
         const showUpdateButton = row.schemaName !== 'Unknown Schema' && row.schemaId;
         const showRenewButton = showUpdateButton && row.activeUntil !== '-'; // Don't show renew for lifetime credentials
         return (
@@ -1401,6 +1426,8 @@ export default function IssuedByMePage() {
               setSelectedCredential(null);
             }}
             currentVC={selectedCredential.vcHistory?.[0]}
+            vcHistory={selectedCredential.vcHistory}
+            vcStatus={selectedCredential.vcStatus}
           />
         )}
       </Modal>
@@ -1430,7 +1457,7 @@ export default function IssuedByMePage() {
       {/* Info Modal */}
       <InfoModal
         isOpen={showInfoModal}
-        onClose={() => setShowInfoModal(false)}
+        onClose={infoModalConfig.onClose ? infoModalConfig.onClose : () => setShowInfoModal(false)}
         title={infoModalConfig.title}
         message={infoModalConfig.message}
         buttonText={infoModalConfig.buttonText}

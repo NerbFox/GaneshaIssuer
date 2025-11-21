@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { formatDateTime } from '@/utils/dateUtils';
@@ -49,16 +50,61 @@ interface ViewCredentialFormProps {
   };
   onClose: () => void;
   currentVC?: VerifiableCredentialData;
+  vcHistory?: VerifiableCredentialData[];
+  vcStatus?: boolean; // The vc_status from encrypted_body wrapper
 }
 
 export default function ViewCredentialForm({
   credential,
   onClose,
   currentVC,
+  vcHistory,
+  vcStatus,
 }: ViewCredentialFormProps) {
-  // Extract attributes from current VC
-  const currentAttributes: CredentialAttribute[] = currentVC
-    ? Object.entries(currentVC.credentialSubject)
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Normalize VC data: use vcHistory if available, otherwise use currentVC, or null
+  const vcs = vcHistory && vcHistory.length > 0 ? vcHistory : currentVC ? [currentVC] : [];
+  const hasMultiple = vcs.length > 1;
+  const displayVC = vcs[currentIndex];
+
+  // Reset index when component mounts or vcHistory changes
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [vcHistory]);
+
+  const handlePrevious = useCallback(() => {
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : vcs.length - 1));
+  }, [vcs.length]);
+
+  const handleNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev < vcs.length - 1 ? prev + 1 : 0));
+  }, [vcs.length]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!hasMultiple) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrevious();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNext();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [hasMultiple, handlePrevious, handleNext]);
+
+  const handleDotClick = (index: number) => {
+    setCurrentIndex(index);
+  };
+  // Extract attributes from display VC
+  const currentAttributes: CredentialAttribute[] = displayVC
+    ? Object.entries(displayVC.credentialSubject)
         .filter(([key]) => key !== 'id')
         .map(([name, value], index) => ({
           id: index + 1,
@@ -68,21 +114,20 @@ export default function ViewCredentialForm({
     : credential.attributes;
 
   // Get current credential data
-  const displayData = currentVC
+  const displayData = displayVC
     ? {
-        id: currentVC.id,
-        holderDid: currentVC.credentialSubject.id,
-        issuerDid: typeof currentVC.issuer === 'object' ? currentVC.issuer.id : currentVC.issuer,
+        id: displayVC.id,
+        holderDid: displayVC.credentialSubject.id,
+        issuerDid: typeof displayVC.issuer === 'object' ? displayVC.issuer.id : displayVC.issuer,
         schemaName: credential.schemaName,
         schemaId: credential.schemaId,
         schemaVersion: credential.schemaVersion,
-        status: currentVC.credentialStatus?.revoked
-          ? 'REVOKED'
-          : new Date(currentVC.expiredAt) < new Date()
-            ? 'EXPIRED'
-            : 'APPROVED',
-        validFrom: currentVC.validFrom,
-        expiredAt: currentVC.expiredAt,
+        status:
+          // Only the newest version (index 0) can be APPROVED or REVOKED
+          // All historical versions are marked as REVOKED
+          currentIndex === 0 ? (vcStatus === false ? 'REVOKED' : 'APPROVED') : 'REVOKED',
+        validFrom: displayVC.validFrom,
+        expiredAt: displayVC.expiredAt,
         attributes: currentAttributes,
       }
     : credential;
@@ -136,6 +181,52 @@ export default function ViewCredentialForm({
 
   return (
     <div className="px-8 py-6">
+      {/* Carousel Navigation - Top */}
+      {hasMultiple && (
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+          <button
+            onClick={handlePrevious}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Previous version"
+          >
+            <svg
+              className="w-6 h-6 text-gray-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">
+              Version {currentIndex + 1} of {vcs.length}
+            </span>
+          </div>
+
+          <button
+            onClick={handleNext}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Next version"
+          >
+            <svg
+              className="w-6 h-6 text-gray-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Credential Information Grid */}
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* Credential ID */}
@@ -209,7 +300,7 @@ export default function ViewCredentialForm({
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {formatDateTime(
-              currentVC ? currentVC.validFrom : credential.issuedAt || credential.activeUntil
+              displayVC ? displayVC.validFrom : credential.issuedAt || credential.activeUntil
             )}
           </div>
         </div>
@@ -221,7 +312,7 @@ export default function ViewCredentialForm({
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {(() => {
-              const expiredAtValue = currentVC ? currentVC.expiredAt : credential.activeUntil;
+              const expiredAtValue = displayVC ? displayVC.expiredAt : credential.activeUntil;
               // Check if the value is null, empty, '-', or undefined
               if (!expiredAtValue || expiredAtValue === '-') {
                 return 'Lifetime';
@@ -276,6 +367,22 @@ export default function ViewCredentialForm({
           CLOSE
         </button>
       </div>
+
+      {/* Carousel Indicators - Bottom */}
+      {hasMultiple && (
+        <div className="flex justify-center gap-2 pt-6">
+          {vcs.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => handleDotClick(index)}
+              className={`h-2.5 rounded-full transition-all duration-300 ${
+                index === currentIndex ? 'w-8 bg-blue-500' : 'w-2.5 bg-gray-300 hover:bg-gray-400'
+              }`}
+              aria-label={`Go to version ${index + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

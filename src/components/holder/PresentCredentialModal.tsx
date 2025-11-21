@@ -381,68 +381,116 @@ export default function PresentCredentialModal({
           </div>
         </div>
 
-        <div className="mb-6">
-          <div className="mb-4">
-            <ThemedText className="text-sm font-semibold text-gray-900">Scan to Verify</ThemedText>
+        {/* VP Generation Status */}
+        {isGenerating && (
+          <div className="text-center py-8 mb-6">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
+            <ThemedText className="text-gray-600">Creating Verifiable Presentation...</ThemedText>
           </div>
+        )}
 
-          <div className="flex flex-col items-center justify-center space-y-4 bg-gray-50 border border-gray-200 rounded-lg p-6">
-            {isGenerating && (
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
+            <div className="flex items-start gap-3">
+              <svg
+                className="h-5 w-5 text-red-600 mt-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="flex-1">
+                <ThemedText className="text-sm font-medium text-red-800 mb-1">
+                  Error Generating VP
+                </ThemedText>
+                <ThemedText className="text-sm text-red-700">{error}</ThemedText>
               </div>
-            )}
+            </div>
+          </div>
+        )}
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 w-full">
-                <p className="text-sm text-red-800">{error}</p>
+        {qrCodeDataUrl && vpId && !error && (
+          <div className="space-y-6 mb-6">
+            {/* VP ID */}
+            <div>
+              <label className="block mb-2">
+                <ThemedText className="text-sm font-medium text-gray-700">VP ID</ThemedText>
+              </label>
+              <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all font-mono">
+                {vpId}
               </div>
-            )}
+            </div>
 
-            {qrCodeDataUrl && !error && (
-              <>
-                <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
-                  <Image
-                    src={qrCodeDataUrl}
-                    alt="VP QR Code"
-                    width={256}
-                    height={256}
-                    className="w-64 h-64"
-                    style={{ imageRendering: 'pixelated' }}
-                    unoptimized
-                  />
+            {/* QR Code */}
+            <div className="flex flex-col items-center p-6 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center justify-between w-full mb-4">
+                <div className="flex-1"></div>
+                <ThemedText className="text-sm font-medium text-gray-700">
+                  Scan QR Code to Share VP
+                </ThemedText>
+                <div className="flex-1 flex justify-end">
+                  <button
+                    onClick={handleGenerateVP}
+                    disabled={isGenerating}
+                    className="p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Regenerate VP with new ID"
+                  >
+                    <svg
+                      className={`h-5 w-5 ${isGenerating ? 'animate-spin' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      />
+                    </svg>
+                  </button>
                 </div>
-                {vpId && (
-                  <div className="text-center w-full">
-                    <label className="block mb-2">
-                      <ThemedText className="text-xs font-medium text-gray-600">VP ID</ThemedText>
-                    </label>
-                    <div className="px-4 py-3 bg-white border border-gray-200 rounded-lg text-xs font-mono text-gray-900 break-all">
-                      {vpId}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
+                <Image
+                  src={qrCodeDataUrl}
+                  alt="VP QR Code"
+                  width={256}
+                  height={256}
+                  className="w-64 h-64"
+                  style={{ imageRendering: 'pixelated' }}
+                  unoptimized
+                />
+              </div>
+              <ThemedText className="text-xs text-gray-500 mt-4 text-center">
+                This QR code contains the VP ID that can be scanned by verifiers
+              </ThemedText>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
-          {error && (
-            <button
-              onClick={handleGenerateVP}
-              disabled={isGenerating}
-              className="px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isGenerating ? 'GENERATING...' : 'RETRY'}
-            </button>
-          )}
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer"
+            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
-            CLOSE
+            Close
           </button>
+          {!qrCodeDataUrl && !isGenerating && error && (
+            <button
+              onClick={handleGenerateVP}
+              className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-medium"
+            >
+              Retry
+            </button>
+          )}
         </div>
       </div>
     </Modal>

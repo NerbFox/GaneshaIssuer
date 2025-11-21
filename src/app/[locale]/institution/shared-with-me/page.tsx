@@ -2329,7 +2329,7 @@ Are you sure you want to close?`}
                   />
                 </svg>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 grid grid-col-2">
                 <ThemedText fontSize={22} fontWeight={600} className="text-gray-900">
                   Ready to Scan
                 </ThemedText>

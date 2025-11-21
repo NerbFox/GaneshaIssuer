@@ -11,7 +11,7 @@ const STORE_NAME = 'credentials';
 const VP_SHARINGS_STORE = 'vp_sharings';
 const SCHEMA_DATA_STORE = 'schema_data';
 const ISSUED_CREDENTIALS_STORE = 'issued_credentials';
-const DB_VERSION = 4; // Increment version to add issued_credentials store
+const DB_VERSION = 5; // Increment version to add vcId index to issued_credentials store
 
 export interface VerifiableCredential {
   '@context': string[];
@@ -160,6 +160,16 @@ const openDB = (): Promise<IDBDatabase> => {
         issuedCredentialsStore.createIndex('holderDid', 'holderDid', { unique: false });
         issuedCredentialsStore.createIndex('status', 'status', { unique: false });
         issuedCredentialsStore.createIndex('schemaId', 'schemaId', { unique: false });
+        issuedCredentialsStore.createIndex('vcId', 'vcId', { unique: false });
+      } else if (event.oldVersion < 5) {
+        // If upgrading from version < 5, add vcId index
+        const transaction = (event.target as IDBOpenDBRequest).transaction;
+        if (transaction) {
+          const issuedCredentialsStore = transaction.objectStore(ISSUED_CREDENTIALS_STORE);
+          if (!issuedCredentialsStore.indexNames.contains('vcId')) {
+            issuedCredentialsStore.createIndex('vcId', 'vcId', { unique: false });
+          }
+        }
       }
     };
   });
@@ -220,6 +230,35 @@ export const storeVCBatch = async (vcs: VerifiableCredential[]): Promise<string[
       );
     }
 
+    // Log what we're about to store
+    console.log(`[IndexedDB] About to store ${vcs.length} VCs:`);
+    const vcIdMap = new Map<string, string[]>();
+    vcs.forEach((vc, index) => {
+      console.log(`  [${index + 1}] VC ID: ${vc.id}, Claim ID: ${vc.claimId}`);
+
+      // Track which claim IDs map to which VC IDs
+      if (!vcIdMap.has(vc.id)) {
+        vcIdMap.set(vc.id, []);
+      }
+      vcIdMap.get(vc.id)!.push(vc.claimId || 'no-claimId');
+    });
+
+    // Check for duplicate VC IDs
+    const duplicateVcIds = Array.from(vcIdMap.entries()).filter(
+      ([, claimIds]) => claimIds.length > 1
+    );
+    if (duplicateVcIds.length > 0) {
+      console.warn(
+        `[IndexedDB] WARNING: ${duplicateVcIds.length} VC IDs have multiple claim IDs (will overwrite):`
+      );
+      duplicateVcIds.forEach(([vcId, claimIds]) => {
+        console.warn(`  VC ID: ${vcId} has ${claimIds.length} claim IDs: ${claimIds.join(', ')}`);
+        console.warn(
+          `  -> Only the LAST claim ID (${claimIds[claimIds.length - 1]}) will be stored!`
+        );
+      });
+    }
+
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([STORE_NAME], 'readwrite');
       const objectStore = transaction.objectStore(STORE_NAME);
@@ -234,7 +273,9 @@ export const storeVCBatch = async (vcs: VerifiableCredential[]): Promise<string[
         request.onsuccess = () => {
           storedIds.push(vc.id);
           completed++;
-          console.log(`[IndexedDB] VC stored successfully: ${vc.id} (${completed}/${vcs.length})`);
+          console.log(
+            `[IndexedDB] VC stored successfully: ${vc.id}, Claim ID: ${vc.claimId} (${completed}/${vcs.length})`
+          );
 
           if (completed === vcs.length && !hasError) {
             resolve(storedIds);
@@ -254,6 +295,10 @@ export const storeVCBatch = async (vcs: VerifiableCredential[]): Promise<string[
       };
 
       transaction.oncomplete = () => {
+        console.log(`[IndexedDB] Transaction complete. Stored IDs:`, storedIds);
+        console.log(
+          `[IndexedDB] Note: When duplicate VC IDs are stored, only the last one with that ID is kept.`
+        );
         db.close();
         if (hasError) {
           reject(new Error(`Some VCs failed to store: ${errors.join('; ')}`));
@@ -384,14 +429,25 @@ export const getVCsByRequestIds = async (
       getAllRequest.onsuccess = () => {
         const allVCs: VerifiableCredential[] = getAllRequest.result || [];
 
+        console.log(
+          `[IndexedDB] Checking ${claimIds.length} claim IDs against ${allVCs.length} stored VCs`
+        );
+        console.log('[IndexedDB] Stored VCs (id -> claimId):');
+        allVCs.forEach((vc) => {
+          console.log(`  VC ID: ${vc.id}, Claim ID: ${vc.claimId}`);
+        });
+
         // Filter VCs that have matching claimIds
         claimIds.forEach((claimId) => {
           const found = allVCs.find((vc) => vc.claimId === claimId);
           if (found && found.source) {
+            console.log(`[IndexedDB] Found claim ID ${claimId} -> VC ID ${found.id}`);
             storedRequestData.push({
               claimId: claimId,
               source: found.source,
             });
+          } else {
+            console.log(`[IndexedDB] NOT FOUND: claim ID ${claimId}`);
           }
         });
 
@@ -1130,6 +1186,38 @@ export const getIssuedCredentialsByIssuerDid = async (
     });
   } catch (error) {
     console.error('[IndexedDB] Error getting issued credentials by issuer DID:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get issued credentials by VC ID
+ * Since vcId may not be unique across all credentials, this returns an array
+ */
+export const getIssuedCredentialsByVcId = async (vcId: string): Promise<IssuedCredential[]> => {
+  try {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([ISSUED_CREDENTIALS_STORE], 'readonly');
+      const objectStore = transaction.objectStore(ISSUED_CREDENTIALS_STORE);
+      const index = objectStore.index('vcId');
+      const request = index.getAll(vcId);
+
+      request.onsuccess = () => {
+        resolve(request.result || []);
+      };
+
+      request.onerror = () => {
+        reject(new Error(`Failed to get issued credentials by VC ID: ${request.error?.message}`));
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+      };
+    });
+  } catch (error) {
+    console.error('[IndexedDB] Error getting issued credentials by VC ID:', error);
     throw error;
   }
 };

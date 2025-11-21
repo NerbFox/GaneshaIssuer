@@ -31,6 +31,48 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
   onFileUpload,
   onSave,
 }) => {
+  const [isDragOver, setIsDragOver] = React.useState(false);
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+
+      // Check if file is JSON
+      if (file.type === 'application/json' || file.name.endsWith('.json')) {
+        // Create a synthetic event to pass to onFileUpload
+        const syntheticEvent = {
+          target: {
+            files: files,
+          },
+        } as React.ChangeEvent<HTMLInputElement>;
+
+        onFileUpload(syntheticEvent);
+      }
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Upload Verifiable Credential" minHeight="600px">
       <div className="px-8 py-6">
@@ -42,34 +84,46 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
           </label>
 
           <div className="relative">
-            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-blue-300 rounded-xl cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors duration-200">
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <svg
-                  className="w-10 h-10 mb-3 text-blue-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                  />
-                </svg>
-                <p className="mb-2 text-sm text-blue-600 font-medium">
-                  <span className="font-semibold">Click to upload</span> or drag and drop
-                </p>
-                <p className="text-xs text-blue-500">JSON files only</p>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={onFileUpload}
-                className="hidden"
-              />
-            </label>
+            <div
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer transition-colors duration-200 ${
+                isDragOver
+                  ? 'border-blue-500 bg-blue-100'
+                  : 'border-blue-300 bg-blue-50 hover:bg-blue-100'
+              }`}
+            >
+              <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <svg
+                    className="w-10 h-10 mb-3 text-blue-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                  <p className="mb-2 text-sm text-blue-600 font-medium">
+                    <span className="font-semibold">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-blue-500">JSON files only</p>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={onFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
         </div>
 

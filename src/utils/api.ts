@@ -125,6 +125,8 @@ export const API_ENDPOINTS = {
     VERIFY: (vpId: string) => `${PRESENTATIONS_PATH}/${vpId}/verify`,
     CLAIM: `${PRESENTATIONS_PATH}/claim`,
     CONFIRM: `${PRESENTATIONS_PATH}/confirm`,
+    DECLINE: `${PRESENTATIONS_PATH}/decline`,
+    ACCEPT: `${PRESENTATIONS_PATH}/accept`,
   },
 
   // VC Schema Management
