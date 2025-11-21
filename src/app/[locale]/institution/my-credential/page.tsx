@@ -1434,7 +1434,7 @@ export default function MyCredentialPage() {
       if (result.success) {
         setInfoModalConfig({
           title: 'Request Successful',
-          message: `Credential request successful!\n\nRequest ID: ${result.data.claimId}\nStatus: ${result.data.status}`,
+          message: `Credential request successful!`,
           buttonColor: 'green',
           hideActions: false,
         });
