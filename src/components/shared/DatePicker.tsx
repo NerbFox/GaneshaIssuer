@@ -65,8 +65,8 @@ export default function DatePicker({ value, onChange, disabled = false }: DatePi
               <span className="text-sm text-gray-900">{formatDateForDisplay(value)}</span>
             </div>
           )}
-          {/* Placeholder when no value */}
-          {!isFocused && !value && (
+          {/* Placeholder when no value and not disabled */}
+          {!isFocused && !value && !disabled && (
             <div className="absolute inset-0 flex items-center px-3 pointer-events-none">
               <span className="text-sm text-gray-400">MM/DD/YYYY</span>
             </div>

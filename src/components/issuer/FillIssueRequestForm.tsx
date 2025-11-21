@@ -40,6 +40,7 @@ interface FillIssueRequestFormProps {
   onCancel: () => void;
   isSubmitting?: boolean;
   holderReason?: string;
+  changedAttributes?: Record<string, string | number | boolean>; // For UPDATE requests
 }
 
 export interface IssueRequestFormData {
@@ -80,36 +81,20 @@ export default function FillIssueRequestForm({
   onCancel,
   isSubmitting = false,
   holderReason,
+  changedAttributes,
 }: FillIssueRequestFormProps) {
   const [attributes, setAttributes] = useState<AttributeData[]>(initialAttributes);
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<Record<number, File>>({});
   const previewRef = useRef<HTMLDivElement>(null);
 
-  // Store original attributes to detect changes (for UPDATE requests)
-  const [originalAttributes] = useState<AttributeData[]>(initialAttributes);
-
   // Determine if fields should be disabled based on request type
+  // UPDATE: all fields disabled (showing data from IndexedDB, read-only)
   // RENEWAL: all fields disabled (attributes and amount unchangeable)
   // REVOKE: all fields disabled (attributes and amount unchangeable)
-  // UPDATE: fields are editable but amount is unchangeable
   // ISSUANCE: all fields editable (default behavior)
-  const isFieldsDisabled = requestType === 'RENEWAL' || requestType === 'REVOKE';
-
-  // Check if attributes have changed (for UPDATE requests)
-  const hasAttributesChanged = () => {
-    if (requestType !== 'UPDATE') {
-      return true; // For non-UPDATE requests, always allow submission
-    }
-
-    // Compare current attributes with original attributes
-    return attributes.some((attr) => {
-      const original = originalAttributes.find((o) => o.id === attr.id);
-      if (!original) return true; // New attribute added
-      // Convert both values to strings for comparison
-      return String(attr.value) !== String(original.value);
-    });
-  };
+  const isFieldsDisabled =
+    requestType === 'UPDATE' || requestType === 'RENEWAL' || requestType === 'REVOKE';
 
   const handleAttributeValueChange = (id: number, value: string) => {
     setAttributes(attributes.map((attr) => (attr.id === id ? { ...attr, value } : attr)));
@@ -151,7 +136,17 @@ export default function FillIssueRequestForm({
       // Convert attributes array to map
       const attributeMap: Record<string, string> = {};
       attributes.forEach((attr) => {
-        attributeMap[attr.name] = String(attr.value);
+        // For UPDATE requests, use the requested value (from changedAttributes) if it exists
+        // Otherwise, use the current value
+        if (
+          requestType === 'UPDATE' &&
+          changedAttributes &&
+          changedAttributes[attr.name] !== undefined
+        ) {
+          attributeMap[attr.name] = String(changedAttributes[attr.name]);
+        } else {
+          attributeMap[attr.name] = String(attr.value);
+        }
       });
 
       // Generate image with QR placeholder (no QR example)
@@ -250,10 +245,9 @@ export default function FillIssueRequestForm({
       (attr) => attr.required && (!attr.value || attr.value === '')
     );
 
-    // For UPDATE requests, also check if any attributes have changed
-    const noChanges = requestType === 'UPDATE' && !hasAttributesChanged();
-
-    return missingRequired.length > 0 || isSubmitting || noChanges;
+    // For UPDATE requests with read-only fields, allow submission
+    // (the attributes are from IndexedDB and the holder's requested changes are shown separately)
+    return missingRequired.length > 0 || isSubmitting;
   };
 
   const handleSearch = (value: string) => {
@@ -344,6 +338,15 @@ export default function FillIssueRequestForm({
               );
 
             case 'boolean':
+              // If disabled, show as read-only text instead of dropdown
+              if (isFieldsDisabled) {
+                return (
+                  <div className="w-full px-3 py-2 text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-lg min-h-[38px] flex items-center">
+                    {String(row.value)}
+                  </div>
+                );
+              }
+              // If enabled, show as dropdown
               return (
                 <select
                   value={String(row.value)}
@@ -408,7 +411,7 @@ export default function FillIssueRequestForm({
                       handleAttributeValueChange(row.id, value);
                     }
                   }}
-                  placeholder={`Enter ${row.name}`}
+                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
                   step={
                     row.type.toLowerCase() === 'float' || row.type.toLowerCase() === 'decimal'
                       ? '0.01'
@@ -439,7 +442,7 @@ export default function FillIssueRequestForm({
                   type="email"
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  placeholder={`Enter ${row.name}`}
+                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
                   pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
                   disabled={isFieldsDisabled}
                   className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
@@ -455,7 +458,7 @@ export default function FillIssueRequestForm({
                   type="url"
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  placeholder={`Enter ${row.name}`}
+                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
                   pattern="https?://.+"
                   disabled={isFieldsDisabled}
                   className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
@@ -477,7 +480,7 @@ export default function FillIssueRequestForm({
                       handleAttributeValueChange(row.id, value);
                     }
                   }}
-                  placeholder={`Enter ${row.name}`}
+                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
                   disabled={isFieldsDisabled}
                   className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
@@ -492,7 +495,7 @@ export default function FillIssueRequestForm({
                 <textarea
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  placeholder={`Enter ${row.name}`}
+                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
                   rows={3}
                   disabled={isFieldsDisabled}
                   className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
@@ -508,7 +511,7 @@ export default function FillIssueRequestForm({
                   type="text"
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  placeholder={`Enter ${row.name}`}
+                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
                   disabled={isFieldsDisabled}
                   className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
@@ -680,12 +683,6 @@ export default function FillIssueRequestForm({
 
       {/* Attributes Section */}
       <div className="mb-6">
-        <div className="mb-4">
-          <ThemedText className="text-sm font-medium text-gray-900">
-            Attributes ({filteredAttributes.length})
-          </ThemedText>
-        </div>
-
         {/* Holder Reason (if present) */}
         {holderReason && (
           <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -693,32 +690,223 @@ export default function FillIssueRequestForm({
             <span className="ml-2 text-yellow-900">{holderReason}</span>
           </div>
         )}
-        {/* Data Table */}
-        <DataTable
-          data={filteredAttributes}
-          columns={attributeColumns}
-          searchPlaceholder="Search attributes..."
-          onSearch={handleSearch}
-          enableSelection={false}
-          totalCount={filteredAttributes.length}
-          hideBottomControls={true}
-          rowsPerPageOptions={[1000]}
-          idKey="id"
-        />
+
+        {requestType === 'UPDATE' &&
+        changedAttributes &&
+        Object.keys(changedAttributes).length > 0 ? (
+          // Merged table for UPDATE requests showing both current and requested values
+          <>
+            <div className="mb-4">
+              <ThemedText className="text-sm font-medium text-gray-900">
+                Attributes ({filteredAttributes.length})
+              </ThemedText>
+            </div>
+            <DataTable
+              data={filteredAttributes.map((attr) => ({
+                ...attr,
+                currentValue: attr.value,
+                requestedValue:
+                  changedAttributes[attr.name] !== undefined
+                    ? changedAttributes[attr.name]
+                    : attr.value,
+                isChanged: changedAttributes[attr.name] !== undefined,
+              }))}
+              columns={[
+                {
+                  id: 'name',
+                  label: 'ATTRIBUTE NAME',
+                  sortKey: 'name',
+                  render: (row) => (
+                    <div className="flex items-center gap-2">
+                      <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>
+                      {row.required && <span className="text-red-500 text-sm">*</span>}
+                    </div>
+                  ),
+                },
+                {
+                  id: 'type',
+                  label: 'TYPE',
+                  sortKey: 'type',
+                  render: (row) => (
+                    <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
+                      {row.type}
+                    </span>
+                  ),
+                },
+                {
+                  id: 'required',
+                  label: 'REQUIRED',
+                  sortKey: 'required',
+                  render: (row) => (
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+                        row.required ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-600'
+                      }`}
+                    >
+                      {row.required ? 'Yes' : 'No'}
+                    </span>
+                  ),
+                },
+                {
+                  id: 'currentValue',
+                  label: 'CURRENT VALUE',
+                  render: (row) => {
+                    const value = String(row.currentValue);
+
+                    // Helper function to format datetime display
+                    const formatDateTimeValue = (val: string) => {
+                      if (!val) return '';
+                      try {
+                        const [datePart, timePart] = val.split('T');
+                        if (datePart) {
+                          const date = new Date(datePart + 'T00:00:00');
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const year = date.getFullYear();
+                          let displayValue = `${month}/${day}/${year}`;
+                          if (timePart) {
+                            displayValue += ` ${timePart}`;
+                          }
+                          return displayValue;
+                        }
+                      } catch {
+                        return val;
+                      }
+                      return val;
+                    };
+
+                    // Helper function to format date display
+                    const formatDateValue = (val: string) => {
+                      if (!val) return '';
+                      try {
+                        const date = new Date(val + 'T00:00:00');
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const year = date.getFullYear();
+                        return `${month}/${day}/${year}`;
+                      } catch {
+                        return val;
+                      }
+                    };
+
+                    let displayValue = value;
+                    if (
+                      row.type.toLowerCase() === 'datetime' ||
+                      row.type.toLowerCase() === 'datetime-local'
+                    ) {
+                      displayValue = formatDateTimeValue(value);
+                    } else if (row.type.toLowerCase() === 'date') {
+                      displayValue = formatDateValue(value);
+                    }
+
+                    return (
+                      <div className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg min-h-[38px] flex items-center text-gray-900">
+                        {displayValue}
+                      </div>
+                    );
+                  },
+                },
+                {
+                  id: 'requestedValue',
+                  label: 'REQUESTED VALUE',
+                  render: (row) => {
+                    const isChanged = (row as AttributeData & { isChanged?: boolean }).isChanged;
+                    const value = String(row.requestedValue);
+
+                    // Helper function to format datetime display
+                    const formatDateTimeValue = (val: string) => {
+                      if (!val) return '';
+                      try {
+                        const [datePart, timePart] = val.split('T');
+                        if (datePart) {
+                          const date = new Date(datePart + 'T00:00:00');
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const year = date.getFullYear();
+                          let displayValue = `${month}/${day}/${year}`;
+                          if (timePart) {
+                            displayValue += ` ${timePart}`;
+                          }
+                          return displayValue;
+                        }
+                      } catch {
+                        return val;
+                      }
+                      return val;
+                    };
+
+                    // Helper function to format date display
+                    const formatDateValue = (val: string) => {
+                      if (!val) return '';
+                      try {
+                        const date = new Date(val + 'T00:00:00');
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const year = date.getFullYear();
+                        return `${month}/${day}/${year}`;
+                      } catch {
+                        return val;
+                      }
+                    };
+
+                    let displayValue = value;
+                    if (
+                      row.type.toLowerCase() === 'datetime' ||
+                      row.type.toLowerCase() === 'datetime-local'
+                    ) {
+                      displayValue = formatDateTimeValue(value);
+                    } else if (row.type.toLowerCase() === 'date') {
+                      displayValue = formatDateValue(value);
+                    }
+
+                    return (
+                      <div
+                        className={`w-full px-3 py-2 text-sm rounded-lg min-h-[38px] flex items-center ${
+                          isChanged
+                            ? 'bg-yellow-50 border-2 border-yellow-400 text-gray-900 font-medium'
+                            : 'bg-gray-50 border border-gray-200 text-gray-900'
+                        }`}
+                      >
+                        {displayValue}
+                      </div>
+                    );
+                  },
+                },
+              ]}
+              searchPlaceholder="Search attributes..."
+              onSearch={handleSearch}
+              enableSelection={false}
+              totalCount={filteredAttributes.length}
+              hideBottomControls={true}
+              rowsPerPageOptions={[1000]}
+              idKey="id"
+            />
+          </>
+        ) : (
+          // Standard single table for other request types
+          <>
+            <div className="mb-4">
+              <ThemedText className="text-sm font-medium text-gray-900">
+                Attributes ({filteredAttributes.length})
+              </ThemedText>
+            </div>
+            <DataTable
+              data={filteredAttributes}
+              columns={attributeColumns}
+              searchPlaceholder="Search attributes..."
+              onSearch={handleSearch}
+              enableSelection={false}
+              totalCount={filteredAttributes.length}
+              hideBottomControls={true}
+              rowsPerPageOptions={[1000]}
+              idKey="id"
+            />
+          </>
+        )}
       </div>
 
       {/* Action Buttons */}
       <div className="pt-4 border-t border-gray-200">
-        {/* Warning message for UPDATE requests with no changes */}
-        {requestType === 'UPDATE' && !hasAttributesChanged() && (
-          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <ThemedText className="text-sm text-yellow-800">
-              ⚠️ No changes detected in attributes. Please modify at least one attribute to update
-              the credential.
-            </ThemedText>
-          </div>
-        )}
-
         <div className="flex justify-end gap-4">
           <button
             onClick={onCancel}
@@ -730,11 +918,6 @@ export default function FillIssueRequestForm({
           <button
             onClick={handleSubmit}
             disabled={isSubmitDisabled()}
-            title={
-              requestType === 'UPDATE' && !hasAttributesChanged()
-                ? 'No changes detected in attributes'
-                : undefined
-            }
             className={`px-6 py-2 text-white rounded-lg transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
               requestType === 'REVOKE'
                 ? 'bg-red-500 hover:bg-red-600'

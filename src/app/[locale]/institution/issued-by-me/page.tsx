@@ -113,6 +113,7 @@ export default function IssuedByMePage() {
     onConfirm: () => void;
     confirmText?: string;
     confirmButtonColor?: 'blue' | 'green' | 'red' | 'yellow';
+    hideCancelButton?: boolean;
   }>({
     title: '',
     message: '',
@@ -861,31 +862,28 @@ export default function IssuedByMePage() {
 
       // Show success message and close the modal
       setShowIssueModal(false);
-      setConfirmationConfig({
+      setInfoModalConfig({
         title: 'Success',
         message: `Credential has been issued successfully!\n\nThe holder can now claim this credential.`,
-        confirmText: 'OK',
-        confirmButtonColor: 'green',
-        onConfirm: () => {
-          setShowConfirmation(false);
+        buttonText: 'OK',
+        buttonColor: 'green',
+        onClose: () => {
+          setShowInfoModal(false);
           // Refresh the credentials list
           window.location.reload();
         },
       });
-      setShowConfirmation(true);
+      setShowInfoModal(true);
     } catch (error) {
       console.error('Error issuing credential:', error);
       setShowIssueModal(false);
-      setConfirmationConfig({
+      setInfoModalConfig({
         title: 'Error',
         message: `Failed to issue credential: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again.`,
-        confirmText: 'OK',
-        confirmButtonColor: 'red',
-        onConfirm: () => {
-          setShowConfirmation(false);
-        },
+        buttonText: 'OK',
+        buttonColor: 'red',
       });
-      setShowConfirmation(true);
+      setShowInfoModal(true);
       throw error;
     }
   };
@@ -1452,6 +1450,7 @@ export default function IssuedByMePage() {
         message={confirmationConfig.message}
         confirmText={confirmationConfig.confirmText}
         confirmButtonColor={confirmationConfig.confirmButtonColor}
+        hideCancelButton={confirmationConfig.hideCancelButton}
       />
 
       {/* Info Modal */}

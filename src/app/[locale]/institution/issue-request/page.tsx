@@ -133,6 +133,7 @@ interface RenewRequestBody extends Record<string, unknown> {
   request_id: string;
   action: 'APPROVED';
   vc_id: string;
+  hash: string;
   encrypted_body: string;
   expired_at: string | null;
 }
@@ -171,6 +172,9 @@ export default function IssueRequestPage() {
   const [requestAttributes, setRequestAttributes] = useState<
     Record<string, string | number | boolean>
   >({});
+  const [changedAttributes, setChangedAttributes] = useState<
+    Record<string, string | number | boolean>
+  >({}); // For UPDATE requests - holds the requested changes
   const [currentVcId, setCurrentVcId] = useState<string | null>(null); // For UPDATE, RENEWAL, REVOKE requests
   const [schemaNames, setSchemaNames] = useState<Map<string, string>>(new Map());
   const [schemaExpiredIns, setSchemaExpiredIns] = useState<Map<string, number>>(new Map());
@@ -880,73 +884,92 @@ export default function IssueRequestPage() {
               qr_code_position: schema.qr_code_position,
             });
 
-            // Extract current attribute values from decrypted body
-            // For UPDATE, RENEWAL, and REVOKE requests, pre-populate with current values
+            // Extract current attribute values
             const currentAttributes: Record<string, string | number | boolean> = {};
             let holderReason: string | undefined = undefined;
 
-            // Extract attributes directly from the root level of decrypted body
-            // (excluding metadata fields like schema_id, schema_version, issuer_did, holder_did, vc_id)
-            const excludedKeys = [
-              'schema_id',
-              'schema_version',
-              'issuer_did',
-              'holder_did',
-              'vc_id',
-              'attributes',
-              'changed_attributes',
-              'reason',
-            ];
-            Object.entries(fullDecryptedBody).forEach(([key, value]) => {
-              if (key === 'reason' && typeof value === 'string') {
-                holderReason = value;
-              }
-              if (
-                !excludedKeys.includes(key) &&
-                (typeof value === 'string' ||
-                  typeof value === 'number' ||
-                  typeof value === 'boolean')
-              ) {
-                currentAttributes[key] = value;
-              }
-            });
+            // Extract reason from all request types
+            if (fullDecryptedBody.reason && typeof fullDecryptedBody.reason === 'string') {
+              holderReason = fullDecryptedBody.reason;
+            }
 
-            // Also check if attributes are nested under an "attributes" key (for backwards compatibility)
+            // For ISSUANCE requests, extract attributes from decrypted body
+            if (request.type === 'ISSUANCE') {
+              // Extract attributes directly from the root level of decrypted body
+              // (excluding metadata fields like schema_id, schema_version, issuer_did, holder_did, vc_id)
+              const excludedKeys = [
+                'schema_id',
+                'schema_version',
+                'issuer_did',
+                'holder_did',
+                'vc_id',
+                'attributes',
+                'changed_attributes',
+                'reason',
+              ];
+              Object.entries(fullDecryptedBody).forEach(([key, value]) => {
+                if (
+                  !excludedKeys.includes(key) &&
+                  (typeof value === 'string' ||
+                    typeof value === 'number' ||
+                    typeof value === 'boolean')
+                ) {
+                  currentAttributes[key] = value;
+                }
+              });
+
+              // Also check if attributes are nested under an "attributes" key (for backwards compatibility)
+              if (
+                fullDecryptedBody.attributes &&
+                typeof fullDecryptedBody.attributes === 'object' &&
+                fullDecryptedBody.attributes !== null
+              ) {
+                const attrs = fullDecryptedBody.attributes as Record<string, unknown>;
+                Object.keys(attrs).forEach((key) => {
+                  const value = attrs[key];
+                  if (
+                    typeof value === 'string' ||
+                    typeof value === 'number' ||
+                    typeof value === 'boolean'
+                  ) {
+                    currentAttributes[key] = value;
+                  }
+                });
+              }
+            }
+
+            // For UPDATE, extract changed_attributes
             if (
-              fullDecryptedBody.attributes &&
-              typeof fullDecryptedBody.attributes === 'object' &&
-              fullDecryptedBody.attributes !== null
+              request.type === 'UPDATE' &&
+              fullDecryptedBody.changed_attributes &&
+              typeof fullDecryptedBody.changed_attributes === 'object' &&
+              fullDecryptedBody.changed_attributes !== null
             ) {
-              const attrs = fullDecryptedBody.attributes as Record<string, unknown>;
-              Object.keys(attrs).forEach((key) => {
-                const value = attrs[key];
+              const updatedChangedAttributes: Record<string, string | number | boolean> = {};
+              Object.entries(fullDecryptedBody.changed_attributes).forEach(([key, value]) => {
                 if (
                   typeof value === 'string' ||
                   typeof value === 'number' ||
                   typeof value === 'boolean'
                 ) {
-                  currentAttributes[key] = value;
+                  updatedChangedAttributes[key] = value;
                 }
               });
+              console.log('[UPDATE] Extracted changed_attributes:', updatedChangedAttributes);
+              setChangedAttributes(updatedChangedAttributes);
             }
 
-            // For UPDATE, also check changed_attributes for reason
+            // For UPDATE, RENEWAL, and REVOKE requests, fetch attributes ONLY from IndexedDB
+            // (decrypted body for these requests doesn't contain full attribute values)
             if (
-              fullDecryptedBody.changed_attributes &&
-              typeof fullDecryptedBody.changed_attributes === 'object' &&
-              fullDecryptedBody.changed_attributes !== null
-            ) {
-              // If reason is present at root, already extracted above
-            }
-
-            // For UPDATE and RENEWAL requests, try to fetch attributes from IndexedDB first
-            if (
-              (request.type === 'UPDATE' || request.type === 'RENEWAL') &&
+              (request.type === 'UPDATE' ||
+                request.type === 'RENEWAL' ||
+                request.type === 'REVOKE') &&
               fullDecryptedBody.vc_id &&
               typeof fullDecryptedBody.vc_id === 'string'
             ) {
               console.log(
-                `[${request.type}] Attempting to fetch attributes from IndexedDB for VC ID:`,
+                `[${request.type}] Fetching attributes from IndexedDB for VC ID:`,
                 fullDecryptedBody.vc_id
               );
               try {
@@ -961,7 +984,7 @@ export default function IssueRequestPage() {
                     issuedCredential.id
                   );
 
-                  // Use encryptedBody from IndexedDB if available
+                  // Prioritize encryptedBody from IndexedDB
                   if (issuedCredential.encryptedBody) {
                     console.log(
                       `[${request.type}] Using attributes from IndexedDB encryptedBody:`,
@@ -977,7 +1000,7 @@ export default function IssueRequestPage() {
                       }
                     });
                   }
-                  // If encryptedBody is not available, try vcHistory
+                  // Fallback to vcHistory if encryptedBody is not available
                   else if (issuedCredential.vcHistory && issuedCredential.vcHistory.length > 0) {
                     const latestVC = issuedCredential.vcHistory[0];
                     console.log(
@@ -997,21 +1020,33 @@ export default function IssueRequestPage() {
                         }
                       });
                     }
+                  } else {
+                    console.warn(
+                      `[${request.type}] No attribute data found in IndexedDB credential`
+                    );
                   }
                 } else {
-                  console.warn(
-                    `[${request.type}] No credentials found in IndexedDB for VC ID:`,
+                  console.error(
+                    `[${request.type}] ERROR: No credentials found in IndexedDB for VC ID:`,
                     fullDecryptedBody.vc_id
                   );
-                  console.log(`[${request.type}] Falling back to decrypted body attributes`);
+                  console.error(
+                    `[${request.type}] Cannot process ${request.type} request without stored credential data`
+                  );
                 }
               } catch (error) {
                 console.error(`[${request.type}] Error fetching from IndexedDB:`, error);
-                console.log(`[${request.type}] Falling back to decrypted body attributes`);
+                console.error(
+                  `[${request.type}] Cannot process ${request.type} request without IndexedDB access`
+                );
               }
             }
 
-            console.log('Current attributes from decrypted body:', currentAttributes);
+            console.log(
+              `[${request.type}] Final attributes to display:`,
+              currentAttributes,
+              `(Source: ${request.type === 'ISSUANCE' ? 'Decrypted Body' : 'IndexedDB'})`
+            );
             setRequestAttributes(currentAttributes);
             setHolderReason(holderReason);
 
@@ -1039,6 +1074,7 @@ export default function IssueRequestPage() {
       } catch (err) {
         console.error('Error fetching schema details:', err);
         setRequestAttributes({});
+        setChangedAttributes({});
       } finally {
         setIsLoadingSchema(false);
       }
@@ -1053,6 +1089,9 @@ export default function IssueRequestPage() {
 
     try {
       setIsSubmittingCredential(true);
+
+      // Variable to store the API record ID for ISSUANCE (for IndexedDB)
+      let apiRecordId: string | null = null;
 
       // Upload image if exists
       let fileId: string | null = null;
@@ -1206,6 +1245,95 @@ export default function IssueRequestPage() {
         console.log('Revoke VC result:', result);
 
         if (result.success) {
+          // Update the issuer's VC data to mark as revoked (set vc_status to false)
+          try {
+            console.log('[REVOKE] Updating issuer VC data to mark as revoked...');
+
+            // Step 1: Fetch the existing credential from IndexedDB using vcId
+            const issuedCredentials = await getIssuedCredentialsByVcId(currentVcId);
+
+            if (issuedCredentials.length === 0) {
+              console.warn(`[REVOKE] No credentials found in IndexedDB for VC ID: ${currentVcId}`);
+              console.warn(`[REVOKE] Skipping issuer VC data update - credential not in IndexedDB`);
+            } else {
+              const issuedCredential = issuedCredentials[0];
+              const issuerVCDataId = issuedCredential.id;
+              console.log(`[REVOKE] Found credential in IndexedDB: ${issuerVCDataId}`);
+
+              // Step 2: Get the existing VC history from IndexedDB (no changes to history)
+              const existingVCHistory = issuedCredential.vcHistory || [];
+              console.log(
+                `[REVOKE] Existing VC history has ${existingVCHistory.length} VCs (unchanged)`
+              );
+
+              // Step 3: Encrypt the history with vc_status set to false (revoked)
+              const encryptedBodyForIssuer = await encryptWithIssuerPublicKey({
+                vc_status: false, // Mark as revoked
+                verifiable_credentials: existingVCHistory,
+              });
+              console.log(`[REVOKE] Encrypted VC history with vc_status=false for issuer`);
+
+              // Step 4: Update the issuer's VC data via PUT API
+              const updateIssuerUrl = buildApiUrl(
+                API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_ID(issuerVCDataId)
+              );
+              const updateIssuerResponse = await authenticatedPut(updateIssuerUrl, {
+                vc_id: currentVcId,
+                issuer_did: selectedRequest.issuer_did,
+                encrypted_body: encryptedBodyForIssuer,
+              });
+
+              if (!updateIssuerResponse.ok) {
+                const errorData = await updateIssuerResponse.json();
+                console.error(`[REVOKE] Failed to update issuer VC data:`, errorData);
+                throw new Error(errorData.message || 'Failed to update issuer VC data');
+              }
+
+              console.log(`[REVOKE] Successfully updated issuer VC data via API`);
+
+              // Step 5: Update IndexedDB to mark as revoked
+              // Transform VC history to match VerifiableCredentialData structure
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const vcHistoryForStorage = existingVCHistory.map((vc: any) => ({
+                id: vc.id,
+                type: vc.type,
+                issuer:
+                  typeof vc.issuer === 'string'
+                    ? { id: vc.issuer, name: vc.issuerName || '' }
+                    : vc.issuer,
+                credentialSubject: vc.credentialSubject,
+                validFrom: vc.validFrom,
+                expiredAt: vc.expiredAt || '',
+                credentialStatus: vc.credentialStatus,
+                proof: vc.proof,
+                imageLink: vc.imageLink || undefined,
+                fileUrl: vc.fileUrl,
+                fileId: vc.fileId,
+                issuerName: vc.issuerName,
+                '@context': vc['@context'],
+              }));
+
+              // Update the issued credential with vc_status set to false
+              const updatedIssuedCredential = {
+                ...issuedCredential,
+                vcHistory: vcHistoryForStorage,
+                status: 'REVOKED',
+                vcStatus: false, // Mark as revoked
+                issuerDid: selectedRequest.issuer_did,
+              };
+
+              await storeIssuedCredential(updatedIssuedCredential);
+              console.log(`[REVOKE] Updated credential in IndexedDB: ${issuerVCDataId}`);
+            }
+          } catch (updateError) {
+            console.error(
+              `[REVOKE] Error updating issuer VC data:`,
+              updateError instanceof Error ? updateError.message : updateError
+            );
+            console.warn(`[REVOKE] VC was revoked successfully, but issuer VC data update failed`);
+            // Don't throw - the credential was still revoked successfully
+          }
+
           setInfoModalConfig({
             title: 'Success',
             message: `Credential revoked successfully!`,
@@ -1223,6 +1351,7 @@ export default function IssueRequestPage() {
           setShowReviewModal(false);
           setSchemaData(null);
           setRequestAttributes({});
+          setChangedAttributes({});
           setCurrentVcId(null);
         }
         return;
@@ -1416,6 +1545,16 @@ export default function IssueRequestPage() {
           console.error('Error storing VC for issuance:', errorData);
           throw new Error(errorData.message || `Failed to store VC (${storeResponse.status})`);
         }
+
+        // Get the response data to extract the ID for IndexedDB
+        const storeResult = await storeResponse.json();
+        console.log('Store VC response:', storeResult);
+
+        // Extract the API record ID if available
+        if (storeResult.success && storeResult.data && storeResult.data.id) {
+          apiRecordId = storeResult.data.id;
+          console.log('[ISSUANCE] Stored VC with API record ID:', apiRecordId);
+        }
         // } else if (requestType === 'UPDATE' || requestType === 'RENEWAL') {
         //   const vcByDidResponse = await authenticatedGet(vcByDidUrl);
 
@@ -1496,6 +1635,7 @@ export default function IssueRequestPage() {
           request_id: selectedRequest.id,
           action: 'APPROVED',
           vc_id: currentVcId, // Existing VC ID to renew
+          hash: vcHash,
           encrypted_body: encryptedBodyByHolderPK,
           expired_at: expiredAt,
         };
@@ -1582,6 +1722,52 @@ export default function IssueRequestPage() {
       console.log('API result:', result);
 
       if (result.success) {
+        // For ISSUANCE requests, store the new credential to IndexedDB
+        if (requestType === 'ISSUANCE' && apiRecordId) {
+          try {
+            console.log('[ISSUANCE] Storing new credential to IndexedDB...');
+
+            // Extract credential data from signedVC
+            const credentialData: Record<string, unknown> = {};
+            if (signedVC.credentialSubject) {
+              Object.entries(signedVC.credentialSubject).forEach(([key, value]) => {
+                if (key !== 'id') {
+                  credentialData[key] = value;
+                }
+              });
+            }
+
+            // Parse schema_id and schema_version from VC ID
+            const vcIdParts = vcIdToUse.split(':');
+            const schemaId = vcIdParts[0] || schemaData.id;
+            const schemaVersion = parseInt(vcIdParts[1]) || parseInt(schemaData.version);
+
+            // Create credential object following issued-by-me pattern
+            const newIssuedCredential = {
+              id: apiRecordId, // Use the API-generated ID
+              holderDid: selectedRequest.holder_did,
+              schemaName:
+                schemaVersion > 0 ? `${schemaData.name} v${schemaVersion}` : schemaData.name,
+              status: 'APPROVED',
+              activeUntil: expiredAt || '-',
+              schemaId: schemaId,
+              schemaVersion: schemaVersion,
+              encryptedBody: credentialData,
+              createdAt: signedVC.validFrom,
+              vcId: vcIdToUse,
+              vcHistory: [signedVC], // Store as array with the new VC
+              issuerDid: selectedRequest.issuer_did,
+              vcStatus: true, // New credentials are always active
+            };
+
+            await storeIssuedCredential(newIssuedCredential);
+            console.log('[ISSUANCE] Successfully stored credential to IndexedDB');
+          } catch (storageError) {
+            console.error('[ISSUANCE] Error storing to IndexedDB:', storageError);
+            // Don't fail the entire operation if IndexedDB storage fails
+          }
+        }
+
         // For UPDATE and RENEWAL requests, update the issuer's VC data with new VC history
         if ((requestType === 'UPDATE' || requestType === 'RENEWAL') && currentVcId) {
           try {
@@ -1671,7 +1857,7 @@ export default function IssueRequestPage() {
                 });
               }
 
-              // Update the issued credential following the same pattern as credentialService.ts
+              // Update the issued credential following the issued-by-me pattern
               const updatedIssuedCredential = {
                 ...issuedCredential,
                 vcHistory: vcHistoryForStorage,
@@ -1680,6 +1866,8 @@ export default function IssueRequestPage() {
                 encryptedBody: encryptedBody,
                 createdAt: signedVC.validFrom,
                 status: 'APPROVED',
+                issuerDid: selectedRequest.issuer_did, // Add issuer DID for consistency
+                vcStatus: true, // Updated/renewed credentials maintain active status
               };
 
               await storeIssuedCredential(updatedIssuedCredential);
@@ -1715,6 +1903,7 @@ export default function IssueRequestPage() {
         setShowReviewModal(false);
         setSchemaData(null);
         setRequestAttributes({});
+        setChangedAttributes({});
         setCurrentVcId(null);
       }
     } catch (err) {
@@ -2329,6 +2518,7 @@ export default function IssueRequestPage() {
             setShowReviewModal(false);
             setSchemaData(null);
             setRequestAttributes({});
+            setChangedAttributes({});
             setCurrentVcId(null);
           }
         }}
@@ -2341,7 +2531,7 @@ export default function IssueRequestPage() {
                 ? 'Review Revoke Request'
                 : 'Review Issue Request'
         }
-        maxWidth="1000px"
+        maxWidth={selectedRequest?.type === 'UPDATE' ? '1200px' : '1000px'}
       >
         {isLoadingSchema ? (
           <div className="flex items-center justify-center gap-3 py-12">
@@ -2349,40 +2539,82 @@ export default function IssueRequestPage() {
             <ThemedText className="text-gray-600">Loading schema and preparing form...</ThemedText>
           </div>
         ) : selectedRequest && schemaData ? (
-          <FillIssueRequestForm
-            requestId={selectedRequest.id}
-            issuerDid={selectedRequest.issuer_did}
-            holderDid={selectedRequest.holder_did}
-            schemaId={schemaData.id}
-            schemaName={schemaData.name}
-            version={schemaData.version}
-            status={schemaData.status}
-            expiredIn={schemaData.expired_in}
-            requestedAt={selectedRequest.createdAt}
-            createdAt={schemaData.created_at}
-            updatedAt={schemaData.updated_at}
-            imageUrl={schemaData.image_link || undefined}
-            requestType={selectedRequest.type}
-            vcId={currentVcId || undefined}
-            initialAttributes={schemaData.attributes.map((attr, index) => ({
-              id: index + 1,
-              name: attr.name,
-              type: attr.type,
-              value: requestAttributes[attr.name] || '',
-              required: attr.required,
-            }))}
-            attributePositions={schemaData.attribute_positions}
-            qrCodePosition={schemaData.qr_code_position}
-            onSubmit={handleIssueCredential}
-            onCancel={() => {
-              setShowReviewModal(false);
-              setSchemaData(null);
-              setRequestAttributes({});
-              setCurrentVcId(null);
-            }}
-            isSubmitting={isSubmittingCredential}
-            holderReason={holderReason}
-          />
+          selectedRequest.type === 'UPDATE' ? (
+            // UPDATE request with side-by-side attribute tables
+            <FillIssueRequestForm
+              requestId={selectedRequest.id}
+              issuerDid={selectedRequest.issuer_did}
+              holderDid={selectedRequest.holder_did}
+              schemaId={schemaData.id}
+              schemaName={schemaData.name}
+              version={schemaData.version}
+              status={schemaData.status}
+              expiredIn={schemaData.expired_in}
+              requestedAt={selectedRequest.createdAt}
+              createdAt={schemaData.created_at}
+              updatedAt={schemaData.updated_at}
+              imageUrl={schemaData.image_link || undefined}
+              requestType={selectedRequest.type}
+              vcId={currentVcId || undefined}
+              initialAttributes={schemaData.attributes.map((attr, index) => ({
+                id: index + 1,
+                name: attr.name,
+                type: attr.type,
+                value: requestAttributes[attr.name] || '',
+                required: attr.required,
+              }))}
+              attributePositions={schemaData.attribute_positions}
+              qrCodePosition={schemaData.qr_code_position}
+              onSubmit={handleIssueCredential}
+              onCancel={() => {
+                setShowReviewModal(false);
+                setSchemaData(null);
+                setRequestAttributes({});
+                setChangedAttributes({});
+                setCurrentVcId(null);
+              }}
+              isSubmitting={isSubmittingCredential}
+              holderReason={holderReason}
+              changedAttributes={changedAttributes}
+            />
+          ) : (
+            // Standard layout for other request types
+            <FillIssueRequestForm
+              requestId={selectedRequest.id}
+              issuerDid={selectedRequest.issuer_did}
+              holderDid={selectedRequest.holder_did}
+              schemaId={schemaData.id}
+              schemaName={schemaData.name}
+              version={schemaData.version}
+              status={schemaData.status}
+              expiredIn={schemaData.expired_in}
+              requestedAt={selectedRequest.createdAt}
+              createdAt={schemaData.created_at}
+              updatedAt={schemaData.updated_at}
+              imageUrl={schemaData.image_link || undefined}
+              requestType={selectedRequest.type}
+              vcId={currentVcId || undefined}
+              initialAttributes={schemaData.attributes.map((attr, index) => ({
+                id: index + 1,
+                name: attr.name,
+                type: attr.type,
+                value: requestAttributes[attr.name] || '',
+                required: attr.required,
+              }))}
+              attributePositions={schemaData.attribute_positions}
+              qrCodePosition={schemaData.qr_code_position}
+              onSubmit={handleIssueCredential}
+              onCancel={() => {
+                setShowReviewModal(false);
+                setSchemaData(null);
+                setRequestAttributes({});
+                setChangedAttributes({});
+                setCurrentVcId(null);
+              }}
+              isSubmitting={isSubmittingCredential}
+              holderReason={holderReason}
+            />
+          )
         ) : null}
       </Modal>
 

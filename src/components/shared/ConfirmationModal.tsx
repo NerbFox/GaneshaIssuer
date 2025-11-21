@@ -13,6 +13,7 @@ interface ConfirmationModalProps {
   cancelText?: string;
   confirmButtonColor?: 'blue' | 'green' | 'red' | 'yellow';
   isLoading?: boolean;
+  hideCancelButton?: boolean;
 }
 
 export default function ConfirmationModal({
@@ -25,6 +26,7 @@ export default function ConfirmationModal({
   cancelText = 'Cancel',
   confirmButtonColor = 'blue',
   isLoading: externalLoading = false,
+  hideCancelButton = false,
 }: ConfirmationModalProps) {
   const [internalLoading, setInternalLoading] = useState(false);
   const isLoading = externalLoading || internalLoading;
@@ -83,13 +85,15 @@ export default function ConfirmationModal({
 
           {/* Actions */}
           <div className="flex justify-end gap-3">
-            <button
-              onClick={onClose}
-              disabled={isLoading}
-              className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {cancelText}
-            </button>
+            {!hideCancelButton && (
+              <button
+                onClick={onClose}
+                disabled={isLoading}
+                className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {cancelText}
+              </button>
+            )}
             <button
               onClick={handleConfirm}
               disabled={isLoading}

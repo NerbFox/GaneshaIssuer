@@ -185,8 +185,8 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
             <span className="text-sm text-gray-900">{formatDateForDisplay(getDatePart())}</span>
           </div>
         )}
-        {/* Placeholder when no value */}
-        {!isDateFocused && !getDatePart() && (
+        {/* Placeholder when no value and not disabled */}
+        {!isDateFocused && !getDatePart() && !disabled && (
           <div className="absolute inset-0 flex items-center px-3 pr-8 pointer-events-none">
             <span className="text-sm text-gray-400">MM/DD/YYYY</span>
           </div>
@@ -225,7 +225,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
               commitTimeValue();
             }
           }}
-          placeholder="00:00"
+          placeholder={disabled ? '' : '00:00'}
           disabled={disabled}
           className={`w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 ${
             disabled ? 'bg-gray-50 cursor-not-allowed' : ''
