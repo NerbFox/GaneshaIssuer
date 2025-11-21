@@ -1405,6 +1405,8 @@ export default function IssueRequestPage() {
 
         const storeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC);
         const storeResponse = await authenticatedPost(storeUrl, {
+          vc_id: vcIdToUse,
+          holder_did: selectedRequest.holder_did,
           issuer_did: selectedRequest.issuer_did,
           encrypted_body: encryptedBodyByIssuerPK,
         });

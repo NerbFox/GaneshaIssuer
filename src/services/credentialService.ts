@@ -211,6 +211,8 @@ export async function issueCredential(params: IssueCredentialParams): Promise<{
   // Store the VC in issuer's records
   const storeUrl = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC);
   const storeResponse = await authenticatedPost(storeUrl, {
+    vc_id: vcId,
+    holder_did: holderDid,
     issuer_did: issuerDid,
     encrypted_body: encryptedBodyByIssuerPK,
   });
