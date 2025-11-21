@@ -6,7 +6,7 @@ import InstitutionLayout from '@/components/shared/InstitutionLayout';
 import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, formatTime } from '@/utils/dateUtils';
 import { authenticatedGet } from '@/utils/api-client';
 import { buildApiUrlWithParams, API_ENDPOINTS } from '@/utils/api';
 
@@ -34,6 +34,7 @@ export default function MyRequestPage() {
   const [filterType, setFilterType] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const filterModalRef = useRef<HTMLDivElement>(null);
 
@@ -150,6 +151,7 @@ export default function MyRequestPage() {
 
       setRequests(allRequests);
       setFilteredRequests(allRequests);
+      setLastRefresh(new Date());
     } catch (error) {
       console.error('Error fetching requests:', error);
     } finally {
@@ -377,6 +379,51 @@ export default function MyRequestPage() {
             totalCount={filteredRequests.length}
             rowsPerPageOptions={[5, 10, 25, 50, 100]}
             idKey="id"
+            topRightButtons={
+              <div className="flex gap-3 items-center">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <ThemedText fontSize={12} className="text-gray-500">
+                    Last updated: {formatTime(lastRefresh)}
+                  </ThemedText>
+                </div>
+                <button
+                  onClick={async () => {
+                    setIsLoading(true);
+                    try {
+                      await fetchRequests();
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                      </svg>
+                      Refresh
+                    </>
+                  )}
+                </button>
+              </div>
+            }
           />
         )}
       </div>

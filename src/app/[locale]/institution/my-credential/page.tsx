@@ -8,7 +8,7 @@ import { DataTable, Column } from '@/components/shared/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { buildApiUrlWithParams, buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 import { encryptWithPublicKey, decryptWithPrivateKey } from '@/utils/encryptUtils';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, formatTime } from '@/utils/dateUtils';
 import {
   storeVCBatch,
   getAllVCs,
@@ -115,6 +115,7 @@ export default function MyCredentialPage() {
   const [filterType, setFilterType] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   // Request New Credential Modal
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -1920,7 +1921,7 @@ export default function MyCredentialPage() {
           const implicitDeletions = requestTypeCounts.RENEWAL + requestTypeCounts.UPDATE;
           const deletionNote =
             implicitDeletions > 0
-              ? `\n\nNote: ${implicitDeletions} old credential${implicitDeletions > 1 ? 's were' : ' was'} replaced during renewal/update.`
+              ? `\n\nNote: ${implicitDeletions} old credential${implicitDeletions > 1 ? 's' : ' was'} replaced during renewal/update.`
               : '';
 
           setInfoModalConfig({
@@ -2000,6 +2001,7 @@ export default function MyCredentialPage() {
 
       setCredentials(displayCredentials);
       setFilteredCredentials(displayCredentials);
+      setLastRefresh(new Date());
       console.log('[Load Credentials] Credentials loaded successfully');
     } catch (error) {
       console.error('[Load Credentials] Error loading credentials:', error);
@@ -2481,9 +2483,21 @@ export default function MyCredentialPage() {
             rowsPerPageOptions={[5, 10, 25, 50, 100]}
             idKey="id"
             topRightButtons={
-              <div className="flex gap-3">
+              <div className="flex gap-3 items-center">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <ThemedText fontSize={12} className="text-gray-500">
+                    Last updated: {formatTime(lastRefresh)}
+                  </ThemedText>
+                </div>
                 <button
-                  onClick={fetchAndStoreCredentials}
+                  onClick={async () => {
+                    setIsLoading(true);
+                    try {
+                      await fetchAndStoreCredentials();
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
                   disabled={isLoading}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -2530,7 +2544,7 @@ export default function MyCredentialPage() {
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       />
                     </svg>
-                    Present as VP ({selectedVCsForVP.size})
+                    Present ({selectedVCsForVP.size})
                   </button>
                 )}
                 <button
@@ -2571,7 +2585,7 @@ export default function MyCredentialPage() {
                       d="M12 4v16m8-8H4"
                     />
                   </svg>
-                  Request New Credential
+                  New Credential
                 </button>
               </div>
             }
