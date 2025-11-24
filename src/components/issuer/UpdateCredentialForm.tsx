@@ -201,12 +201,7 @@ export default function UpdateCredentialForm({
       id: 'name',
       label: 'NAME',
       sortKey: 'name',
-      render: (row) => (
-        <div className="flex items-center gap-2">
-          <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>
-          {row.required && <span className="text-red-500 text-sm">*</span>}
-        </div>
-      ),
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
     },
     {
       id: 'type',
@@ -402,6 +397,7 @@ export default function UpdateCredentialForm({
             totalCount={filteredAttributes.length}
             rowsPerPageOptions={[5, 10, 25, 50]}
             idKey="id"
+            hideBottomControls={true}
           />
         </div>
       )}

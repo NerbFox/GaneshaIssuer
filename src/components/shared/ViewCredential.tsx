@@ -1,10 +1,18 @@
 import React from 'react';
 import { ThemedText } from '@/components/shared/ThemedText';
 import { formatDate, formatDateTime } from '@/utils/dateUtils';
+import { DataTable, Column } from '@/components/shared/DataTable'; // Import DataTable and Column
 
 interface CredentialAttribute {
   name: string;
   value: string;
+}
+
+// Define interface for schema attribute details
+interface SchemaAttributeDetail {
+  name: string;
+  type: string;
+  required: boolean;
 }
 
 interface ViewCredentialProps {
@@ -28,13 +36,24 @@ interface ViewCredentialProps {
       proofValue: string;
     };
   };
+  schemaAttributes: SchemaAttributeDetail[]; // New prop for schema attributes
   onClose: () => void;
   onDownload?: () => void;
   onDownloadPdf?: () => void;
 }
 
+// Combined attribute for DataTable
+interface DisplayAttribute {
+  id: string;
+  name: string;
+  type: string;
+  required: boolean;
+  value: string;
+}
+
 export const ViewCredential: React.FC<ViewCredentialProps> = ({
   credentialData,
+  schemaAttributes, // Destructure new prop
   onClose,
   onDownload,
   onDownloadPdf,
@@ -51,6 +70,61 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
         return 'bg-gray-100 text-gray-700';
     }
   };
+
+  // Prepare data for DataTable
+  const displayAttributes: DisplayAttribute[] = credentialData.attributes.map((attr) => {
+    const schemaAttr = schemaAttributes.find((sa) => sa.name === attr.name);
+    return {
+      id: attr.name, // Use name as ID for simplicity or generate unique
+      name: attr.name,
+      type: schemaAttr?.type || 'string', // Default to string if not found
+      required: schemaAttr?.required || false, // Default to false if not found
+      value: attr.value,
+    };
+  });
+
+  const columns: Column<DisplayAttribute>[] = [
+    {
+      id: 'name',
+      label: 'NAME',
+      sortKey: 'name',
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
+    },
+    {
+      id: 'type',
+      label: 'TYPE',
+      sortKey: 'type',
+      render: (row) => (
+        <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
+          {row.type}
+        </span>
+      ),
+    },
+    {
+      id: 'required',
+      label: 'REQUIRED',
+      sortKey: 'required',
+      render: (row) => (
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+            row.required ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-600'
+          }`}
+        >
+          {row.required ? 'Yes' : 'No'}
+        </span>
+      ),
+    },
+    {
+      id: 'value',
+      label: 'VALUE',
+      sortKey: 'value',
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">
+          {row.value ? row.value : <em>(empty)</em>}
+        </ThemedText>
+      ),
+    },
+  ];
 
   return (
     <div className="px-8 py-6">
@@ -169,26 +243,15 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
             </ThemedText>
           </div>
 
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <div className="space-y-4">
-              {credentialData.attributes.map((attr, index) => (
-                <div key={index} className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block mb-1">
-                      <ThemedText className="text-xs font-medium text-gray-600">
-                        {attr.name}
-                      </ThemedText>
-                    </label>
-                  </div>
-                  <div>
-                    <div className="px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-900">
-                      {attr.value}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <DataTable
+            data={displayAttributes}
+            columns={columns}
+            searchPlaceholder="Search attributes..."
+            enableSelection={false}
+            totalCount={displayAttributes.length}
+            hideBottomControls={true}
+            idKey="id"
+          />
         </div>
       )}
 

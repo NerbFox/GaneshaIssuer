@@ -37,7 +37,6 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^16.0.0",
     "@types/aes-js": "^3.1.4",
     "@types/country-list": "^2.1.4",

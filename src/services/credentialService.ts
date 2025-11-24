@@ -5,10 +5,13 @@
 
 import { API_ENDPOINTS, buildApiUrl, buildApiUrlWithParams } from '@/utils/api';
 import { authenticatedGet, authenticatedPost, authenticatedPut } from '@/utils/api-client';
-import { encryptWithPublicKey, encryptWithIssuerPublicKey } from '@/utils/encryptUtils';
+import {
+  encryptWithPublicKey,
+  encryptWithIssuerPublicKey,
+  decryptWithIssuerPrivateKey,
+} from '@/utils/encryptUtils';
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey, SignedVerifiableCredential } from '@/utils/vcSigner';
-import { getIssuedCredentialById, storeIssuedCredential } from '@/utils/indexedDB';
 
 // =============================================================================
 // TYPES
@@ -249,11 +252,18 @@ export async function updateCredential(
     issuerVCDataId,
   } = params;
 
-  // Step 1: Fetch the issued credential from IndexedDB
-  const issuedCredential = await getIssuedCredentialById(issuerVCDataId);
-  if (!issuedCredential) {
-    throw new Error('Issued credential not found in IndexedDB');
+  // Step 1: Fetch the issued credential from API
+  const issuerVCDataRecord = await getIssuerVCDataById(issuerVCDataId);
+  if (!issuerVCDataRecord) {
+    throw new Error('Issued credential not found');
   }
+
+  // Decrypt the encrypted body to get the VC history
+  const decryptedData = await decryptWithIssuerPrivateKey(issuerVCDataRecord.encrypted_body);
+  const vcContainer = decryptedData as unknown as {
+    vc_status: boolean;
+    verifiable_credentials: unknown[];
+  };
 
   // Step 2: Create the new Verifiable Credential
   const now = new Date();
@@ -299,8 +309,8 @@ export async function updateCredential(
     expiredAt,
   });
 
-  // Step 8: Get the existing VC history from IndexedDB
-  const existingVCHistory = issuedCredential.vcHistory || [];
+  // Step 8: Get the existing VC history from the decrypted data
+  const existingVCHistory = vcContainer.verifiable_credentials || [];
 
   // Step 9: Prepend the new signed VC to the history (newest first)
   const updatedVCHistory = [signedVC, ...existingVCHistory];
@@ -324,37 +334,7 @@ export async function updateCredential(
     throw new Error(errorData.message || 'Failed to update issuer VC data');
   }
 
-  // Step 12: Update IndexedDB with the new VC in history
-  // Cast SignedVerifiableCredential to match VerifiableCredentialData structure
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const vcHistoryForStorage = updatedVCHistory.map((vc: any) => ({
-    id: vc.id,
-    type: vc.type,
-    issuer:
-      typeof vc.issuer === 'string' ? { id: vc.issuer, name: vc.issuerName || '' } : vc.issuer,
-    credentialSubject: vc.credentialSubject,
-    validFrom: vc.validFrom,
-    expiredAt: vc.expiredAt || '',
-    credentialStatus: vc.credentialStatus,
-    proof: vc.proof,
-    imageLink: vc.imageLink || undefined,
-    fileUrl: vc.fileUrl,
-    fileId: vc.fileId,
-    issuerName: vc.issuerName,
-    '@context': vc['@context'],
-  }));
-
-  const updatedIssuedCredential = {
-    ...issuedCredential,
-    vcHistory: vcHistoryForStorage,
-    vcId: signedVC.id,
-    activeUntil: expiredAt,
-    createdAt: signedVC.validFrom,
-    status: 'APPROVED',
-  };
-
-  await storeIssuedCredential(updatedIssuedCredential);
-  console.log(`[IndexedDB] Updated issued credential with new VC: ${issuerVCDataId}`);
+  console.log(`[API] Updated issuer VC data with new VC: ${issuerVCDataId}`);
 
   return { updateResponse, signedVC };
 }
@@ -384,11 +364,18 @@ export async function renewCredential(
     issuerVCDataId,
   } = params;
 
-  // Step 1: Fetch the issued credential from IndexedDB
-  const issuedCredential = await getIssuedCredentialById(issuerVCDataId);
-  if (!issuedCredential) {
-    throw new Error('Issued credential not found in IndexedDB');
+  // Step 1: Fetch the issued credential from API
+  const issuerVCDataRecord = await getIssuerVCDataById(issuerVCDataId);
+  if (!issuerVCDataRecord) {
+    throw new Error('Issued credential not found');
   }
+
+  // Decrypt the encrypted body to get the VC history
+  const decryptedData = await decryptWithIssuerPrivateKey(issuerVCDataRecord.encrypted_body);
+  const vcContainer = decryptedData as unknown as {
+    vc_status: boolean;
+    verifiable_credentials: unknown[];
+  };
 
   // Step 2: Create the new Verifiable Credential
   const now = new Date();
@@ -425,9 +412,8 @@ export async function renewCredential(
     expiredAt,
   });
 
-  // Step 7: Fetch the existing encrypted body from API (we need the current one)
-  // We'll use the vcHistory from IndexedDB which already has the decrypted history
-  const existingVCHistory = issuedCredential.vcHistory || [];
+  // Step 7: Get the existing VC history from the decrypted data
+  const existingVCHistory = vcContainer.verifiable_credentials || [];
 
   // Step 8: Prepend the new signed VC to the history (newest first)
   const updatedVCHistory = [signedVC, ...existingVCHistory];
@@ -451,37 +437,7 @@ export async function renewCredential(
     throw new Error(errorData.message || 'Failed to update issuer VC data');
   }
 
-  // Step 11: Update IndexedDB with the new VC in history
-  // Cast SignedVerifiableCredential to match VerifiableCredentialData structure
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const vcHistoryForStorage = updatedVCHistory.map((vc: any) => ({
-    id: vc.id,
-    type: vc.type,
-    issuer:
-      typeof vc.issuer === 'string' ? { id: vc.issuer, name: vc.issuerName || '' } : vc.issuer,
-    credentialSubject: vc.credentialSubject,
-    validFrom: vc.validFrom,
-    expiredAt: vc.expiredAt || '',
-    credentialStatus: vc.credentialStatus,
-    proof: vc.proof,
-    imageLink: vc.imageLink || undefined,
-    fileUrl: vc.fileUrl,
-    fileId: vc.fileId,
-    issuerName: vc.issuerName,
-    '@context': vc['@context'],
-  }));
-
-  const updatedIssuedCredential = {
-    ...issuedCredential,
-    vcHistory: vcHistoryForStorage,
-    vcId: signedVC.id,
-    activeUntil: expiredAt,
-    createdAt: signedVC.validFrom,
-    status: 'APPROVED',
-  };
-
-  await storeIssuedCredential(updatedIssuedCredential);
-  console.log(`[IndexedDB] Updated issued credential with renewed VC: ${issuerVCDataId}`);
+  console.log(`[API] Updated issuer VC data with renewed VC: ${issuerVCDataId}`);
 
   return { renewResponse, signedVC };
 }
@@ -500,14 +456,21 @@ export async function revokeCredential(
 ): Promise<{ revokeResponse: Response }> {
   const { issuerDid, holderDid, holderPublicKey, vcId, issuerVCDataId } = params;
 
-  // Step 1: Fetch the issued credential from IndexedDB
-  const issuedCredential = await getIssuedCredentialById(issuerVCDataId);
-  if (!issuedCredential) {
-    throw new Error('Issued credential not found in IndexedDB');
+  // Step 1: Fetch the issued credential from API
+  const issuerVCDataRecord = await getIssuerVCDataById(issuerVCDataId);
+  if (!issuerVCDataRecord) {
+    throw new Error('Issued credential not found');
   }
 
-  // Step 2: Get the existing VC history from IndexedDB
-  const existingVCHistory = issuedCredential.vcHistory || [];
+  // Decrypt the encrypted body to get the VC history
+  const decryptedData = await decryptWithIssuerPrivateKey(issuerVCDataRecord.encrypted_body);
+  const vcContainer = decryptedData as unknown as {
+    vc_status: boolean;
+    verifiable_credentials: unknown[];
+  };
+
+  // Step 2: Get the existing VC history from the decrypted data
+  const existingVCHistory = vcContainer.verifiable_credentials || [];
 
   // Step 3: Create updated data with vc_status set to false
   const updatedData = {
@@ -670,4 +633,100 @@ export async function uploadCredentialFile(
   }
 
   return uploadResult;
+}
+
+// =============================================================================
+// ISSUED CREDENTIALS API (replaces IndexedDB)
+// =============================================================================
+
+export interface IssuerVCDataRecord {
+  id: string;
+  issuer_did: string;
+  holder_did: string;
+  vc_id: string;
+  encrypted_body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreIssuerVCParams {
+  issuer_did: string;
+  holder_did: string;
+  vc_id: string;
+  encrypted_body: string;
+}
+
+export interface UpdateIssuerVCParams {
+  vc_id: string;
+  issuer_did: string;
+  encrypted_body: string;
+}
+
+/**
+ * Store issuer VC data via API
+ * Replaces: storeIssuedCredential from IndexedDB
+ */
+export async function storeIssuerVCData(params: StoreIssuerVCParams): Promise<IssuerVCDataRecord> {
+  const url = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC);
+  const response = await authenticatedPost(url, params);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to store issuer VC data');
+  }
+
+  const result = await response.json();
+  return result.data;
+}
+
+/**
+ * Get all issuer VC data by issuer DID
+ * Replaces: getIssuedCredentialsByIssuerDid from IndexedDB
+ */
+export async function getIssuerVCDataByDID(issuerDid: string): Promise<IssuerVCDataRecord[]> {
+  const url = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_DID(issuerDid));
+  const response = await authenticatedGet(url);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch issuer VC data');
+  }
+
+  const result = await response.json();
+  return result.data.data;
+}
+
+/**
+ * Get issuer VC data by record ID
+ * Replaces: getIssuedCredentialById from IndexedDB
+ */
+export async function getIssuerVCDataById(id: string): Promise<IssuerVCDataRecord> {
+  const url = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_ID(id));
+  const response = await authenticatedGet(url);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch issuer VC data by ID');
+  }
+
+  const result = await response.json();
+  return result.data;
+}
+
+/**
+ * Update issuer VC data by record ID
+ * Replaces: storeIssuedCredential for updates from IndexedDB
+ */
+export async function updateIssuerVCData(
+  id: string,
+  params: UpdateIssuerVCParams
+): Promise<IssuerVCDataRecord> {
+  const url = buildApiUrl(API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_ID(id));
+  const response = await authenticatedPut(url, params);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to update issuer VC data');
+  }
+
+  const result = await response.json();
+  return result.data;
 }

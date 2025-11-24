@@ -142,10 +142,9 @@ export function DataTable<T>({
   const endIndex = Math.min(currentPage * rowsPerPage, total);
 
   // Paginate the data
-  const paginatedData = sortedData.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
+  const paginatedData = hideBottomControls
+    ? sortedData
+    : sortedData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   const handleSelectAll = () => {
     if (selectAll) {

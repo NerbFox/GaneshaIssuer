@@ -89,7 +89,7 @@ export default function FillIssueRequestForm({
   const previewRef = useRef<HTMLDivElement>(null);
 
   // Determine if fields should be disabled based on request type
-  // UPDATE: all fields disabled (showing data from IndexedDB, read-only)
+  // UPDATE: all fields disabled (showing data from API, read-only)
   // RENEWAL: all fields disabled (attributes and amount unchangeable)
   // REVOKE: all fields disabled (attributes and amount unchangeable)
   // ISSUANCE: all fields editable (default behavior)
@@ -246,7 +246,7 @@ export default function FillIssueRequestForm({
     );
 
     // For UPDATE requests with read-only fields, allow submission
-    // (the attributes are from IndexedDB and the holder's requested changes are shown separately)
+    // (the attributes are from API and the holder's requested changes are shown separately)
     return missingRequired.length > 0 || isSubmitting;
   };
 
@@ -259,12 +259,7 @@ export default function FillIssueRequestForm({
       id: 'name',
       label: 'NAME',
       sortKey: 'name',
-      render: (row) => (
-        <div className="flex items-center gap-2">
-          <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>
-          {row.required && <span className="text-red-500 text-sm">*</span>}
-        </div>
-      ),
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
     },
     {
       id: 'type',
@@ -294,26 +289,29 @@ export default function FillIssueRequestForm({
       id: 'value',
       label: 'VALUE',
       render: (row) => {
+        // For disabled fields (UPDATE, RENEWAL, REVOKE), show read-only display like View Credential
+        if (isFieldsDisabled) {
+          return (
+            <ThemedText className="text-sm text-gray-900">
+              {row.value ? String(row.value) : <em className="text-gray-400">(empty)</em>}
+            </ThemedText>
+          );
+        }
+
+        // For editable fields (ISSUANCE), render appropriate input based on type
         const renderInputField = () => {
           switch (row.type.toLowerCase()) {
             case 'image':
               return (
                 <div className="flex gap-2 items-center">
-                  <label className={isFieldsDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}>
+                  <label className="cursor-pointer">
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(e) => handleFileUpload(row.id, e)}
                       className="hidden"
-                      disabled={isFieldsDisabled}
                     />
-                    <span
-                      className={`text-sm font-medium ${
-                        isFieldsDisabled
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-blue-500 hover:text-blue-600'
-                      }`}
-                    >
+                    <span className="text-blue-500 hover:text-blue-600 text-sm font-medium">
                       Upload
                     </span>
                   </label>
@@ -338,23 +336,11 @@ export default function FillIssueRequestForm({
               );
 
             case 'boolean':
-              // If disabled, show as read-only text instead of dropdown
-              if (isFieldsDisabled) {
-                return (
-                  <div className="w-full px-3 py-2 text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-lg min-h-[38px] flex items-center">
-                    {String(row.value)}
-                  </div>
-                );
-              }
-              // If enabled, show as dropdown
               return (
                 <select
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  disabled={isFieldsDisabled}
-                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
-                  }`}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Select...</option>
                   <option value="true">True</option>
@@ -368,7 +354,6 @@ export default function FillIssueRequestForm({
                   <DatePicker
                     value={String(row.value) || ''}
                     onChange={(value) => handleAttributeValueChange(row.id, value)}
-                    disabled={isFieldsDisabled}
                   />
                 </div>
               );
@@ -380,7 +365,6 @@ export default function FillIssueRequestForm({
                   <DateTimePicker
                     value={String(row.value) || ''}
                     onChange={(value) => handleAttributeValueChange(row.id, value)}
-                    disabled={isFieldsDisabled}
                   />
                 </div>
               );
@@ -391,7 +375,6 @@ export default function FillIssueRequestForm({
                   <TimePicker
                     value={String(row.value) || ''}
                     onChange={(value) => handleAttributeValueChange(row.id, value)}
-                    disabled={isFieldsDisabled}
                   />
                 </div>
               );
@@ -411,7 +394,7 @@ export default function FillIssueRequestForm({
                       handleAttributeValueChange(row.id, value);
                     }
                   }}
-                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
+                  placeholder={`Enter ${row.name}`}
                   step={
                     row.type.toLowerCase() === 'float' || row.type.toLowerCase() === 'decimal'
                       ? '0.01'
@@ -429,10 +412,7 @@ export default function FillIssueRequestForm({
                       e.preventDefault();
                     }
                   }}
-                  disabled={isFieldsDisabled}
-                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
-                  }`}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               );
 
@@ -442,12 +422,9 @@ export default function FillIssueRequestForm({
                   type="email"
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
+                  placeholder={`Enter ${row.name}`}
                   pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
-                  disabled={isFieldsDisabled}
-                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
-                  }`}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               );
 
@@ -458,12 +435,9 @@ export default function FillIssueRequestForm({
                   type="url"
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
+                  placeholder={`Enter ${row.name}`}
                   pattern="https?://.+"
-                  disabled={isFieldsDisabled}
-                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
-                  }`}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               );
 
@@ -480,11 +454,8 @@ export default function FillIssueRequestForm({
                       handleAttributeValueChange(row.id, value);
                     }
                   }}
-                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
-                  disabled={isFieldsDisabled}
-                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
-                  }`}
+                  placeholder={`Enter ${row.name}`}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               );
 
@@ -495,12 +466,9 @@ export default function FillIssueRequestForm({
                 <textarea
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
+                  placeholder={`Enter ${row.name}`}
                   rows={3}
-                  disabled={isFieldsDisabled}
-                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
-                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
-                  }`}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 />
               );
 
@@ -511,11 +479,8 @@ export default function FillIssueRequestForm({
                   type="text"
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
-                  disabled={isFieldsDisabled}
-                  className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
-                  }`}
+                  placeholder={`Enter ${row.name}`}
+                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               );
           }
@@ -714,7 +679,7 @@ export default function FillIssueRequestForm({
               columns={[
                 {
                   id: 'name',
-                  label: 'ATTRIBUTE NAME',
+                  label: 'NAME',
                   sortKey: 'name',
                   render: (row) => (
                     <div className="flex items-center gap-2">

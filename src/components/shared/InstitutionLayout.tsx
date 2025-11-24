@@ -7,12 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { sidebarNavigation, NavigationSection, NavigationItem } from '@/constants/navigation';
 import { ThemedText } from '@/components/shared/ThemedText';
 import ConfirmationModal from '@/components/shared/ConfirmationModal';
-import {
-  clearAllVCs,
-  clearAllVPSharings,
-  clearAllSchemaData,
-  clearAllIssuedCredentials,
-} from '@/utils/indexedDB';
+import { clearAllVCs, clearAllVPSharings, clearAllSchemaData } from '@/utils/indexedDB';
 
 interface InstitutionLayoutProps {
   children: ReactNode;
@@ -43,12 +38,7 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
     try {
       // Clear all data from IndexedDB
       console.log('[Logout] Clearing all data from IndexedDB...');
-      await Promise.all([
-        clearAllVCs(),
-        clearAllVPSharings(),
-        clearAllSchemaData(),
-        clearAllIssuedCredentials(),
-      ]);
+      await Promise.all([clearAllVCs(), clearAllVPSharings(), clearAllSchemaData()]);
       console.log('[Logout] All IndexedDB data cleared successfully');
     } catch (error) {
       console.error('[Logout] Error clearing IndexedDB data:', error);

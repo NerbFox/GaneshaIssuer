@@ -4,10 +4,32 @@ import { useState, useEffect, useCallback } from 'react';
 import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { formatDateTime } from '@/utils/dateUtils';
+import { fetchSchemaByVersion } from '@/services/schemaService';
 
 interface CredentialAttribute {
   id: number;
   name: string;
+  value: string;
+}
+
+// Define interface for schema attribute details
+interface SchemaAttributeDetail {
+  name: string;
+  type: string;
+  required: boolean;
+}
+
+interface SchemaProperty {
+  type: string;
+  [key: string]: unknown;
+}
+
+// Combined attribute for DataTable
+interface DisplayAttribute {
+  id: string;
+  name: string;
+  type: string;
+  required: boolean;
   value: string;
 }
 
@@ -62,11 +84,47 @@ export default function ViewCredentialForm({
   vcStatus,
 }: ViewCredentialFormProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [schemaAttributes, setSchemaAttributes] = useState<SchemaAttributeDetail[]>([]);
+  const [isLoadingSchema, setIsLoadingSchema] = useState(false);
 
   // Normalize VC data: use vcHistory if available, otherwise use currentVC, or null
   const vcs = vcHistory && vcHistory.length > 0 ? vcHistory : currentVC ? [currentVC] : [];
   const hasMultiple = vcs.length > 1;
   const displayVC = vcs[currentIndex];
+
+  // Fetch schema data when credential changes
+  useEffect(() => {
+    const loadSchemaAttributes = async () => {
+      if (!credential.schemaId || !credential.schemaVersion) {
+        setSchemaAttributes([]);
+        return;
+      }
+
+      setIsLoadingSchema(true);
+      try {
+        const response = await fetchSchemaByVersion(credential.schemaId, credential.schemaVersion);
+        if (response.success && response.data) {
+          const attributes = Object.entries(response.data.schema.properties).map(
+            ([name, prop]) => ({
+              name,
+              type: (prop as SchemaProperty).type,
+              required: response.data.schema.required.includes(name),
+            })
+          );
+          setSchemaAttributes(attributes);
+        } else {
+          setSchemaAttributes([]);
+        }
+      } catch (error) {
+        console.error('Error fetching schema for credential:', error);
+        setSchemaAttributes([]);
+      } finally {
+        setIsLoadingSchema(false);
+      }
+    };
+
+    loadSchemaAttributes();
+  }, [credential.schemaId, credential.schemaVersion]);
 
   // Reset index when component mounts or vcHistory changes
   useEffect(() => {
@@ -102,23 +160,16 @@ export default function ViewCredentialForm({
   const handleDotClick = (index: number) => {
     setCurrentIndex(index);
   };
-  // Extract attributes from display VC
-  const currentAttributes: CredentialAttribute[] = displayVC
-    ? Object.entries(displayVC.credentialSubject)
-        .filter(([key]) => key !== 'id')
-        .map(([name, value], index) => ({
-          id: index + 1,
-          name,
-          value: String(value),
-        }))
-    : credential.attributes;
 
   // Get current credential data
-  const displayData = displayVC
+  const displayData = vcs[currentIndex]
     ? {
-        id: displayVC.id,
-        holderDid: displayVC.credentialSubject.id,
-        issuerDid: typeof displayVC.issuer === 'object' ? displayVC.issuer.id : displayVC.issuer,
+        id: vcs[currentIndex].id,
+        holderDid: vcs[currentIndex].credentialSubject.id,
+        issuerDid:
+          typeof vcs[currentIndex].issuer === 'object'
+            ? vcs[currentIndex].issuer.id
+            : vcs[currentIndex].issuer,
         schemaName: credential.schemaName,
         schemaId: credential.schemaId,
         schemaVersion: credential.schemaVersion,
@@ -126,26 +177,69 @@ export default function ViewCredentialForm({
           // Only the newest version (index 0) can be APPROVED or REVOKED
           // All historical versions are marked as REVOKED
           currentIndex === 0 ? (vcStatus === false ? 'REVOKED' : 'APPROVED') : 'REVOKED',
-        validFrom: displayVC.validFrom,
-        expiredAt: displayVC.expiredAt,
-        attributes: currentAttributes,
+        validFrom: vcs[currentIndex].validFrom,
+        expiredAt: vcs[currentIndex].expiredAt,
+        attributes: credential.attributes,
       }
     : credential;
 
-  const columns: Column<CredentialAttribute>[] = [
+  // Prepare data for DataTable
+  const displayAttributes: DisplayAttribute[] = credential.attributes.map((attr) => {
+    const schemaAttr = schemaAttributes.find((sa) => sa.name === attr.name);
+    return {
+      id: attr.name,
+      name: attr.name,
+      type: schemaAttr?.type || 'string',
+      required: schemaAttr?.required || false,
+      value: attr.value,
+    };
+  });
+
+  const columns: Column<DisplayAttribute>[] = [
     {
       id: 'name',
-      label: 'ATTRIBUTE NAME',
+      label: 'NAME',
       sortKey: 'name',
       render: (row) => (
-        <ThemedText className="text-sm font-medium text-gray-900">{row.name}</ThemedText>
+        <div className="flex items-center gap-2">
+          <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>
+          {row.required && <span className="text-red-500 text-sm">*</span>}
+        </div>
+      ),
+    },
+    {
+      id: 'type',
+      label: 'TYPE',
+      sortKey: 'type',
+      render: (row) => (
+        <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
+          {row.type}
+        </span>
+      ),
+    },
+    {
+      id: 'required',
+      label: 'REQUIRED',
+      sortKey: 'required',
+      render: (row) => (
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+            row.required ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-600'
+          }`}
+        >
+          {row.required ? 'Yes' : 'No'}
+        </span>
       ),
     },
     {
       id: 'value',
       label: 'VALUE',
       sortKey: 'value',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{row.value}</ThemedText>,
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">
+          {row.value ? row.value : <em className="text-gray-400">(empty)</em>}
+        </ThemedText>
+      ),
     },
   ];
 
@@ -338,23 +432,31 @@ export default function ViewCredentialForm({
       </div>
 
       {/* Attributes Section */}
-      {displayData.attributes.length > 0 && (
+      {credential.attributes.length > 0 && (
         <div className="mb-6">
           <div className="mb-4">
             <ThemedText className="text-sm font-medium text-gray-900">
-              Credential Attributes ({displayData.attributes.length})
+              Credential Attributes ({credential.attributes.length})
             </ThemedText>
           </div>
 
-          <DataTable
-            data={displayData.attributes}
-            columns={columns}
-            searchPlaceholder="Search attributes..."
-            enableSelection={false}
-            totalCount={displayData.attributes.length}
-            rowsPerPageOptions={[5, 10, 25, 50]}
-            idKey="id"
-          />
+          {!isLoadingSchema ? (
+            <DataTable
+              data={displayAttributes}
+              columns={columns}
+              searchPlaceholder="Search attributes..."
+              enableSelection={false}
+              totalCount={displayAttributes.length}
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              idKey="id"
+              hideBottomControls={true}
+            />
+          ) : (
+            <div className="flex items-center justify-center p-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="ml-4 text-gray-600">Loading schema attributes...</p>
+            </div>
+          )}
         </div>
       )}
 
