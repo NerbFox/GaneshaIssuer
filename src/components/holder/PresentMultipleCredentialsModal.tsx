@@ -284,7 +284,7 @@ export default function PresentMultipleCredentialsModal({
                   {/* Credential Header - Always Visible, Clickable */}
                   <button
                     onClick={() => toggleCredential(credential.id)}
-                    className="w-full p-5 flex items-start justify-between hover:opacity-80 transition-opacity"
+                    className="w-full p-5 flex items-start justify-between hover:opacity-80 transition-opacity cursor-pointer"
                   >
                     <div className="flex items-center gap-4">
                       <div
@@ -513,7 +513,7 @@ export default function PresentMultipleCredentialsModal({
                   <button
                     onClick={handleGenerateVP}
                     disabled={isGenerating}
-                    className="p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     title="Regenerate VP with new ID"
                   >
                     <svg
@@ -560,14 +560,14 @@ export default function PresentMultipleCredentialsModal({
           {!qrCodeDataUrl && !isGenerating && error && (
             <button
               onClick={handleGenerateVP}
-              className="px-8 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-semibold shadow-lg"
+              className="px-8 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-semibold shadow-lg cursor-pointer"
             >
               Retry
             </button>
           )}
           <button
             onClick={onClose}
-            className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-semibold shadow-lg"
+            className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-semibold shadow-lg cursor-pointer"
           >
             Close
           </button>

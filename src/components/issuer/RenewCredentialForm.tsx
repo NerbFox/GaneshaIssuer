@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'; // Import useEffect
 import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { formatDateTime } from '@/utils/dateUtils';
-import { fetchSchemaByVersion } from '@/services/schemaService'; // Import fetchSchemaByVersion
+import { fetchSchemaByVersion, SchemaProperty } from '@/services/schemaService'; // Import fetchSchemaByVersion and SchemaProperty
 
 interface CredentialAttribute {
   id: number;
@@ -54,11 +54,6 @@ interface SchemaAttributeDetail {
   name: string;
   type: string;
   required: boolean;
-}
-
-interface SchemaProperty {
-  type: string;
-  [key: string]: unknown;
 }
 
 // Combined attribute for DataTable
