@@ -3,8 +3,13 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import PageHeader from '@/components/shared/PageHeader';
+import Button from '@/components/shared/Button';
+import Input from '@/components/shared/Input';
+import { Link } from '@/i18n/routing';
+import { ThemedText } from '@/components/shared/ThemedText';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -22,7 +27,30 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.ADMIN.LOGIN), {
+      // Development bypass: Check if DEV_BYPASS environment variable is set or use query param
+      const urlParams = new URLSearchParams(window.location.search);
+      const devBypass =
+        process.env.NEXT_PUBLIC_DEV_BYPASS === 'true' || urlParams.get('dev') === 'true';
+
+      if (devBypass) {
+        // Use dummy data in development mode
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        console.log('DEV MODE: Bypassing admin login', formData);
+
+        const dummyAdmin = {
+          id: 'dev-admin-1',
+          email: 'dev@ganeshadcert.com',
+          name: 'Dev Admin',
+        };
+
+        localStorage.setItem('adminToken', 'dev-token');
+        localStorage.setItem('adminData', JSON.stringify(dummyAdmin));
+
+        router.push('/admin');
+        return;
+      }
+
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.ADMIN_AUTH.LOGIN), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -50,90 +78,86 @@ export default function AdminLoginPage() {
     }
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <div className="absolute top-4 right-4">
-        <LanguageSwitcher />
-      </div>
-      
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          {/* Logo/Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('title')}</h1>
-            <p className="text-gray-600">{t('subtitle')}</p>
-          </div>
+    <div className="min-h-screen bg-[#0D2B45] flex items-center justify-center relative py-28 px-4">
+      <PageHeader backHref="/" />
 
-          {/* Error Message */}
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              <p className="text-sm">{error}</p>
-            </div>
-          )}
-
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                {t('email')}
-              </label>
-              <input
-                type="email"
-                id="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder={t('emailPlaceholder')}
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                {t('password')}
-              </label>
-              <input
-                type="password"
-                id="password"
-                required
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder={t('passwordPlaceholder')}
-                disabled={loading}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {t('processing')}
-                </span>
-              ) : (
-                t('loginButton')
-              )}
-            </button>
-          </form>
-
-          {/* Footer */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-500">
-              {t('forInstitution')}{' '}
-              <a href="/register" className="text-blue-600 hover:text-blue-700 font-medium">
-                {t('registerHere')}
-              </a>
-            </p>
+      <div className="bg-white rounded-4xl w-full max-w-md shadow-xl p-8 md:p-12 relative z-10">
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <div className="flex items-center">
+            <Image src="/GWallet.svg" width={50} height={50} alt="GaneshaWallet Logo" />
+            <ThemedText fontSize={20} fontWeight={700} className="pl-2 text-[#0C2D48]">
+              GaneshaWallet
+            </ThemedText>
           </div>
         </div>
+
+        {/* Title */}
+        <div className="text-center mb-8">
+          <ThemedText fontSize={40} fontWeight={700} className="text-black mb-2 block">
+            {t('title')}
+          </ThemedText>
+          <ThemedText fontSize={16} className="text-gray-600 block">
+            {t('subtitle')}
+          </ThemedText>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <ThemedText fontSize={14}>{error}</ThemedText>
+          </div>
+        )}
+
+        {/* Login Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            label={t('email')}
+            placeholder={t('emailPlaceholder')}
+            value={formData.email}
+            onChange={handleChange}
+            required
+            disabled={loading}
+          />
+
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            label={t('password')}
+            placeholder={t('passwordPlaceholder')}
+            value={formData.password}
+            onChange={handleChange}
+            required
+            disabled={loading}
+          />
+
+          {/* Register Link */}
+          <div className="text-center">
+            <ThemedText fontSize={12} className="text-gray-600">
+              {t('forInstitution')}{' '}
+              <Link href="/institution" className="text-[#0D2B45] hover:underline font-medium">
+                {t('registerHere')}
+              </Link>
+            </ThemedText>
+          </div>
+
+          {/* Submit Button */}
+          <Button type="submit" variant="primary" fullWidth disabled={loading}>
+            {loading ? t('processing') : t('loginButton')}
+          </Button>
+        </form>
       </div>
     </div>
   );

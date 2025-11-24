@@ -1,0 +1,19 @@
+# Add Node.js to PATH for GitHub Desktop and other GUI clients
+# This works across different machines and Node.js installations
+
+# Add Homebrew paths (works for both Intel and Apple Silicon Macs)
+export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+
+# Add nvm paths if nvm directory exists
+if [ -d "$HOME/.nvm/versions/node" ]; then
+  # Find the most recently used node version
+  NODE_VERSION=$(ls -t "$HOME/.nvm/versions/node" 2>/dev/null | head -1)
+  if [ -n "$NODE_VERSION" ]; then
+    export PATH="$HOME/.nvm/versions/node/$NODE_VERSION/bin:$PATH"
+  fi
+fi
+
+# Add other common Node.js installation paths
+export PATH="$HOME/.node/bin:$HOME/.npm-global/bin:$PATH"
+
+npx lint-staged

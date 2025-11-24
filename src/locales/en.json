@@ -21,6 +21,7 @@
     "home": "Home",
     "dashboard": "Dashboard",
     "admin": "Admin",
+    "institution": "Institution",
     "register": "Register",
     "login": "Login"
   },
@@ -35,6 +36,7 @@
     "pleaseWait": "Please wait while we verify your link...",
     "tokenNotFound": "Token not found in URL",
     "verificationFailed": "Verification failed",
+    "verificationSuccess": "Verification successful! Redirecting...",
     "loginSuccessRedirect": "Login successful! Redirecting to dashboard...",
     "registerNewInstitution": "Register New Institution",
     "goToHomepage": "Go to Homepage",
@@ -42,9 +44,17 @@
     "magicLinkDescription": "Magic links are secure, one-time use links sent to your email after admin approval. They expire after 24 hours."
   },
   "auth": {
+    "setup": {
+      "title": "Wallet Setup",
+      "subtitle": "Login to your existing wallet or create a new one",
+      "createWallet": "Create a new wallet",
+      "loginWallet": "Login to existing wallet"
+    },
     "login": {
       "title": "Admin Login",
       "subtitle": "GaneshaDCERT Management",
+      "institutionLogin": "Enter Your Seed Phrase",
+      "institutionLoginSubtitle": "Enter your credential to interact with our system",
       "email": "Email",
       "password": "Password",
       "emailPlaceholder": "admin@ganeshadcert.com",
@@ -58,8 +68,42 @@
       "invalidCredentials": "Invalid email or password"
     },
     "register": {
-      "title": "Institution Registration",
-      "subtitle": "Register your institution to issue digital certificates",
+      "title": "Create an Account",
+      "subtitle": "Create your institution wallet to get started",
+      "seedPhrase": {
+        "title": "Write down your Seed Phrase",
+        "subtitle": "Save your seed phrase securely to recover your wallet",
+        "warningTitle": "Important!",
+        "warningMessage": "Write down your seed phrase and keep it in a safe place. You will need it to recover your wallet. Do not share it with anyone!",
+        "copyButton": "Copy to Clipboard",
+        "continueButton": "Continue",
+        "processing": "Processing..."
+      },
+      "confirmSeed": {
+        "title": "Confirm your Seed Phrase",
+        "subtitle": "Select the words in the correct order to verify your seed phrase",
+        "selectedWords": "Your seed phrase:",
+        "selectInOrder": "Select words in order:",
+        "backButton": "Back",
+        "verifyButton": "Verify",
+        "processing": "Processing...",
+        "errorIncomplete": "Please select all 12 words",
+        "errorIncorrect": "The seed phrase order is incorrect. Please try again."
+      },
+      "success": {
+        "title": "Congratulations!",
+        "subtitle": "Your wallet has been successfully created",
+        "yourDID": "Your DID (Decentralized Identifier):",
+        "copyButton": "Copy DID",
+        "copied": "Copied!",
+        "didMessage": "Your DID is your unique identifier on the blockchain. Save it securely.",
+        "continueButton": "Continue",
+        "backToHome": "Back to Home",
+        "whatHappensNext": "What happens next?",
+        "step1": "Our admin team will review your application",
+        "step2": "You'll receive a magic link via email once approved",
+        "step3": "Use the magic link to complete your institution setup"
+      },
       "name": "Institution Name",
       "email": "Email",
       "phone": "Phone Number",
@@ -68,14 +112,16 @@
       "address": "Address",
       "namePlaceholder": "University of Indonesia",
       "emailPlaceholder": "admin@ui.ac.id",
-      "phonePlaceholder": "+62 812-3456-7890",
-      "countryPlaceholder": "Indonesia",
+      "phonePlaceholder": "+628123456789",
+      "countryPlaceholder": "Select a country",
       "websitePlaceholder": "https://ui.ac.id",
       "addressPlaceholder": "UI Campus Depok, West Java 16424",
       "registerButton": "Register",
+      "continueButton": "Continue",
       "processing": "Processing...",
       "alreadyHaveAccount": "Already have an account?",
       "loginHere": "Login here",
+      "privacyPolicy": "By registering, you agree to our <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>",
       "registrationSuccess": "Registration successful. Waiting for admin approval.",
       "registrationFailed": "Registration failed"
     }
@@ -128,5 +174,15 @@
     "forbidden": "Access forbidden",
     "notFound": "Not found",
     "serverError": "Server error"
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last Updated: October 21, 2025",
+    "back": "Back"
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last Updated: October 21, 2025",
+    "back": "Back"
   }
 }

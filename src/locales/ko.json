@@ -21,6 +21,7 @@
     "home": "홈",
     "dashboard": "대시보드",
     "admin": "관리자",
+    "institution": "기관",
     "register": "등록",
     "login": "로그인"
   },
@@ -30,10 +31,30 @@
     "adminAccess": "관리자 패널에 액세스",
     "registerInstitution": "기관 등록"
   },
+  "verify": {
+    "verifying": "매직 링크 확인 중",
+    "pleaseWait": "링크를 확인하는 동안 잠시 기다려주세요...",
+    "tokenNotFound": "URL에서 토큰을 찾을 수 없습니다",
+    "verificationFailed": "확인 실패",
+    "verificationSuccess": "확인 성공! 리디렉션 중...",
+    "loginSuccessRedirect": "로그인 성공! 대시보드로 이동 중...",
+    "registerNewInstitution": "새 기관 등록",
+    "goToHomepage": "홈페이지로 이동",
+    "aboutMagicLinks": "매직 링크 정보",
+    "magicLinkDescription": "매직 링크는 관리자 승인 후 이메일로 전송되는 안전한 일회용 링크입니다. 24시간 후 만료됩니다."
+  },
   "auth": {
+    "setup": {
+      "title": "지갑 설정",
+      "subtitle": "기존 지갑에 로그인하거나 새 지갑을 만드세요",
+      "createWallet": "새 지갑 만들기",
+      "loginWallet": "기존 지갑에 로그인"
+    },
     "login": {
       "title": "관리자 로그인",
       "subtitle": "GaneshaDCERT 관리",
+      "institutionLogin": "기관 로그인",
+      "institutionLoginSubtitle": "기관 계정에 로그인",
       "email": "이메일",
       "password": "비밀번호",
       "emailPlaceholder": "admin@ganeshadcert.com",
@@ -47,8 +68,42 @@
       "invalidCredentials": "잘못된 이메일 또는 비밀번호"
     },
     "register": {
-      "title": "기관 등록",
-      "subtitle": "디지털 인증서를 발급하기 위해 기관을 등록하세요",
+      "title": "계정 만들기",
+      "subtitle": "시작하려면 기관 지갑을 만드세요",
+      "seedPhrase": {
+        "title": "시드 문구를 적어두세요",
+        "subtitle": "지갑을 복구하려면 시드 문구를 안전하게 저장하세요",
+        "warningTitle": "중요!",
+        "warningMessage": "시드 문구를 적어 안전한 곳에 보관하세요. 지갑을 복구하는 데 필요합니다. 누구와도 공유하지 마세요!",
+        "copyButton": "클립보드에 복사",
+        "continueButton": "계속",
+        "processing": "처리 중..."
+      },
+      "confirmSeed": {
+        "title": "시드 문구 확인",
+        "subtitle": "시드 문구를 확인하려면 올바른 순서로 단어를 선택하세요",
+        "selectedWords": "시드 문구:",
+        "selectInOrder": "순서대로 단어 선택:",
+        "backButton": "뒤로",
+        "verifyButton": "확인",
+        "processing": "처리 중...",
+        "errorIncomplete": "12개 단어를 모두 선택해주세요",
+        "errorIncorrect": "시드 문구 순서가 올바르지 않습니다. 다시 시도해주세요."
+      },
+      "success": {
+        "title": "축하합니다!",
+        "subtitle": "지갑이 성공적으로 생성되었습니다",
+        "yourDID": "귀하의 DID (탈중앙화 식별자):",
+        "copyButton": "DID 복사",
+        "copied": "복사됨!",
+        "didMessage": "DID는 블록체인에서 귀하의 고유 식별자입니다. 안전하게 저장하세요.",
+        "continueButton": "계속",
+        "backToHome": "홈으로 돌아가기",
+        "whatHappensNext": "다음 단계는 무엇입니까?",
+        "step1": "관리자 팀이 귀하의 신청서를 검토합니다",
+        "step2": "승인되면 이메일로 매직 링크를 받게 됩니다",
+        "step3": "매직 링크를 사용하여 기관 설정을 완료하세요"
+      },
       "name": "기관명",
       "email": "이메일",
       "phone": "전화번호",
@@ -57,14 +112,16 @@
       "address": "주소",
       "namePlaceholder": "인도네시아 대학교",
       "emailPlaceholder": "admin@ui.ac.id",
-      "phonePlaceholder": "+62 812-3456-7890",
-      "countryPlaceholder": "인도네시아",
+      "phonePlaceholder": "+628123456789",
+      "countryPlaceholder": "국가 선택",
       "websitePlaceholder": "https://ui.ac.id",
       "addressPlaceholder": "데폭 UI 캠퍼스, 서부 자바 16424",
       "registerButton": "등록",
+      "continueButton": "계속",
       "processing": "처리 중...",
       "alreadyHaveAccount": "이미 계정이 있으신가요?",
       "loginHere": "여기서 로그인",
+      "privacyPolicy": "등록함으로써 귀하는 당사의 <terms>서비스 약관</terms> 및 <privacy>개인정보 보호정책</privacy>에 동의하는 것입니다",
       "registrationSuccess": "등록 성공. 관리자 승인 대기 중입니다.",
       "registrationFailed": "등록 실패"
     }
@@ -117,5 +174,15 @@
     "forbidden": "접근 금지",
     "notFound": "찾을 수 없음",
     "serverError": "서버 오류"
+  },
+  "terms": {
+    "title": "서비스 약관",
+    "lastUpdated": "최종 업데이트: 2025년 10월 21일",
+    "back": "뒤로"
+  },
+  "privacy": {
+    "title": "개인정보 보호정책",
+    "lastUpdated": "최종 업데이트: 2025년 10월 21일",
+    "back": "뒤로"
   }
 }

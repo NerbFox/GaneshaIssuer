@@ -28,15 +28,15 @@ export default function LanguageSwitcher({ preserveQuery = false }: LanguageSwit
     startTransition(() => {
       // Get current path without locale prefix
       const pathWithoutLocale = pathname.replace(/^\/(en|ko|id)/, '');
-      
+
       // Build new path with new locale
       let newPath = `/${newLocale}${pathWithoutLocale}`;
-      
+
       // Preserve query parameters if needed
       if (preserveQuery && searchParams.toString()) {
         newPath += `?${searchParams.toString()}`;
       }
-      
+
       router.push(newPath);
       setIsOpen(false);
     });
@@ -47,12 +47,12 @@ export default function LanguageSwitcher({ preserveQuery = false }: LanguageSwit
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={isPending}
-        className="flex items-center space-x-2 px-4 py-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-all border border-gray-200 disabled:opacity-50"
+        className="flex items-center space-x-2 px-4 py-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-all border border-gray-200 disabled:opacity-50 cursor-pointer"
       >
         <span className="text-xl">{currentLanguage.flag}</span>
         <span className="font-medium text-gray-700">{currentLanguage.name}</span>
         <svg
-          className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-gray-700 transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -63,17 +63,14 @@ export default function LanguageSwitcher({ preserveQuery = false }: LanguageSwit
 
       {isOpen && (
         <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setIsOpen(false)}
-          />
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-20">
             {languages.map((lang) => (
               <button
                 key={lang.code}
                 onClick={() => handleLanguageChange(lang.code)}
                 disabled={isPending}
-                className={`w-full flex items-center space-x-3 px-4 py-2 hover:bg-gray-100 transition-colors ${
+                className={`w-full flex items-center space-x-3 px-4 py-2 hover:bg-gray-100 transition-colors cursor-pointer ${
                   locale === lang.code ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
                 } disabled:opacity-50`}
               >
