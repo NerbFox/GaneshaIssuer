@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Modal from '@/components/shared/Modal';
 import { ViewCredential } from '@/components/shared/ViewCredential';
 import { VerifiableCredential } from '@/utils/indexedDB';
-import { fetchSchemaByVersion } from '@/services/schemaService'; // Import fetchSchemaByVersion
+import { fetchSchemaByVersion, SchemaProperty } from '@/services/schemaService'; // Import fetchSchemaByVersion and SchemaProperty
 
 interface ViewCredentialModalProps {
   isOpen: boolean;
@@ -12,11 +12,6 @@ interface ViewCredentialModalProps {
   selectedCredential: VerifiableCredential | VerifiableCredential[] | null;
   onDownload: (id: string) => void;
   onDownloadPdf?: (id: string) => void;
-}
-
-interface SchemaProperty {
-  type: string;
-  [key: string]: unknown;
 }
 
 export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
