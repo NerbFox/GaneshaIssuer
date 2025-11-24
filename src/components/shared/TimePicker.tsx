@@ -6,9 +6,15 @@ interface TimePickerProps {
   value: string; // HH:MM format
   onChange: (value: string) => void;
   disabled?: boolean;
+  hasError?: boolean;
 }
 
-export default function TimePicker({ value, onChange, disabled = false }: TimePickerProps) {
+export default function TimePicker({
+  value,
+  onChange,
+  disabled = false,
+  hasError = false,
+}: TimePickerProps) {
   const [displayTime, setDisplayTime] = useState('');
 
   useEffect(() => {
@@ -114,9 +120,9 @@ export default function TimePicker({ value, onChange, disabled = false }: TimePi
           placeholder={disabled ? '' : '00:00'}
           maxLength={5}
           disabled={disabled}
-          className={`w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+          className={`w-full px-3 py-2 text-sm text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
             disabled ? 'bg-gray-50 cursor-not-allowed' : ''
-          }`}
+          } ${hasError ? 'border-2 border-red-500' : 'border border-gray-200'}`}
         />
 
         {/* Clear Button */}
