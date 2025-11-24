@@ -654,12 +654,14 @@ export interface StoreIssuerVCParams {
   holder_did: string;
   vc_id: string;
   encrypted_body: string;
+  [key: string]: unknown;
 }
 
 export interface UpdateIssuerVCParams {
   vc_id: string;
   issuer_did: string;
   encrypted_body: string;
+  [key: string]: unknown;
 }
 
 /**
