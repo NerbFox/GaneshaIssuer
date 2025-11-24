@@ -53,6 +53,111 @@ export interface IssueRequestFormData {
   imageBlob?: Blob; // Image blob for upload
 }
 
+// Validation function for different field types
+const validateFieldValue = (
+  value: string | number | boolean,
+  type: string,
+  required?: boolean
+): { isValid: boolean; error?: string } => {
+  const stringValue = String(value);
+
+  // Check if field is required and empty
+  if (required && (!stringValue || stringValue.trim() === '')) {
+    return { isValid: false, error: 'This field is required' };
+  }
+
+  // Allow empty values for non-required fields
+  if (!stringValue || stringValue.trim() === '') {
+    return { isValid: true };
+  }
+
+  switch (type.toLowerCase()) {
+    case 'number':
+    case 'integer':
+    case 'float':
+    case 'decimal': {
+      const numValue = Number(stringValue);
+      if (isNaN(numValue)) {
+        return { isValid: false, error: 'Must be a valid number' };
+      }
+      if (type.toLowerCase() === 'integer' && !Number.isInteger(numValue)) {
+        return { isValid: false, error: 'Must be a whole number' };
+      }
+      return { isValid: true };
+    }
+
+    case 'email': {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(stringValue)) {
+        return { isValid: false, error: 'Must be a valid email address' };
+      }
+      return { isValid: true };
+    }
+
+    case 'url':
+    case 'uri': {
+      try {
+        const url = new URL(stringValue);
+        if (type.toLowerCase() === 'url' && !['http:', 'https:'].includes(url.protocol)) {
+          return { isValid: false, error: 'URL must start with http:// or https://' };
+        }
+        return { isValid: true };
+      } catch {
+        return { isValid: false, error: 'Must be a valid URL' };
+      }
+    }
+
+    case 'tel':
+    case 'phone': {
+      const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+      if (!phoneRegex.test(stringValue)) {
+        return { isValid: false, error: 'Must be a valid phone number' };
+      }
+      const digitsOnly = stringValue.replace(/\D/g, '');
+      if (digitsOnly.length < 7) {
+        return { isValid: false, error: 'Phone number too short (minimum 7 digits)' };
+      }
+      return { isValid: true };
+    }
+
+    case 'date': {
+      const dateValue = new Date(stringValue);
+      if (isNaN(dateValue.getTime())) {
+        return { isValid: false, error: 'Must be a valid date' };
+      }
+      return { isValid: true };
+    }
+
+    case 'datetime':
+    case 'datetime-local': {
+      const dateValue = new Date(stringValue);
+      if (isNaN(dateValue.getTime())) {
+        return { isValid: false, error: 'Must be a valid date and time' };
+      }
+      return { isValid: true };
+    }
+
+    case 'time': {
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/;
+      if (!timeRegex.test(stringValue)) {
+        return { isValid: false, error: 'Must be a valid time (HH:MM)' };
+      }
+      return { isValid: true };
+    }
+
+    case 'boolean': {
+      const lowerValue = stringValue.toLowerCase();
+      if (!['true', 'false', '1', '0', 'yes', 'no'].includes(lowerValue)) {
+        return { isValid: false, error: 'Must be true or false' };
+      }
+      return { isValid: true };
+    }
+
+    default:
+      return { isValid: true };
+  }
+};
+
 export default function FillIssueRequestForm({
   requestId,
   issuerDid,
@@ -86,6 +191,7 @@ export default function FillIssueRequestForm({
   const [attributes, setAttributes] = useState<AttributeData[]>(initialAttributes);
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<Record<number, File>>({});
+  const [validationErrors, setValidationErrors] = useState<Record<number, string>>({});
   const previewRef = useRef<HTMLDivElement>(null);
 
   // Determine if fields should be disabled based on request type
@@ -97,7 +203,28 @@ export default function FillIssueRequestForm({
     requestType === 'UPDATE' || requestType === 'RENEWAL' || requestType === 'REVOKE';
 
   const handleAttributeValueChange = (id: number, value: string) => {
-    setAttributes(attributes.map((attr) => (attr.id === id ? { ...attr, value } : attr)));
+    setAttributes(
+      attributes.map((attr) => {
+        if (attr.id === id) {
+          // Validate the new value
+          const validation = validateFieldValue(value, attr.type, attr.required);
+
+          // Update validation errors
+          setValidationErrors((prev) => {
+            const newErrors = { ...prev };
+            if (validation.isValid) {
+              delete newErrors[id];
+            } else {
+              newErrors[id] = validation.error || 'Invalid value';
+            }
+            return newErrors;
+          });
+
+          return { ...attr, value };
+        }
+        return attr;
+      })
+    );
   };
 
   const handleFileUpload = (id: number, event: React.ChangeEvent<HTMLInputElement>) => {
@@ -239,15 +366,18 @@ export default function FillIssueRequestForm({
     }
   };
 
-  // Check if all required fields are filled
+  // Check if all required fields are filled and there are no validation errors
   const isSubmitDisabled = () => {
     const missingRequired = attributes.filter(
       (attr) => attr.required && (!attr.value || attr.value === '')
     );
 
+    // Check if there are any validation errors
+    const hasValidationErrors = Object.keys(validationErrors).length > 0;
+
     // For UPDATE requests with read-only fields, allow submission
-    // (the attributes are from API and the holder's requested changes are shown separately)
-    return missingRequired.length > 0 || isSubmitting;
+    // (the attributes are from IndexedDB and the holder's requested changes are shown separately)
+    return missingRequired.length > 0 || hasValidationErrors || isSubmitting;
   };
 
   const handleSearch = (value: string) => {
@@ -299,6 +429,9 @@ export default function FillIssueRequestForm({
         }
 
         // For editable fields (ISSUANCE), render appropriate input based on type
+        const hasError = !!validationErrors[row.id];
+        const errorMessage = validationErrors[row.id];
+
         const renderInputField = () => {
           switch (row.type.toLowerCase()) {
             case 'image':
@@ -340,7 +473,10 @@ export default function FillIssueRequestForm({
                 <select
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  } ${hasError ? 'border-2 border-red-500' : 'border border-gray-200'}`}
                 >
                   <option value="">Select...</option>
                   <option value="true">True</option>
@@ -354,6 +490,8 @@ export default function FillIssueRequestForm({
                   <DatePicker
                     value={String(row.value) || ''}
                     onChange={(value) => handleAttributeValueChange(row.id, value)}
+                    disabled={isFieldsDisabled}
+                    hasError={hasError}
                   />
                 </div>
               );
@@ -365,6 +503,8 @@ export default function FillIssueRequestForm({
                   <DateTimePicker
                     value={String(row.value) || ''}
                     onChange={(value) => handleAttributeValueChange(row.id, value)}
+                    disabled={isFieldsDisabled}
+                    hasError={hasError}
                   />
                 </div>
               );
@@ -375,6 +515,8 @@ export default function FillIssueRequestForm({
                   <TimePicker
                     value={String(row.value) || ''}
                     onChange={(value) => handleAttributeValueChange(row.id, value)}
+                    disabled={isFieldsDisabled}
+                    hasError={hasError}
                   />
                 </div>
               );
@@ -412,7 +554,10 @@ export default function FillIssueRequestForm({
                       e.preventDefault();
                     }
                   }}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  } ${hasError ? 'border-2 border-red-500' : 'border border-gray-200'}`}
                 />
               );
 
@@ -422,9 +567,11 @@ export default function FillIssueRequestForm({
                   type="email"
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  placeholder={`Enter ${row.name}`}
-                  pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  } ${hasError ? 'border-2 border-red-500' : 'border border-gray-200'}`}
                 />
               );
 
@@ -435,9 +582,11 @@ export default function FillIssueRequestForm({
                   type="url"
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  placeholder={`Enter ${row.name}`}
-                  pattern="https?://.+"
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  } ${hasError ? 'border-2 border-red-500' : 'border border-gray-200'}`}
                 />
               );
 
@@ -454,8 +603,11 @@ export default function FillIssueRequestForm({
                       handleAttributeValueChange(row.id, value);
                     }
                   }}
-                  placeholder={`Enter ${row.name}`}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  } ${hasError ? 'border-2 border-red-500' : 'border border-gray-200'}`}
                 />
               );
 
@@ -468,7 +620,10 @@ export default function FillIssueRequestForm({
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
                   placeholder={`Enter ${row.name}`}
                   rows={3}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  } ${hasError ? 'border-2 border-red-500' : 'border border-gray-200'}`}
                 />
               );
 
@@ -479,14 +634,26 @@ export default function FillIssueRequestForm({
                   type="text"
                   value={String(row.value)}
                   onChange={(e) => handleAttributeValueChange(row.id, e.target.value)}
-                  placeholder={`Enter ${row.name}`}
-                  className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder={isFieldsDisabled ? '' : `Enter ${row.name}`}
+                  disabled={isFieldsDisabled}
+                  className={`w-full px-3 py-2 text-sm text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isFieldsDisabled ? 'bg-gray-50 cursor-not-allowed' : ''
+                  } ${hasError ? 'border-2 border-red-500' : 'border border-gray-200'}`}
                 />
               );
           }
         };
 
-        return <div className="flex items-center gap-2 w-full">{renderInputField()}</div>;
+        return (
+          <div className="w-full">
+            <div className="flex items-center gap-2 w-full">{renderInputField()}</div>
+            {hasError && (
+              <div className="mt-1">
+                <span className="text-sm text-red-500">{errorMessage}</span>
+              </div>
+            )}
+          </div>
+        );
       },
     },
   ];

@@ -6,9 +6,15 @@ interface DatePickerProps {
   value: string; // ISO date string (YYYY-MM-DD)
   onChange: (value: string) => void;
   disabled?: boolean;
+  hasError?: boolean;
 }
 
-export default function DatePicker({ value, onChange, disabled = false }: DatePickerProps) {
+export default function DatePicker({
+  value,
+  onChange,
+  disabled = false,
+  hasError = false,
+}: DatePickerProps) {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -49,10 +55,12 @@ export default function DatePicker({ value, onChange, disabled = false }: DatePi
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             disabled={disabled}
-            className={`w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+            className={`w-full px-3 py-2 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
               disabled
                 ? 'bg-gray-50 cursor-not-allowed'
                 : 'cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 hover:[&::-webkit-calendar-picker-indicator]:opacity-100'
+            } ${
+              hasError ? 'border-2 border-red-500' : 'border border-gray-200'
             } [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full`}
             style={{
               colorScheme: 'light',

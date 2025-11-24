@@ -7,6 +7,7 @@ interface DateTimePickerProps {
   onChange: (value: string) => void;
   className?: string;
   disabled?: boolean;
+  hasError?: boolean;
 }
 
 export const DateTimePicker: React.FC<DateTimePickerProps> = ({
@@ -14,6 +15,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   onChange,
   className = '',
   disabled = false,
+  hasError = false,
 }) => {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [displayTime, setDisplayTime] = useState('');
@@ -169,10 +171,12 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
           onFocus={() => setIsDateFocused(true)}
           onBlur={() => setIsDateFocused(false)}
           disabled={disabled}
-          className={`w-full px-3 py-2 pr-8 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+          className={`w-full px-3 py-2 pr-8 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
             disabled
               ? 'bg-gray-50 cursor-not-allowed'
               : 'cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 hover:[&::-webkit-calendar-picker-indicator]:opacity-100'
+          } ${
+            hasError ? 'border-2 border-red-500' : 'border border-gray-200'
           } [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-8 [&::-webkit-calendar-picker-indicator]:h-full`}
           style={{
             colorScheme: 'light',
@@ -227,9 +231,9 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
           }}
           placeholder={disabled ? '' : '00:00'}
           disabled={disabled}
-          className={`w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 ${
+          className={`w-full px-4 py-2 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 ${
             disabled ? 'bg-gray-50 cursor-not-allowed' : ''
-          }`}
+          } ${hasError ? 'border-2 border-red-500' : 'border border-gray-200'}`}
         />
         {!disabled && (
           <button
