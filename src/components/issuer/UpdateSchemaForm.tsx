@@ -476,6 +476,8 @@ export default function UpdateSchemaForm({
       id: 'name',
       label: 'NAME',
       sortKey: 'name',
+      align: 'left',
+      width: '25%',
       render: (row) => (
         <input
           type="text"
@@ -490,6 +492,8 @@ export default function UpdateSchemaForm({
       id: 'type',
       label: 'TYPE',
       sortKey: 'type',
+      align: 'left',
+      width: '260px',
       render: (row) => (
         <select
           value={row.type}
@@ -514,6 +518,8 @@ export default function UpdateSchemaForm({
       id: 'description',
       label: 'DESCRIPTION',
       sortKey: 'description',
+      align: 'left',
+      width: '25%',
       render: (row) => (
         <input
           type="text"
@@ -528,25 +534,55 @@ export default function UpdateSchemaForm({
       id: 'required',
       label: 'REQUIRED',
       sortKey: 'required',
+      align: 'center',
+      width: '100px',
       render: (row) => (
-        <input
-          type="checkbox"
-          checked={row.required}
-          onChange={(e) => handleAttributeChange(row.id, 'required', e.target.checked)}
-          className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
-        />
+        <div className="flex items-center justify-center h-full">
+          <button
+            onClick={() => handleAttributeChange(row.id, 'required', !row.required)}
+            className={`w-6 h-6 rounded-md transition-colors cursor-pointer flex items-center justify-center p-0.5 ${
+              row.required ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-300 hover:bg-gray-400'
+            }`}
+            title={row.required ? 'Required' : 'Optional'}
+          >
+            {row.required && (
+              <svg
+                className="w-full h-full text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={4}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </button>
+        </div>
       ),
     },
     {
       id: 'action',
-      label: 'ACTION',
+      label: '',
+      align: 'center',
+      width: '60px',
       render: (row) => (
-        <button
-          onClick={() => handleDeleteAttribute(row.id)}
-          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-xs font-medium cursor-pointer"
-        >
-          DELETE
-        </button>
+        <div className="flex items-center justify-center h-full">
+          <button
+            onClick={() => handleDeleteAttribute(row.id)}
+            className="w-6 h-6 bg-red-500 text-white hover:bg-red-600 rounded-md transition-colors cursor-pointer flex items-center justify-center p-0.5"
+            title="Delete attribute"
+          >
+            <svg
+              className="w-full h-full"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={4}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       ),
     },
   ];
