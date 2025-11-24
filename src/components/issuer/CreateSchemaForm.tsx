@@ -278,7 +278,7 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
           type="text"
           value={row.name}
           onChange={(e) => handleAttributeChange(row.id, 'name', e.target.value)}
-          placeholder="Enter attribute name"
+          placeholder="Enter name"
           className="w-full px-2 py-1 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded text-sm"
         />
       ),

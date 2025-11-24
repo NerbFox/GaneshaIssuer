@@ -132,6 +132,7 @@ export const RequestCredentialModal: React.FC<RequestCredentialModalProps> = ({
                   </div>
                 ),
               }}
+              hideBottomControls={true}
             />
 
             {filteredSchemas.length === 0 && (
