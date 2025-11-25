@@ -483,10 +483,10 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
 
       {/* Schema ID and Schema Name in same row */}
       <div className="grid grid-cols-2 gap-6 mb-6">
-        {/* Schema ID */}
+        {/* Schema Name */}
         <div>
           <ThemedText className="text-sm text-gray-600 mb-2">
-            Schema ID<span className="text-red-500">*</span>
+            Schema Name<span className="text-red-500">*</span>
           </ThemedText>
           <select
             value={schemaId}
@@ -496,18 +496,18 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
             <option value="">Select schema</option>
             {uniqueSchemas.map((schema) => (
               <option key={schema.id} value={schema.id} className="text-gray-900">
-                {schema.id}
+                {schema.name}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Schema Name (auto-filled) */}
+        {/* Schema ID (auto-filled) */}
         <div>
-          <ThemedText className="text-sm text-gray-600 mb-2">Schema Name</ThemedText>
+          <ThemedText className="text-sm text-gray-600 mb-2">Schema ID</ThemedText>
           <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <ThemedText className={`text-sm ${!schemaName ? 'text-gray-400' : 'text-gray-900'}`}>
-              {schemaName || 'Select a schema to see its name'}
+            <ThemedText className={`text-sm ${!schemaId ? 'text-gray-400' : 'text-gray-900'}`}>
+              {schemaId || 'Select a schema to see its ID'}
             </ThemedText>
           </div>
         </div>
