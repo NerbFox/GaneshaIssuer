@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { ThemedText } from '@/components/shared/ThemedText';
 import Button from '@/components/shared/Button';
 import { decodeJWT, verifyJWT, validateJWTClaims } from '@/utils/jwt-es256';
 import { hexToBytes } from '@/utils/seedphrase-p256';
@@ -135,9 +134,7 @@ export default function TestJWTPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
-        <ThemedText fontSize={32} fontWeight={700} className="text-black mb-8">
-          JWT Verification Test
-        </ThemedText>
+        <span className="text-[40px] font-bold text-black mb-8">JWT Verification Test</span>
 
         {/* Test Stored Token Button */}
         <div className="mb-6">
@@ -149,9 +146,7 @@ export default function TestJWTPage() {
         {/* JWT Input */}
         <div className="mb-6">
           <label className="block mb-2">
-            <ThemedText fontSize={16} fontWeight={600} className="text-gray-700">
-              JWT Token
-            </ThemedText>
+            <p className="text-base font-semibold text-xs font-medium text-gray-700">JWT Token</p>
           </label>
           <textarea
             value={jwt}
@@ -205,21 +200,13 @@ export default function TestJWTPage() {
                     />
                   </svg>
                 )}
-                <ThemedText
-                  fontSize={24}
-                  fontWeight={700}
-                  className={result.valid ? 'text-green-700' : 'text-red-700'}
-                >
-                  {result.valid ? 'Valid JWT ✓' : 'Invalid JWT ✗'}
-                </ThemedText>
+                <span className="text-sm">{result.valid ? 'Valid JWT ✓' : 'Invalid JWT ✗'}</span>
               </div>
 
               {/* Payload */}
               {result.valid && result.payload && (
                 <div className="mb-4">
-                  <ThemedText fontSize={16} fontWeight={600} className="text-gray-700 mb-2">
-                    Payload:
-                  </ThemedText>
+                  <p className="text-base font-semibold text-gray-700 mb-2">Payload:</p>
                   <pre className="bg-white p-4 rounded border border-gray-300 overflow-x-auto text-sm">
                     {JSON.stringify(result.payload, null, 2)}
                   </pre>
@@ -229,9 +216,7 @@ export default function TestJWTPage() {
               {/* Errors */}
               {!result.valid && result.errors.length > 0 && (
                 <div>
-                  <ThemedText fontSize={16} fontWeight={600} className="text-red-700 mb-2">
-                    Errors:
-                  </ThemedText>
+                  <p className="text-base font-semibold text-red-700 mb-2">Errors:</p>
                   <ul className="list-disc list-inside space-y-1">
                     {result.errors.map((error, index) => (
                       <li key={index} className="text-red-600 text-sm">
@@ -247,9 +232,7 @@ export default function TestJWTPage() {
 
         {/* Instructions */}
         <div className="mt-8 p-6 bg-blue-50 rounded-lg border border-blue-200">
-          <ThemedText fontSize={18} fontWeight={600} className="text-blue-900 mb-3">
-            How JWT Verification Works:
-          </ThemedText>
+          <span className="text-blue-900 mb-3">How JWT Verification Works:</span>
           <ol className="list-decimal list-inside space-y-2 text-blue-800 text-sm">
             <li>Retrieves the public key from localStorage (institutionSigningPublicKey)</li>
             <li>Decodes the JWT to extract header and payload</li>
@@ -258,9 +241,7 @@ export default function TestJWTPage() {
             <li>Returns verification result with payload or errors</li>
           </ol>
           <div className="mt-4 p-3 bg-blue-100 rounded">
-            <ThemedText fontSize={14} fontWeight={600} className="text-blue-900 mb-1">
-              Note:
-            </ThemedText>
+            <span className="text-blue-900 mb-1">Note:</span>
             <p className="text-blue-800 text-sm">
               This test uses the public key from localStorage (same as the optimized auth flow). No
               API calls are made for verification.

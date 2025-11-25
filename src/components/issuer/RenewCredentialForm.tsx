@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react'; // Import useEffect
-import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { formatDateTime } from '@/utils/dateUtils';
 import { fetchSchemaByVersion, SchemaProperty } from '@/services/schemaService'; // Import fetchSchemaByVersion and SchemaProperty
@@ -170,7 +169,7 @@ export default function RenewCredentialForm({
       id: 'name',
       label: 'NAME',
       sortKey: 'name',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
+      render: (row) => <span className="text-sm text-gray-900">{row.name}</span>,
     },
     {
       id: 'type',
@@ -201,9 +200,9 @@ export default function RenewCredentialForm({
       label: 'VALUE',
       sortKey: 'value',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">
+        <span className="text-sm text-gray-900">
           {row.value ? row.value : <em className="text-gray-400">(empty)</em>}
-        </ThemedText>
+        </span>
       ),
     },
   ];
@@ -245,7 +244,7 @@ export default function RenewCredentialForm({
         {/* Credential ID */}
         <div className="col-span-2">
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Credential ID</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Credential ID</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
             {displayData.id}
@@ -256,7 +255,7 @@ export default function RenewCredentialForm({
         {displayData.schemaId && (
           <div className="col-span-2">
             <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">Schema ID</ThemedText>
+              <span className="text-sm font-medium text-gray-700">Schema ID</span>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {displayData.schemaId}
@@ -267,7 +266,7 @@ export default function RenewCredentialForm({
         {/* Schema Name */}
         <div>
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Schema Name</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Schema Name</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {displayData.schemaName}
@@ -277,7 +276,7 @@ export default function RenewCredentialForm({
         {/* Schema Version */}
         <div>
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Schema Version</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Schema Version</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {displayData.schemaVersion}
@@ -287,7 +286,7 @@ export default function RenewCredentialForm({
         {/* Holder DID */}
         <div className="col-span-2">
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Holder DID</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
             {displayData.holderDid}
@@ -298,7 +297,7 @@ export default function RenewCredentialForm({
         {displayData.issuerDid && (
           <div className="col-span-2">
             <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
+              <span className="text-sm font-medium text-gray-700">Issuer DID</span>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {displayData.issuerDid}
@@ -309,7 +308,7 @@ export default function RenewCredentialForm({
         {/* Issued At */}
         <div>
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Issued At</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Issued At</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {formatDateTime(currentVC ? currentVC.validFrom : credentialData.issuedAt)}
@@ -319,7 +318,7 @@ export default function RenewCredentialForm({
         {/* Expired At */}
         <div>
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Expired At</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {credentialData.activeUntil === '-'
@@ -331,7 +330,7 @@ export default function RenewCredentialForm({
         {/* Status */}
         <div className="col-span-2">
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Status</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
             <span
@@ -347,9 +346,9 @@ export default function RenewCredentialForm({
       {displayData.attributes.length > 0 && (
         <div className="mb-6">
           <div className="mb-4">
-            <ThemedText className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900">
               Credential Attributes ({displayData.attributes.length})
-            </ThemedText>
+            </p>
           </div>
 
           {!isLoadingSchema ? (
@@ -373,14 +372,14 @@ export default function RenewCredentialForm({
 
       {/* Info Box */}
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <ThemedText className="text-sm text-blue-800">
+        <span className="text-sm text-blue-800">
           <strong>Renewing this credential will:</strong>
           <br />
           • Keep all the same credential data
           <br />
           • Extend the expiration date based on the schema settings
           <br />• Issue a new credential to the holder with the extended validity
-        </ThemedText>
+        </span>
       </div>
 
       {/* Action Buttons */}

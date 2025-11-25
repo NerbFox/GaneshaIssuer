@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDateTime } from '@/utils/dateUtils';
-import { ThemedText } from '@/components/shared/ThemedText';
 import Button from '@/components/shared/Button';
 import AuthContainer from '@/components/shared/AuthContainer';
 import { redirectIfNotAuthenticated } from '@/utils/auth';
@@ -220,19 +219,17 @@ Keep this information safe and secure!
     <AuthContainer>
       {/* Title */}
       <div className="mb-6">
-        <ThemedText fontSize={32} fontWeight={700} className="text-black mb-1 block">
-          Congratulations!
-        </ThemedText>
-        <ThemedText fontSize={16} className="text-gray-600 block">
+        <span className="text-[32px] font-bold text-black mb-1 block">Congratulations!</span>
+        <span className="text-base text-gray-600 block">
           Your wallet is protected and ready to use. You can change your security preference in the
           Settings.
-        </ThemedText>
+        </span>
       </div>
 
       {/* Error Message */}
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          <ThemedText fontSize={14}>{error}</ThemedText>
+          <span className="text-sm">{error}</span>
         </div>
       )}
 
@@ -240,15 +237,11 @@ Keep this information safe and secure!
       {isLoading ? (
         <div className="mb-6 flex flex-col items-center justify-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0D2B45] mb-4"></div>
-          <ThemedText fontSize={16} className="text-gray-600">
-            Generating your DID identifier...
-          </ThemedText>
+          <span className="text-xs text-gray-600">Generating your DID identifier...</span>
         </div>
       ) : (
         <>
-          <ThemedText fontSize={16} className="text-gray-600">
-            This is your DID:
-          </ThemedText>
+          <span className="text-xs text-gray-600">This is your DID:</span>
 
           {/* DID Information Section */}
           <div className="mt-2 mb-2">

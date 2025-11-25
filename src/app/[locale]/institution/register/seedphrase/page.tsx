@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ThemedText } from '@/components/shared/ThemedText';
 import Button from '@/components/shared/Button';
 import AuthContainer from '@/components/shared/AuthContainer';
 import { generateMnemonic, validateMnemonic, ENTROPY_BITS_24_WORDS } from '@/utils/seedphrase-p256';
@@ -332,14 +331,12 @@ export default function SeedPhrasePage() {
       >
         {/* Group Header */}
         <div className="mb-3 flex flex-row items-center justify-between">
-          <ThemedText fontSize={16} fontWeight={600} className="text-slate-700">
-            {groupLabel}
-          </ThemedText>
+          <p className="text-base font-semibold text-slate-700">{groupLabel}</p>
           {step === 'create' && (
             <div className="rounded-md bg-slate-200 px-2 py-1">
-              <ThemedText fontSize={12} className="text-slate-600">
+              <span className="text-slate-600">
                 {groupIndex * 6 + 1}-{groupIndex * 6 + 6}
-              </ThemedText>
+              </span>
             </div>
           )}
           {step === 'confirm' && isClicked && (
@@ -348,9 +345,7 @@ export default function SeedPhrasePage() {
                 isOrderCorrect ? 'bg-blue-500' : 'bg-red-500'
               }`}
             >
-              <ThemedText fontSize={12} fontWeight={600} className="text-white">
-                {clickPosition}
-              </ThemedText>
+              <span className="text-2xl font-bold text-white">{clickPosition}</span>
             </div>
           )}
         </div>
@@ -375,36 +370,12 @@ export default function SeedPhrasePage() {
                           : 'bg-red-100'
                     }`}
                   >
-                    <ThemedText
-                      fontSize={12}
-                      fontWeight={500}
-                      className={
-                        step === 'create'
-                          ? 'text-slate-600'
-                          : isOrderCorrect
-                            ? 'text-blue-700'
-                            : 'text-red-700'
-                      }
-                    >
-                      {wordNumber}
-                    </ThemedText>
+                    <span className="text-sm">{wordNumber}</span>
                   </div>
                 )}
 
                 <div className="flex-1 items-center justify-center px-3 py-2 flex">
-                  <ThemedText
-                    fontSize={14}
-                    fontWeight={step === 'confirm' && isClicked ? 600 : 400}
-                    className={
-                      step === 'confirm' && isClicked
-                        ? isOrderCorrect
-                          ? 'text-blue-700'
-                          : 'text-red-700'
-                        : 'text-slate-800'
-                    }
-                  >
-                    {word}
-                  </ThemedText>
+                  <span className="text-sm">{word}</span>
                 </div>
               </div>
             );
@@ -431,19 +402,19 @@ export default function SeedPhrasePage() {
       <AuthContainer backHref="/institution/register">
         {/* Title */}
         <div className="mb-8">
-          <ThemedText fontSize={32} fontWeight={700} className="text-black mb-1 block">
+          <span className="text-[32px] font-bold text-black mb-1 block">
             Write down your Seed Phrase
-          </ThemedText>
-          <ThemedText fontSize={16} className="text-gray-600 block">
+          </span>
+          <span className="text-base text-gray-600 block">
             Write down this 24-word Seed Phrase organized in 4 groups. Save it in a place that you
             trust and only you can access.
-          </ThemedText>
+          </span>
         </div>
 
         {/* Error Message */}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            <ThemedText fontSize={14}>{error}</ThemedText>
+            <span className="text-sm">{error}</span>
           </div>
         )}
 
@@ -451,9 +422,7 @@ export default function SeedPhrasePage() {
           <div className="flex items-center justify-center py-16">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <ThemedText className="text-gray-600">
-                Generating secure 24-word seed phrase...
-              </ThemedText>
+              <span className="text-gray-600">Generating secure 24-word seed phrase...</span>
             </div>
           </div>
         ) : (
@@ -536,19 +505,19 @@ export default function SeedPhrasePage() {
     <AuthContainer backHref="/institution/register">
       {/* Title */}
       <div className="mb-8">
-        <ThemedText fontSize={32} fontWeight={700} className="text-black mb-1 block">
+        <span className="text-[32px] font-bold text-black mb-1 block">
           Confirm your Seed Phrase
-        </ThemedText>
-        <ThemedText fontSize={16} className="text-gray-600 block">
+        </span>
+        <span className="text-base text-gray-600 block">
           The groups are now scrambled. Click on them in the correct order: Group 1, Group 2, Group
           3, Group 4.
-        </ThemedText>
+        </span>
       </div>
 
       {/* Error Message */}
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          <ThemedText fontSize={14}>{error}</ThemedText>
+          <span className="text-sm">{error}</span>
         </div>
       )}
 

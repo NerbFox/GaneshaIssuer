@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import Modal from '@/components/shared/Modal';
 import AttributePositionEditor, {
@@ -599,7 +598,7 @@ export default function UpdateSchemaForm({
       {/* Schema ID */}
       <div className="mb-6">
         <label className="block mb-2">
-          <ThemedText className="text-sm font-medium text-gray-900">Schema ID</ThemedText>
+          <span className="text-sm font-medium text-gray-900">Schema ID</span>
         </label>
         <input
           type="text"
@@ -614,7 +613,7 @@ export default function UpdateSchemaForm({
       {/* Schema Name */}
       <div className="mb-6">
         <label className="block mb-2">
-          <ThemedText className="text-sm font-medium text-gray-900">Schema Name</ThemedText>
+          <span className="text-sm font-medium text-gray-900">Schema Name</span>
         </label>
         <input
           type="text"
@@ -629,7 +628,7 @@ export default function UpdateSchemaForm({
       {/* Version */}
       <div className="mb-6">
         <label className="block mb-2">
-          <ThemedText className="text-sm font-medium text-gray-900">Version</ThemedText>
+          <span className="text-sm font-medium text-gray-900">Version</span>
         </label>
         <input
           type="text"
@@ -644,9 +643,9 @@ export default function UpdateSchemaForm({
       {/* Expired In (Years) */}
       <div className="mb-6">
         <label className="block mb-2">
-          <ThemedText className="text-sm font-medium text-gray-900">
+          <span className="text-sm font-medium text-gray-900">
             Expired In (Years)<span className="text-red-500">*</span>
-          </ThemedText>
+          </span>
         </label>
         <input
           type="number"
@@ -678,17 +677,15 @@ export default function UpdateSchemaForm({
           placeholder="Enter expiration years (0 for lifetime)"
           className="w-full text-black px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
         />
-        <ThemedText className="text-xs text-gray-500 mt-1">
-          Enter 0 for lifetime (no expiration)
-        </ThemedText>
+        <p className="text-xs text-gray-500 mt-1">Enter 0 for lifetime (no expiration)</p>
       </div>
 
       {/* VC Background Image */}
       <div className="mb-6">
         <label className="block mb-3">
-          <ThemedText className="text-sm font-semibold text-gray-900">
+          <span className="text-sm font-semibold text-gray-900">
             Credential Template Image<span className="text-red-500">*</span>
-          </ThemedText>
+          </span>
         </label>
 
         {imageLoading ? (
@@ -853,9 +850,9 @@ export default function UpdateSchemaForm({
           </div>
         )}
 
-        <ThemedText className="text-xs text-gray-500 mt-3">
+        <p className="text-xs text-gray-500 mt-3">
           This image will be used as the template for digital credentials and card background
-        </ThemedText>
+        </p>
 
         {imageError && (
           <div className="mt-2 flex items-center text-red-500">
@@ -876,7 +873,7 @@ export default function UpdateSchemaForm({
         <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <ThemedText className="text-xs text-gray-600 mb-3">
+              <span className="text-xs text-gray-600 mb-3">
                 <span className="font-semibold text-gray-900">
                   Digital Credential Configuration
                 </span>
@@ -885,7 +882,7 @@ export default function UpdateSchemaForm({
                 <br />
                 Position each attribute on the template image so holders can view a professional
                 digital version.
-              </ThemedText>
+              </span>
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -966,9 +963,9 @@ export default function UpdateSchemaForm({
       {/* Attributes Section */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <ThemedText className="text-sm font-medium text-gray-900">
+          <span className="text-sm font-medium text-gray-900">
             Attributes<span className="text-red-500">*</span>
-          </ThemedText>
+          </span>
           <div className="flex items-center gap-2">
             {selectedAttributeIds.length > 0 && (
               <button

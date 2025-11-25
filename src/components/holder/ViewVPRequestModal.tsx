@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Modal from '@/components/shared/Modal';
-import { ThemedText } from '@/components/shared/ThemedText';
 import {
   getAllVCs,
   getSchemaDataByVCId,
@@ -179,13 +178,11 @@ export const ViewVPRequestModal: React.FC<ViewVPRequestModalProps> = ({
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <ThemedText className="text-xs text-gray-600 block">Request ID</ThemedText>
-              <ThemedText fontSize={13} fontWeight={600} className="text-gray-900 font-mono block">
-                {request.id}
-              </ThemedText>
+              <span className="text-xs text-gray-600 block">Request ID</span>
+              <span className="text-gray-900 font-mono block">{request.id}</span>
             </div>
             <div className="space-y-1">
-              <ThemedText className="text-xs text-gray-600 block">Status</ThemedText>
+              <span className="text-xs text-gray-600 block">Status</span>
               <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}
               >
@@ -193,35 +190,27 @@ export const ViewVPRequestModal: React.FC<ViewVPRequestModalProps> = ({
               </span>
             </div>
             <div className="col-span-2 space-y-1">
-              <ThemedText className="text-xs text-gray-600 block">Verifier</ThemedText>
-              <ThemedText fontSize={13} fontWeight={600} className="text-gray-900 block">
-                {request.verifierName}
-              </ThemedText>
-              <ThemedText fontSize={12} className="text-gray-500 font-mono break-all block">
-                {request.verifierDid}
-              </ThemedText>
+              <span className="text-xs text-gray-600 block">Verifier</span>
+              <span className="text-gray-900 block">{request.verifierName}</span>
+              <span className="text-gray-500 font-mono break-all block">{request.verifierDid}</span>
             </div>
             <div className="space-y-1">
-              <ThemedText className="text-xs text-gray-600 block">Requested Date</ThemedText>
-              <ThemedText fontSize={13} fontWeight={600} className="text-gray-900 block">
-                {formatDate(request.requestedDate)}
-              </ThemedText>
+              <span className="text-xs text-gray-600 block">Requested Date</span>
+              <span className="text-gray-900 block">{formatDate(request.requestedDate)}</span>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-blue-200 space-y-1">
-            <ThemedText className="text-xs text-gray-600 block">Purpose</ThemedText>
-            <ThemedText fontSize={13} className="text-gray-900 leading-normal block">
+            <span className="text-xs text-gray-600 block">Purpose</span>
+            <span className="text-gray-900 leading-normal block">
               {request.purpose || 'No purpose specified'}
-            </ThemedText>
+            </span>
           </div>
         </div>
 
         {/* Credentials Comparison */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
-            <ThemedText fontSize={15} fontWeight={600} className="text-gray-900">
-              Credentials Comparison
-            </ThemedText>
+            <span className="text-[32px] font-semibold text-gray-900">Credentials Comparison</span>
           </div>
           <div className="p-5">
             {isLoading ? (
@@ -234,9 +223,9 @@ export const ViewVPRequestModal: React.FC<ViewVPRequestModalProps> = ({
                   {/* Requested Credentials */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <ThemedText fontSize={14} fontWeight={600} className="text-gray-900">
+                      <span className="text-[32px] font-semibold text-gray-900">
                         Requested Credentials
-                      </ThemedText>
+                      </span>
                       <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                         {request.requestedCredentials.length} Required
                       </span>
@@ -255,16 +244,12 @@ export const ViewVPRequestModal: React.FC<ViewVPRequestModalProps> = ({
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1 space-y-0.5 grid grid-col-2">
-                                <ThemedText
-                                  fontSize={13}
-                                  fontWeight={600}
-                                  className="text-gray-900"
-                                >
+                                <span className="text-[32px] font-semibold text-gray-900">
                                   {reqCred.schema_name} v{reqCred.schema_version}
-                                </ThemedText>
-                                <ThemedText fontSize={10} className="text-gray-500 font-mono">
+                                </span>
+                                <span className="text-gray-500 font-mono">
                                   {reqCred.schema_id.substring(0, 24)}...
-                                </ThemedText>
+                                </span>
                               </div>
                               <div className="ml-4">
                                 {hasMatch ? (
@@ -309,9 +294,9 @@ export const ViewVPRequestModal: React.FC<ViewVPRequestModalProps> = ({
                   {/* Your Available Credentials */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <ThemedText fontSize={14} fontWeight={600} className="text-gray-900">
+                      <span className="text-[32px] font-semibold text-gray-900">
                         Your Available Credentials
-                      </ThemedText>
+                      </span>
                       <span className="px-2.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                         {Array.from(matchedCredentials.values()).reduce(
                           (sum, matches) => sum + matches.length,
@@ -332,25 +317,21 @@ export const ViewVPRequestModal: React.FC<ViewVPRequestModalProps> = ({
                               >
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1 space-y-0.5 grid grid-row-3">
-                                    <ThemedText
-                                      fontSize={13}
-                                      fontWeight={600}
-                                      className="text-gray-900"
-                                    >
+                                    <span className="text-[32px] font-semibold text-gray-900">
                                       {match.schema?.name || reqCred.schema_name} v
                                       {reqCred.schema_version}
-                                    </ThemedText>
-                                    <ThemedText fontSize={10} className="text-gray-500">
+                                    </span>
+                                    <span className="text-xs text-gray-500">
                                       Issuer: {match.vc.issuerName || match.vc.issuer}
-                                    </ThemedText>
+                                    </span>
                                     <div className="flex items-center gap-2 mt-1">
-                                      <ThemedText fontSize={10} className="text-gray-500">
+                                      <span className="text-xs text-gray-500">
                                         Valid From: {formatDate(match.vc.validFrom)}
-                                      </ThemedText>
+                                      </span>
                                       {match.vc.expiredAt && (
-                                        <ThemedText fontSize={10} className="text-gray-500">
+                                        <span className="text-xs text-gray-500">
                                           Expires: {formatDate(match.vc.expiredAt)}
-                                        </ThemedText>
+                                        </span>
                                       )}
                                     </div>
                                   </div>
@@ -380,9 +361,9 @@ export const ViewVPRequestModal: React.FC<ViewVPRequestModalProps> = ({
                         0
                       ) === 0 && (
                         <div className="text-center py-8">
-                          <ThemedText className="text-gray-500 text-sm">
+                          <span className="text-gray-500 text-sm">
                             No matching credentials found
-                          </ThemedText>
+                          </span>
                         </div>
                       )}
                     </div>
@@ -405,12 +386,10 @@ export const ViewVPRequestModal: React.FC<ViewVPRequestModalProps> = ({
                         />
                       </svg>
                       <div className="space-y-0.5">
-                        <ThemedText fontSize={13} fontWeight={600} className="text-green-900">
-                          All Requirements Met
-                        </ThemedText>
-                        <ThemedText fontSize={12} className="text-green-700">
+                        <span className="text-green-900">All Requirements Met</span>
+                        <span className="text-green-700">
                           You have all the required credentials to accept this VP request.
-                        </ThemedText>
+                        </span>
                       </div>
                     </div>
                   </div>

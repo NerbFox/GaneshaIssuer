@@ -7,7 +7,6 @@ import Image from 'next/image';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
 import { adminAuthenticatedGet, adminAuthenticatedPost } from '@/utils/api-client';
 import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
-import { ThemedText } from '@/components/shared/ThemedText';
 import Button from '@/components/shared/Button';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import InfoModal from '@/components/shared/InfoModal';
@@ -552,41 +551,25 @@ export default function AdminPage() {
       label: t('table.name'),
       render: (row) => (
         <div className="space-y-1">
-          <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 block">
-            {row.name}
-          </ThemedText>
-          <ThemedText fontSize={12} className="text-gray-500 block">
-            {row.address}
-          </ThemedText>
+          <span className="text-sm font-semibold text-gray-900 block">{row.name}</span>
+          <span className="text-xs text-gray-500 block">{row.address}</span>
         </div>
       ),
     },
     {
       id: 'email',
       label: t('table.email'),
-      render: (row) => (
-        <ThemedText fontSize={14} className="text-gray-900">
-          {row.email}
-        </ThemedText>
-      ),
+      render: (row) => <span className="text-sm text-gray-900">{row.email}</span>,
     },
     {
       id: 'phone',
       label: t('table.phone'),
-      render: (row) => (
-        <ThemedText fontSize={14} className="text-gray-900">
-          {row.phone}
-        </ThemedText>
-      ),
+      render: (row) => <span className="text-sm text-gray-900">{row.phone}</span>,
     },
     {
       id: 'country',
       label: t('table.country'),
-      render: (row) => (
-        <ThemedText fontSize={14} className="text-gray-900">
-          {row.country}
-        </ThemedText>
-      ),
+      render: (row) => <span className="text-sm text-gray-900">{row.country}</span>,
     },
     {
       id: 'website',
@@ -598,7 +581,7 @@ export default function AdminPage() {
           rel="noopener noreferrer"
           className="text-[#0D2B45] hover:underline font-medium"
         >
-          <ThemedText fontSize={14}>{row.website}</ThemedText>
+          <span className="text-sm">{row.website}</span>
         </a>
       ),
     },
@@ -641,9 +624,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-[#0D2B45] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
-          <ThemedText fontSize={16} className="mt-4 text-white">
-            {tCommon('loading')}
-          </ThemedText>
+          <span className="text-base mt-4 text-white">{tCommon('loading')}</span>
         </div>
       </div>
     );
@@ -663,9 +644,7 @@ export default function AdminPage() {
                   <Image src="/GWallet.svg" width={50} height={50} alt="GaneshaWallet Logo" />
                 </div>
               </div>
-              <ThemedText fontSize={24} fontWeight={700} className="text-white">
-                GaneshaWallet
-              </ThemedText>
+              <span className="text-2xl font-bold text-white">GaneshaWallet</span>
             </div>
             <div className="flex items-center gap-4">
               <LanguageSwitcher />
@@ -677,39 +656,33 @@ export default function AdminPage() {
 
           {/* Title and Admin Info */}
           <div className="space-y-2">
-            <ThemedText fontSize={40} fontWeight={700} className="text-white block">
-              {t('title')}
-            </ThemedText>
-            <ThemedText fontSize={18} className="text-gray-300 block">
-              {t('subtitle')}
-            </ThemedText>
+            <span className="text-[40px] font-bold text-white block">{t('title')}</span>
+            <span className="text-lg text-gray-300 block">{t('subtitle')}</span>
             {adminData && (
               <div className="pt-1">
-                <ThemedText fontSize={14} className="text-gray-400 block">
+                <span className="text-sm text-gray-400 block">
                   {t('loggedInAs')}:{' '}
                   <span className="font-medium text-white">{adminData.name}</span> (
                   {adminData.email})
-                </ThemedText>
+                </span>
               </div>
             )}
             {/* Auto-refresh indicator */}
             <div className="pt-2 flex items-center gap-2">
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse"></div>
-                <ThemedText fontSize={12} className="text-gray-400">
-                  Auto-refreshing every 10s
-                </ThemedText>
+                <span className="text-xs text-gray-400">Auto-refreshing every 10s</span>
               </div>
-              <ThemedText fontSize={12} className="text-gray-500">
+              <span className="text-xs text-gray-500">
                 • Last updated: {formatTime(lastRefresh)}
-              </ThemedText>
+              </span>
             </div>
           </div>
         </div>
 
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            <ThemedText fontSize={14}>{error}</ThemedText>
+            <span className="text-sm">{error}</span>
           </div>
         )}
 
@@ -728,9 +701,9 @@ export default function AdminPage() {
                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
-            <ThemedText fontSize={18} fontWeight={600} className="text-gray-600">
+            <span className="text-lg font-semibold text-gray-600">
               {t('noPendingInstitutions')}
-            </ThemedText>
+            </span>
           </div>
         ) : (
           <DataTable
@@ -740,9 +713,9 @@ export default function AdminPage() {
               <div className="flex items-center gap-3">
                 {/* Selection indicator */}
                 {selectedInstitutionIds.size > 0 && (
-                  <ThemedText className="text-sm text-gray-700">
+                  <span className="text-sm text-gray-700">
                     {selectedInstitutionIds.size} institution(s) selected
-                  </ThemedText>
+                  </span>
                 )}
 
                 {/* Bulk Action Buttons */}

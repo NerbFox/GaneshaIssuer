@@ -1,7 +1,6 @@
 import { ReactNode } from 'react';
 import Image from 'next/image';
 import PageHeader from '@/components/shared/PageHeader';
-import { ThemedText } from '@/components/shared/ThemedText';
 
 interface AuthContainerProps {
   children: ReactNode;
@@ -18,9 +17,7 @@ export default function AuthContainer({ children, backHref = '/' }: AuthContaine
         <div className="absolute top-8 right-8">
           <div className="flex items-center">
             <Image src="/GWallet.svg" width={50} height={50} alt="GaneshaWallet Logo" />
-            <ThemedText fontSize={20} fontWeight={700} className="pl-2 text-[#0C2D48]">
-              GaneshaWallet
-            </ThemedText>
+            <span className="text-xl font-bold pl-2 text-[#0C2D48]">GaneshaWallet</span>
           </div>
         </div>
 

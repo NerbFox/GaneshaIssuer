@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ThemedText } from '@/components/shared/ThemedText';
 import Button from '@/components/shared/Button';
 import AuthContainer from '@/components/shared/AuthContainer';
 
@@ -16,12 +15,8 @@ export default function InstitutionSetupPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
         {/* Left Side - Text */}
         <div>
-          <ThemedText fontSize={32} fontWeight={700} className="text-black block mb-1">
-            {t('title')}
-          </ThemedText>
-          <ThemedText fontSize={16} className="text-gray-600 block">
-            {t('subtitle')}
-          </ThemedText>
+          <span className="text-[32px] font-bold text-black block mb-1">{t('title')}</span>
+          <span className="text-base text-gray-600 block">{t('subtitle')}</span>
         </div>
 
         {/* Right Side - Buttons */}

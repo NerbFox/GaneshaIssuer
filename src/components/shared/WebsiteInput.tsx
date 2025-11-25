@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ThemedText } from '@/components/shared/ThemedText';
 
 interface WebsiteInputProps {
   id: string;
@@ -46,9 +45,7 @@ export default function WebsiteInput({
       >
         {/* Fixed HTTPS Prefix */}
         <div className="flex items-center px-3 pt-8 pb-2 bg-[#E9F2F5] rounded-l-lg">
-          <ThemedText fontSize={14} className="text-gray-700 select-none whitespace-nowrap">
-            https://
-          </ThemedText>
+          <span className="text-sm text-gray-700 select-none whitespace-nowrap">https://</span>
         </div>
 
         {/* Website Input */}
@@ -72,11 +69,12 @@ export default function WebsiteInput({
           />
         </div>
       </div>
-      <label htmlFor={id} className="absolute left-3 top-2 z-10 pointer-events-none">
-        <ThemedText fontSize={12} fontWeight={500} className="text-gray-700">
-          {label}
-          {required && <span className="text-red-500">*</span>}
-        </ThemedText>
+      <label
+        htmlFor={id}
+        className="absolute left-3 top-2 z-10 pointer-events-none text-xs font-medium text-xs font-medium text-gray-700"
+      >
+        {label}
+        {required && <span className="text-red-500">*</span>}
       </label>
     </div>
   );
