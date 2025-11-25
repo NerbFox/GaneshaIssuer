@@ -9,6 +9,8 @@ export interface Column<T> {
   render: (row: T, index: number) => ReactNode;
   sortable?: boolean;
   sortKey?: keyof T | ((row: T) => string | number);
+  width?: string; // Column width (e.g., '200px', '20%', 'auto')
+  align?: 'left' | 'center' | 'right'; // Column alignment
 }
 
 export interface DataTableProps<T> {
@@ -142,10 +144,9 @@ export function DataTable<T>({
   const endIndex = Math.min(currentPage * rowsPerPage, total);
 
   // Paginate the data
-  const paginatedData = sortedData.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
+  const paginatedData = hideBottomControls
+    ? sortedData
+    : sortedData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   const handleSelectAll = () => {
     if (selectAll) {
@@ -344,7 +345,7 @@ export function DataTable<T>({
             <tr>
               {/* Checkbox Column */}
               {enableSelection && (
-                <th className="px-6 py-3 text-left">
+                <th className="px-4 py-3 text-left">
                   <input
                     type="checkbox"
                     checked={selectAll}
@@ -356,7 +357,7 @@ export function DataTable<T>({
 
               {/* Drag Handle Column */}
               {enableDragDrop && (
-                <th className="px-6 py-3 text-left w-16">
+                <th className="px-4 py-3 text-left w-16">
                   <ThemedText className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     {/* Empty header for drag handle */}
                   </ThemedText>
@@ -364,7 +365,7 @@ export function DataTable<T>({
               )}
 
               {/* # Column */}
-              <th className="px-6 py-3 text-left w-16">
+              <th className="px-4 py-3 text-left w-16">
                 <ThemedText className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   #
                 </ThemedText>
@@ -372,7 +373,11 @@ export function DataTable<T>({
 
               {/* Dynamic Columns */}
               {columns.map((column) => (
-                <th key={column.id} className="px-6 py-3 text-left">
+                <th
+                  key={column.id}
+                  className={`px-4 py-3 text-${column.align || 'left'}`}
+                  style={{ width: column.width }}
+                >
                   <button
                     onClick={() => column.sortKey && handleSort(column.id)}
                     className={`flex items-center gap-2 text-xs font-semibold text-gray-600 uppercase tracking-wider ${
@@ -488,7 +493,7 @@ export function DataTable<T>({
                     >
                       {/* Checkbox Cell */}
                       {enableSelection && (
-                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={isSelected}
@@ -500,7 +505,7 @@ export function DataTable<T>({
 
                       {/* Drag Handle Cell */}
                       {enableDragDrop && (
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-4">
                           <svg
                             className="w-5 h-5 text-gray-400 cursor-move"
                             fill="none"
@@ -518,13 +523,17 @@ export function DataTable<T>({
                       )}
 
                       {/* # Cell */}
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <ThemedText className="text-sm text-gray-900">{actualIndex + 1}</ThemedText>
                       </td>
 
                       {/* Dynamic Cells */}
                       {columns.map((column) => (
-                        <td key={column.id} className="px-6 py-4">
+                        <td
+                          key={column.id}
+                          className={`px-4 py-4 text-${column.align || 'left'}`}
+                          style={{ width: column.width }}
+                        >
                           <ThemedText className="text-sm text-gray-900">
                             {column.render(row, paginatedIndex)}
                           </ThemedText>

@@ -2379,7 +2379,7 @@ export default function MyCredentialPage() {
               e.stopPropagation();
               handleRequestCredential(row.id, row.issuer_did);
             }}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium cursor-pointer"
+            className="px-4 py-2 rounded-lg transition-colors text-sm font-medium bg-green-500 text-white hover:bg-green-600 cursor-pointer"
           >
             REQUEST
           </button>
@@ -2630,7 +2630,7 @@ export default function MyCredentialPage() {
               onChange={(e) =>
                 handleStatusChange(e.target.value as 'all' | 'Active' | 'Expired' | 'Revoked')
               }
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black cursor-pointer"
             >
               <option value="all">All</option>
               <option value="Active">Active</option>

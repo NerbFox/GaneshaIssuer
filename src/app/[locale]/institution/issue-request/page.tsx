@@ -19,13 +19,17 @@ import { API_ENDPOINTS, buildApiUrlWithParams, buildApiUrl } from '@/utils/api';
 import { formatDateTime, formatNumber, formatTime } from '@/utils/dateUtils';
 import { createVC, hashVC } from '@/utils/vcUtils';
 import { signVCWithStoredKey } from '@/utils/vcSigner';
-import { authenticatedGet, authenticatedPost, authenticatedPut } from '@/utils/api-client';
+import { authenticatedGet, authenticatedPost } from '@/utils/api-client';
 import {
   decryptWithIssuerPrivateKey,
   encryptWithPublicKey,
   encryptWithIssuerPublicKey,
 } from '@/utils/encryptUtils';
-import { getIssuedCredentialsByVcId, storeIssuedCredential } from '@/utils/indexedDB';
+import {
+  getIssuerVCDataByDID,
+  updateIssuerVCData,
+  IssuerVCDataRecord,
+} from '@/services/credentialService';
 
 interface IssueRequest {
   id: string;
@@ -959,7 +963,7 @@ export default function IssueRequestPage() {
               setChangedAttributes(updatedChangedAttributes);
             }
 
-            // For UPDATE, RENEWAL, and REVOKE requests, fetch attributes ONLY from IndexedDB
+            // For UPDATE, RENEWAL, and REVOKE requests, fetch attributes from API
             // (decrypted body for these requests doesn't contain full attribute values)
             if (
               (request.type === 'UPDATE' ||
@@ -969,28 +973,88 @@ export default function IssueRequestPage() {
               typeof fullDecryptedBody.vc_id === 'string'
             ) {
               console.log(
-                `[${request.type}] Fetching attributes from IndexedDB for VC ID:`,
+                `[${request.type}] Fetching attributes from API for VC ID:`,
                 fullDecryptedBody.vc_id
               );
               try {
-                const issuedCredentials = await getIssuedCredentialsByVcId(
-                  fullDecryptedBody.vc_id as string
+                // Fetch all issuer VC data and filter by holder_did first
+                const issuerDid = localStorage.getItem('institutionDID');
+                if (!issuerDid) {
+                  throw new Error('Institution DID not found');
+                }
+
+                const allIssuerVCData = await getIssuerVCDataByDID(issuerDid);
+
+                // Filter by holder_did to reduce the search space
+                const holderRecords = allIssuerVCData.filter(
+                  (record) => record.holder_did === request.holder_did
                 );
-                if (issuedCredentials.length > 0) {
-                  // Use the first match (should only be one)
-                  const issuedCredential = issuedCredentials[0];
-                  console.log(
-                    `[${request.type}] Found credential in IndexedDB:`,
-                    issuedCredential.id
+
+                console.log(
+                  `[${request.type}] Found ${holderRecords.length} credentials for holder DID:`,
+                  request.holder_did
+                );
+
+                // Search through each record's VC history to find the matching vc_id
+                let matchingRecord: IssuerVCDataRecord | null = null;
+                for (const record of holderRecords) {
+                  try {
+                    // Decrypt the encrypted body to check VC history
+                    const decryptedData = await decryptWithIssuerPrivateKey(record.encrypted_body);
+                    const vcContainer = decryptedData as {
+                      vc_status: boolean;
+                      verifiable_credentials: Array<{
+                        id: string;
+                        credentialSubject: Record<string, unknown>;
+                        [key: string]: unknown;
+                      }>;
+                    };
+
+                    // Check if any VC in the history matches the requested vc_id
+                    if (
+                      vcContainer.verifiable_credentials &&
+                      vcContainer.verifiable_credentials.some(
+                        (vc) => vc.id === fullDecryptedBody.vc_id
+                      )
+                    ) {
+                      matchingRecord = record;
+                      console.log(`[${request.type}] Found matching credential in API:`, record.id);
+                      break;
+                    }
+                  } catch (decryptError) {
+                    console.warn(
+                      `[${request.type}] Failed to decrypt record ${record.id}:`,
+                      decryptError
+                    );
+                    continue;
+                  }
+                }
+
+                if (matchingRecord) {
+                  // Decrypt again to get the full data
+                  const decryptedData = await decryptWithIssuerPrivateKey(
+                    matchingRecord.encrypted_body
+                  );
+                  const vcContainer = decryptedData as {
+                    vc_status: boolean;
+                    verifiable_credentials: Array<{
+                      id: string;
+                      credentialSubject: Record<string, unknown>;
+                      [key: string]: unknown;
+                    }>;
+                  };
+
+                  // Find the specific VC that matches the requested vc_id
+                  const matchingVC = vcContainer.verifiable_credentials.find(
+                    (vc) => vc.id === fullDecryptedBody.vc_id
                   );
 
-                  // Prioritize encryptedBody from IndexedDB
-                  if (issuedCredential.encryptedBody) {
+                  if (matchingVC) {
                     console.log(
-                      `[${request.type}] Using attributes from IndexedDB encryptedBody:`,
-                      issuedCredential.encryptedBody
+                      `[${request.type}] Using attributes from matching VC:`,
+                      matchingVC.credentialSubject
                     );
-                    Object.entries(issuedCredential.encryptedBody).forEach(([key, value]) => {
+                    Object.entries(matchingVC.credentialSubject).forEach(([key, value]) => {
                       if (
                         typeof value === 'string' ||
                         typeof value === 'number' ||
@@ -999,45 +1063,22 @@ export default function IssueRequestPage() {
                         currentAttributes[key] = value;
                       }
                     });
-                  }
-                  // Fallback to vcHistory if encryptedBody is not available
-                  else if (issuedCredential.vcHistory && issuedCredential.vcHistory.length > 0) {
-                    const latestVC = issuedCredential.vcHistory[0];
-                    console.log(
-                      `[${request.type}] Using attributes from IndexedDB vcHistory (latest VC):`,
-                      latestVC.id
-                    );
-                    if (latestVC.credentialSubject) {
-                      Object.entries(latestVC.credentialSubject).forEach(([key, value]) => {
-                        // Skip the 'id' field which is the holder DID
-                        if (
-                          key !== 'id' &&
-                          (typeof value === 'string' ||
-                            typeof value === 'number' ||
-                            typeof value === 'boolean')
-                        ) {
-                          currentAttributes[key] = value;
-                        }
-                      });
-                    }
                   } else {
-                    console.warn(
-                      `[${request.type}] No attribute data found in IndexedDB credential`
-                    );
+                    console.warn(`[${request.type}] VC not found in credential history`);
                   }
                 } else {
                   console.error(
-                    `[${request.type}] ERROR: No credentials found in IndexedDB for VC ID:`,
+                    `[${request.type}] ERROR: No credentials found in API for VC ID:`,
                     fullDecryptedBody.vc_id
                   );
                   console.error(
-                    `[${request.type}] Cannot process ${request.type} request without stored credential data`
+                    `[${request.type}] Searched through ${holderRecords.length} credentials for holder ${request.holder_did}`
                   );
                 }
               } catch (error) {
-                console.error(`[${request.type}] Error fetching from IndexedDB:`, error);
+                console.error(`[${request.type}] Error fetching from API:`, error);
                 console.error(
-                  `[${request.type}] Cannot process ${request.type} request without IndexedDB access`
+                  `[${request.type}] Cannot process ${request.type} request without API access`
                 );
               }
             }
@@ -1045,7 +1086,7 @@ export default function IssueRequestPage() {
             console.log(
               `[${request.type}] Final attributes to display:`,
               currentAttributes,
-              `(Source: ${request.type === 'ISSUANCE' ? 'Decrypted Body' : 'IndexedDB'})`
+              `(Source: ${request.type === 'ISSUANCE' ? 'Decrypted Body' : 'API'})`
             );
             setRequestAttributes(currentAttributes);
             setHolderReason(holderReason);
@@ -1090,7 +1131,7 @@ export default function IssueRequestPage() {
     try {
       setIsSubmittingCredential(true);
 
-      // Variable to store the API record ID for ISSUANCE (for IndexedDB)
+      // Variable to store the API record ID for ISSUANCE
       let apiRecordId: string | null = null;
 
       // Upload image if exists
@@ -1249,19 +1290,35 @@ export default function IssueRequestPage() {
           try {
             console.log('[REVOKE] Updating issuer VC data to mark as revoked...');
 
-            // Step 1: Fetch the existing credential from IndexedDB using vcId
-            const issuedCredentials = await getIssuedCredentialsByVcId(currentVcId);
+            // Step 1: Fetch the existing credential from API using vcId
+            const issuerDid = localStorage.getItem('institutionDID');
+            if (!issuerDid) {
+              throw new Error('Institution DID not found');
+            }
 
-            if (issuedCredentials.length === 0) {
-              console.warn(`[REVOKE] No credentials found in IndexedDB for VC ID: ${currentVcId}`);
-              console.warn(`[REVOKE] Skipping issuer VC data update - credential not in IndexedDB`);
+            const allIssuerVCData = await getIssuerVCDataByDID(issuerDid);
+            const matchingRecords = allIssuerVCData.filter(
+              (record) => record.vc_id === currentVcId
+            );
+
+            if (matchingRecords.length === 0) {
+              console.warn(`[REVOKE] No credentials found in API for VC ID: ${currentVcId}`);
+              console.warn(`[REVOKE] Skipping issuer VC data update - credential not in API`);
             } else {
-              const issuedCredential = issuedCredentials[0];
-              const issuerVCDataId = issuedCredential.id;
-              console.log(`[REVOKE] Found credential in IndexedDB: ${issuerVCDataId}`);
+              const issuerVCDataRecord = matchingRecords[0];
+              const issuerVCDataId = issuerVCDataRecord.id;
+              console.log(`[REVOKE] Found credential in API: ${issuerVCDataId}`);
 
-              // Step 2: Get the existing VC history from IndexedDB (no changes to history)
-              const existingVCHistory = issuedCredential.vcHistory || [];
+              // Step 2: Decrypt the encrypted body to get the VC history
+              const decryptedData = await decryptWithIssuerPrivateKey(
+                issuerVCDataRecord.encrypted_body
+              );
+              const vcContainer = decryptedData as {
+                vc_status: boolean;
+                verifiable_credentials: unknown[];
+              };
+
+              const existingVCHistory = vcContainer.verifiable_credentials || [];
               console.log(
                 `[REVOKE] Existing VC history has ${existingVCHistory.length} VCs (unchanged)`
               );
@@ -1274,56 +1331,13 @@ export default function IssueRequestPage() {
               console.log(`[REVOKE] Encrypted VC history with vc_status=false for issuer`);
 
               // Step 4: Update the issuer's VC data via PUT API
-              const updateIssuerUrl = buildApiUrl(
-                API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_ID(issuerVCDataId)
-              );
-              const updateIssuerResponse = await authenticatedPut(updateIssuerUrl, {
+              await updateIssuerVCData(issuerVCDataId, {
                 vc_id: currentVcId,
                 issuer_did: selectedRequest.issuer_did,
                 encrypted_body: encryptedBodyForIssuer,
               });
 
-              if (!updateIssuerResponse.ok) {
-                const errorData = await updateIssuerResponse.json();
-                console.error(`[REVOKE] Failed to update issuer VC data:`, errorData);
-                throw new Error(errorData.message || 'Failed to update issuer VC data');
-              }
-
               console.log(`[REVOKE] Successfully updated issuer VC data via API`);
-
-              // Step 5: Update IndexedDB to mark as revoked
-              // Transform VC history to match VerifiableCredentialData structure
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const vcHistoryForStorage = existingVCHistory.map((vc: any) => ({
-                id: vc.id,
-                type: vc.type,
-                issuer:
-                  typeof vc.issuer === 'string'
-                    ? { id: vc.issuer, name: vc.issuerName || '' }
-                    : vc.issuer,
-                credentialSubject: vc.credentialSubject,
-                validFrom: vc.validFrom,
-                expiredAt: vc.expiredAt || '',
-                credentialStatus: vc.credentialStatus,
-                proof: vc.proof,
-                imageLink: vc.imageLink || undefined,
-                fileUrl: vc.fileUrl,
-                fileId: vc.fileId,
-                issuerName: vc.issuerName,
-                '@context': vc['@context'],
-              }));
-
-              // Update the issued credential with vc_status set to false
-              const updatedIssuedCredential = {
-                ...issuedCredential,
-                vcHistory: vcHistoryForStorage,
-                status: 'REVOKED',
-                vcStatus: false, // Mark as revoked
-                issuerDid: selectedRequest.issuer_did,
-              };
-
-              await storeIssuedCredential(updatedIssuedCredential);
-              console.log(`[REVOKE] Updated credential in IndexedDB: ${issuerVCDataId}`);
             }
           } catch (updateError) {
             console.error(
@@ -1546,7 +1560,7 @@ export default function IssueRequestPage() {
           throw new Error(errorData.message || `Failed to store VC (${storeResponse.status})`);
         }
 
-        // Get the response data to extract the ID for IndexedDB
+        // Get the response data to extract the ID
         const storeResult = await storeResponse.json();
         console.log('Store VC response:', storeResult);
 
@@ -1722,50 +1736,9 @@ export default function IssueRequestPage() {
       console.log('API result:', result);
 
       if (result.success) {
-        // For ISSUANCE requests, store the new credential to IndexedDB
+        // For ISSUANCE requests, the credential is already stored via API
         if (requestType === 'ISSUANCE' && apiRecordId) {
-          try {
-            console.log('[ISSUANCE] Storing new credential to IndexedDB...');
-
-            // Extract credential data from signedVC
-            const credentialData: Record<string, unknown> = {};
-            if (signedVC.credentialSubject) {
-              Object.entries(signedVC.credentialSubject).forEach(([key, value]) => {
-                if (key !== 'id') {
-                  credentialData[key] = value;
-                }
-              });
-            }
-
-            // Parse schema_id and schema_version from VC ID
-            const vcIdParts = vcIdToUse.split(':');
-            const schemaId = vcIdParts[0] || schemaData.id;
-            const schemaVersion = parseInt(vcIdParts[1]) || parseInt(schemaData.version);
-
-            // Create credential object following issued-by-me pattern
-            const newIssuedCredential = {
-              id: apiRecordId, // Use the API-generated ID
-              holderDid: selectedRequest.holder_did,
-              schemaName:
-                schemaVersion > 0 ? `${schemaData.name} v${schemaVersion}` : schemaData.name,
-              status: 'APPROVED',
-              activeUntil: expiredAt || '-',
-              schemaId: schemaId,
-              schemaVersion: schemaVersion,
-              encryptedBody: credentialData,
-              createdAt: signedVC.validFrom,
-              vcId: vcIdToUse,
-              vcHistory: [signedVC], // Store as array with the new VC
-              issuerDid: selectedRequest.issuer_did,
-              vcStatus: true, // New credentials are always active
-            };
-
-            await storeIssuedCredential(newIssuedCredential);
-            console.log('[ISSUANCE] Successfully stored credential to IndexedDB');
-          } catch (storageError) {
-            console.error('[ISSUANCE] Error storing to IndexedDB:', storageError);
-            // Don't fail the entire operation if IndexedDB storage fails
-          }
+          console.log('[ISSUANCE] Credential stored via API with record ID:', apiRecordId);
         }
 
         // For UPDATE and RENEWAL requests, update the issuer's VC data with new VC history
@@ -1773,23 +1746,39 @@ export default function IssueRequestPage() {
           try {
             console.log(`[${requestType}] Updating issuer VC data with new VC history...`);
 
-            // Step 1: Fetch the existing credential from IndexedDB using vcId
-            const issuedCredentials = await getIssuedCredentialsByVcId(currentVcId);
+            // Step 1: Fetch the existing credential from API using vcId
+            const issuerDid = localStorage.getItem('institutionDID');
+            if (!issuerDid) {
+              throw new Error('Institution DID not found');
+            }
 
-            if (issuedCredentials.length === 0) {
+            const allIssuerVCData = await getIssuerVCDataByDID(issuerDid);
+            const matchingRecords = allIssuerVCData.filter(
+              (record) => record.vc_id === currentVcId
+            );
+
+            if (matchingRecords.length === 0) {
               console.warn(
-                `[${requestType}] No credentials found in IndexedDB for VC ID: ${currentVcId}`
+                `[${requestType}] No credentials found in API for VC ID: ${currentVcId}`
               );
               console.warn(
-                `[${requestType}] Skipping issuer VC data update - credential not in IndexedDB`
+                `[${requestType}] Skipping issuer VC data update - credential not in API`
               );
             } else {
-              const issuedCredential = issuedCredentials[0];
-              const issuerVCDataId = issuedCredential.id;
-              console.log(`[${requestType}] Found credential in IndexedDB: ${issuerVCDataId}`);
+              const issuerVCDataRecord = matchingRecords[0];
+              const issuerVCDataId = issuerVCDataRecord.id;
+              console.log(`[${requestType}] Found credential in API: ${issuerVCDataId}`);
 
-              // Step 2: Get the existing VC history from IndexedDB
-              const existingVCHistory = issuedCredential.vcHistory || [];
+              // Step 2: Decrypt the encrypted body to get the VC history
+              const decryptedData = await decryptWithIssuerPrivateKey(
+                issuerVCDataRecord.encrypted_body
+              );
+              const vcContainer = decryptedData as {
+                vc_status: boolean;
+                verifiable_credentials: unknown[];
+              };
+
+              const existingVCHistory = vcContainer.verifiable_credentials || [];
               console.log(
                 `[${requestType}] Existing VC history has ${existingVCHistory.length} VCs`
               );
@@ -1808,70 +1797,13 @@ export default function IssueRequestPage() {
               console.log(`[${requestType}] Encrypted updated VC history for issuer`);
 
               // Step 5: Update the issuer's VC data via PUT API
-              const updateIssuerUrl = buildApiUrl(
-                API_ENDPOINTS.CREDENTIALS.ISSUER.VC_BY_ID(issuerVCDataId)
-              );
-              const updateIssuerResponse = await authenticatedPut(updateIssuerUrl, {
-                vc_id: vcIdToUse,
+              await updateIssuerVCData(issuerVCDataId, {
+                vc_id: currentVcId,
                 issuer_did: selectedRequest.issuer_did,
                 encrypted_body: encryptedBodyForIssuer,
               });
 
-              if (!updateIssuerResponse.ok) {
-                const errorData = await updateIssuerResponse.json();
-                console.error(`[${requestType}] Failed to update issuer VC data:`, errorData);
-                throw new Error(errorData.message || 'Failed to update issuer VC data');
-              }
-
               console.log(`[${requestType}] Successfully updated issuer VC data via API`);
-
-              // Step 6: Update IndexedDB with the new VC in history
-              // Transform VC history to match VerifiableCredentialData structure (same as credentialService.ts)
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const vcHistoryForStorage = updatedVCHistory.map((vc: any) => ({
-                id: vc.id,
-                type: vc.type,
-                issuer:
-                  typeof vc.issuer === 'string'
-                    ? { id: vc.issuer, name: vc.issuerName || '' }
-                    : vc.issuer,
-                credentialSubject: vc.credentialSubject,
-                validFrom: vc.validFrom,
-                expiredAt: vc.expiredAt || '',
-                credentialStatus: vc.credentialStatus,
-                proof: vc.proof,
-                imageLink: vc.imageLink || undefined,
-                fileUrl: vc.fileUrl,
-                fileId: vc.fileId,
-                issuerName: vc.issuerName,
-                '@context': vc['@context'],
-              }));
-
-              // Extract credential data from the newest VC (for encryptedBody field)
-              const encryptedBody: Record<string, unknown> = {};
-              if (signedVC.credentialSubject) {
-                Object.entries(signedVC.credentialSubject).forEach(([key, value]) => {
-                  if (key !== 'id') {
-                    encryptedBody[key] = value;
-                  }
-                });
-              }
-
-              // Update the issued credential following the issued-by-me pattern
-              const updatedIssuedCredential = {
-                ...issuedCredential,
-                vcHistory: vcHistoryForStorage,
-                vcId: signedVC.id,
-                activeUntil: expiredAt || '-', // Use '-' for lifetime credentials (same as issued-by-me page)
-                encryptedBody: encryptedBody,
-                createdAt: signedVC.validFrom,
-                status: 'APPROVED',
-                issuerDid: selectedRequest.issuer_did, // Add issuer DID for consistency
-                vcStatus: true, // Updated/renewed credentials maintain active status
-              };
-
-              await storeIssuedCredential(updatedIssuedCredential);
-              console.log(`[${requestType}] Updated credential in IndexedDB: ${issuerVCDataId}`);
             }
           } catch (updateError) {
             console.error(
@@ -2427,7 +2359,7 @@ export default function IssueRequestPage() {
                   <select
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black cursor-pointer"
                   >
                     <option value="all">All</option>
                     <option value="ISSUANCE">Issuance</option>
@@ -2445,7 +2377,7 @@ export default function IssueRequestPage() {
                   <select
                     value={filterSchemaStatus}
                     onChange={(e) => setFilterSchemaStatus(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black cursor-pointer"
                   >
                     <option value="all">All</option>
                     <option value="active">Active Schema Requests</option>

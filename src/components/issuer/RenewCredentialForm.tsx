@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react'; // Import useEffect
 import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { formatDateTime } from '@/utils/dateUtils';
+import { fetchSchemaByVersion, SchemaProperty } from '@/services/schemaService'; // Import fetchSchemaByVersion and SchemaProperty
 
 interface CredentialAttribute {
   id: number;
@@ -47,6 +49,22 @@ interface CredentialData {
   attributes: CredentialAttribute[];
 }
 
+// Define interface for schema attribute details
+interface SchemaAttributeDetail {
+  name: string;
+  type: string;
+  required: boolean;
+}
+
+// Combined attribute for DataTable
+interface DisplayAttribute {
+  id: string;
+  name: string;
+  type: string;
+  required: boolean;
+  value: string;
+}
+
 interface RenewCredentialFormProps {
   onClose: () => void;
   onRenew: () => void;
@@ -62,6 +80,46 @@ export default function RenewCredentialForm({
 }: RenewCredentialFormProps) {
   // Use the newest VC from history if available
   const currentVC = vcHistory && vcHistory.length > 0 ? vcHistory[0] : null;
+
+  const [schemaAttributes, setSchemaAttributes] = useState<SchemaAttributeDetail[]>([]); // State for schema attributes
+  const [isLoadingSchema, setIsLoadingSchema] = useState(false); // State for schema loading
+
+  // Fetch schema data when credentialData changes
+  useEffect(() => {
+    const loadSchemaAttributes = async () => {
+      if (!credentialData.schemaId || !credentialData.schemaVersion) {
+        setSchemaAttributes([]);
+        return;
+      }
+
+      setIsLoadingSchema(true);
+      try {
+        const response = await fetchSchemaByVersion(
+          credentialData.schemaId,
+          credentialData.schemaVersion
+        );
+        if (response.success && response.data) {
+          const attributes = Object.entries(response.data.schema.properties).map(
+            ([name, prop]) => ({
+              name,
+              type: (prop as SchemaProperty).type,
+              required: response.data.schema.required.includes(name),
+            })
+          );
+          setSchemaAttributes(attributes);
+        } else {
+          setSchemaAttributes([]);
+        }
+      } catch (error) {
+        console.error('Error fetching schema for credential:', error);
+        setSchemaAttributes([]);
+      } finally {
+        setIsLoadingSchema(false);
+      }
+    };
+
+    loadSchemaAttributes();
+  }, [credentialData.schemaId, credentialData.schemaVersion]);
 
   // Extract attributes from current VC
   const currentAttributes: CredentialAttribute[] = currentVC
@@ -94,20 +152,59 @@ export default function RenewCredentialForm({
       }
     : credentialData;
 
-  const columns: Column<CredentialAttribute>[] = [
+  // Prepare data for DataTable
+  const displayAttributes: DisplayAttribute[] = displayData.attributes.map((attr) => {
+    const schemaAttr = schemaAttributes.find((sa) => sa.name === attr.name);
+    return {
+      id: attr.name, // Use name as ID for simplicity or generate unique
+      name: attr.name,
+      type: schemaAttr?.type || 'string', // Default to string if not found
+      required: schemaAttr?.required || false, // Default to false if not found
+      value: attr.value,
+    };
+  });
+
+  const columns: Column<DisplayAttribute>[] = [
+    // Changed to DisplayAttribute
     {
       id: 'name',
-      label: 'ATTRIBUTE NAME',
+      label: 'NAME',
       sortKey: 'name',
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
+    },
+    {
+      id: 'type',
+      label: 'TYPE',
+      sortKey: 'type',
       render: (row) => (
-        <ThemedText className="text-sm font-medium text-gray-900">{row.name}</ThemedText>
+        <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
+          {row.type}
+        </span>
+      ),
+    },
+    {
+      id: 'required',
+      label: 'REQUIRED',
+      sortKey: 'required',
+      render: (row) => (
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+            row.required ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-600'
+          }`}
+        >
+          {row.required ? 'Yes' : 'No'}
+        </span>
       ),
     },
     {
       id: 'value',
       label: 'VALUE',
       sortKey: 'value',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{row.value}</ThemedText>,
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">
+          {row.value ? row.value : <em className="text-gray-400">(empty)</em>}
+        </ThemedText>
+      ),
     },
   ];
 
@@ -255,15 +352,22 @@ export default function RenewCredentialForm({
             </ThemedText>
           </div>
 
-          <DataTable
-            data={displayData.attributes}
-            columns={columns}
-            searchPlaceholder="Search attributes..."
-            enableSelection={false}
-            totalCount={displayData.attributes.length}
-            rowsPerPageOptions={[5, 10, 25, 50]}
-            idKey="id"
-          />
+          {!isLoadingSchema ? (
+            <DataTable
+              data={displayAttributes}
+              columns={columns}
+              searchPlaceholder="Search attributes..."
+              enableSelection={false}
+              totalCount={displayAttributes.length}
+              hideBottomControls={true}
+              idKey="id"
+            />
+          ) : (
+            <div className="flex items-center justify-center p-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="ml-4 text-gray-600">Loading schema attributes...</p>
+            </div>
+          )}
         </div>
       )}
 

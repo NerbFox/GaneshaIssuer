@@ -29,7 +29,6 @@ import {
 } from '@/services/credentialService';
 import { fetchPublicKeyForDID } from '@/services/didService';
 import { fetchSchemaByVersion, fetchSchemas } from '@/services/schemaService';
-import { storeIssuedCredentialsBatch } from '@/utils/indexedDB';
 
 interface VerifiableCredentialData {
   id: string;
@@ -66,7 +65,7 @@ interface IssuedCredential {
   createdAt: string;
   vcId?: string;
   vcHistory?: VerifiableCredentialData[]; // Array of all VCs (newest first)
-  issuerDid: string; // Add issuer DID for IndexedDB
+  issuerDid: string; // Issuer DID
   vcStatus?: boolean; // The vc_status from encrypted_body wrapper
 }
 
@@ -285,7 +284,7 @@ export default function IssuedByMePage() {
               createdAt: newestVC.validFrom || vcData.createdAt,
               vcId: newestVC.id,
               vcHistory: vcHistory, // Store the entire history
-              issuerDid: institutionDID, // Add issuer DID for IndexedDB
+              issuerDid: institutionDID, // Issuer DID
               vcStatus: vcContainer.vc_status, // Store the vc_status from encrypted_body wrapper
             });
           }
@@ -298,17 +297,6 @@ export default function IssuedByMePage() {
       setCredentials(transformedCredentials);
       setFilteredCredentials(transformedCredentials);
       setLastRefresh(new Date());
-
-      // Store credentials in IndexedDB for later use (e.g., renew, update operations)
-      if (transformedCredentials.length > 0) {
-        try {
-          const storedIds = await storeIssuedCredentialsBatch(transformedCredentials);
-          console.log(`[IndexedDB] Stored ${storedIds.length} issued credentials`);
-        } catch (storageError) {
-          console.error('[IndexedDB] Failed to store credentials:', storageError);
-          // Don't fail the entire operation if storage fails
-        }
-      }
     } catch (err) {
       console.error('Error fetching credentials:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -1234,7 +1222,7 @@ export default function IssuedByMePage() {
               onChange={(e) =>
                 handleStatusChange(e.target.value as 'all' | 'Active' | 'Revoked' | 'Expired')
               }
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black cursor-pointer"
             >
               <option value="all">All</option>
               <option value="Active">Active</option>

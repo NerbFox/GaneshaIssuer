@@ -37,12 +37,16 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
       id: 'name',
       label: 'NAME',
       sortKey: 'name',
+      align: 'left',
+      width: '25%',
       render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
     },
     {
       id: 'type',
       label: 'TYPE',
       sortKey: 'type',
+      align: 'left',
+      width: '260px',
       render: (row) => (
         <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
           {row.type}
@@ -53,6 +57,8 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
       id: 'description',
       label: 'DESCRIPTION',
       sortKey: 'description',
+      align: 'left',
+      width: '25%',
       render: (row) => (
         <ThemedText className="text-sm text-gray-600">
           {row.description || <span className="text-gray-400 italic">No description</span>}
@@ -63,14 +69,18 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
       id: 'required',
       label: 'REQUIRED',
       sortKey: 'required',
+      align: 'center',
+      width: '100px',
       render: (row) => (
-        <span
-          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            row.required ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-          }`}
-        >
-          {row.required ? 'Yes' : 'No'}
-        </span>
+        <div className="flex items-center justify-center h-full">
+          <span
+            className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${
+              row.required ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            {row.required ? 'Yes' : 'No'}
+          </span>
+        </div>
       ),
     },
   ];

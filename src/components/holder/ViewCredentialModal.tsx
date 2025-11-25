@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Modal from '@/components/shared/Modal';
 import { ViewCredential } from '@/components/shared/ViewCredential';
 import { VerifiableCredential } from '@/utils/indexedDB';
+import { fetchSchemaByVersion, SchemaProperty } from '@/services/schemaService'; // Import fetchSchemaByVersion and SchemaProperty
 
 interface ViewCredentialModalProps {
   isOpen: boolean;
@@ -21,6 +22,10 @@ export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
   onDownloadPdf,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [schemaAttributes, setSchemaAttributes] = useState<
+    Array<{ name: string; type: string; required: boolean }>
+  >([]); // State for schema attributes
+  const [isLoadingSchema, setIsLoadingSchema] = useState(false); // State for schema loading
 
   // Normalize the credential data to always work with an array
   const credentials = Array.isArray(selectedCredential)
@@ -31,6 +36,61 @@ export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
 
   const hasMultiple = credentials.length > 1;
   const currentCredential = credentials[currentIndex];
+
+  // Fetch schema data when currentCredential changes
+  useEffect(() => {
+    const loadSchemaAttributes = async () => {
+      if (!currentCredential?.id) {
+        setSchemaAttributes([]);
+        return;
+      }
+
+      setIsLoadingSchema(true);
+      try {
+        // Parse schema_id and schema_version from vc.id
+        // vc.id format: "schema_id:schema_version:holder_did:timestamp"
+        let schemaId = '';
+        let schemaVersion = 1;
+
+        if (currentCredential.id) {
+          const vcIdParts = currentCredential.id.split(':');
+          if (vcIdParts.length >= 2 && vcIdParts[0] !== 'undefined' && vcIdParts[0] !== '') {
+            schemaId = vcIdParts[0];
+            schemaVersion = parseInt(vcIdParts[1], 10) || 1;
+          }
+        }
+
+        if (schemaId) {
+          const response = await fetchSchemaByVersion(schemaId, schemaVersion);
+          if (response.success && response.data) {
+            const attributes = Object.entries(response.data.schema.properties).map(
+              ([name, prop]) => ({
+                name,
+                type: (prop as SchemaProperty).type,
+                required: response.data.schema.required.includes(name),
+              })
+            );
+            setSchemaAttributes(attributes);
+          } else {
+            setSchemaAttributes([]);
+          }
+        } else {
+          setSchemaAttributes([]);
+        }
+      } catch (error) {
+        console.error('Error fetching schema for VC:', error);
+        setSchemaAttributes([]);
+      } finally {
+        setIsLoadingSchema(false);
+      }
+    };
+
+    if (isOpen && currentCredential) {
+      loadSchemaAttributes();
+    } else {
+      setSchemaAttributes([]);
+    }
+  }, [isOpen, currentCredential]);
 
   // Reset index when modal opens or credential changes
   useEffect(() => {
@@ -71,14 +131,14 @@ export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="View Credential" minHeight="700px">
-      {currentCredential && (
+      {currentCredential && !isLoadingSchema ? ( // Only render if schema is not loading
         <>
           {/* Carousel Navigation - Top */}
           {hasMultiple && (
             <div className="flex items-center justify-between px-8 py-4 border-b border-gray-200">
               <button
                 onClick={handlePrevious}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
                 aria-label="Previous credential"
               >
                 <svg
@@ -104,7 +164,7 @@ export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
 
               <button
                 onClick={handleNext}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
                 aria-label="Next credential"
               >
                 <svg
@@ -148,6 +208,7 @@ export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
                 })),
               proof: currentCredential.proof,
             }}
+            schemaAttributes={schemaAttributes} // Pass schema attributes
             onClose={onClose}
             onDownload={() => onDownload(currentCredential.id)}
             onDownloadPdf={onDownloadPdf ? () => onDownloadPdf(currentCredential.id) : undefined}
@@ -160,7 +221,7 @@ export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
                 <button
                   key={index}
                   onClick={() => handleDotClick(index)}
-                  className={`h-2.5 rounded-full transition-all duration-300 ${
+                  className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
                     index === currentIndex
                       ? 'w-8 bg-blue-500'
                       : 'w-2.5 bg-gray-300 hover:bg-gray-400'
@@ -171,6 +232,12 @@ export const ViewCredentialModal: React.FC<ViewCredentialModalProps> = ({
             </div>
           )}
         </>
+      ) : (
+        // Loading state or error handling
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="ml-4 text-gray-600">Loading credential details...</p>
+        </div>
       )}
     </Modal>
   );
