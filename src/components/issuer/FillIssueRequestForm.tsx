@@ -276,7 +276,7 @@ export default function FillIssueRequestForm({
         }
       });
 
-      // Generate image with QR placeholder (no QR example)
+      // Generate image with QR placeholder using jsPDF
       const imageBlob = await generateImageBlob();
 
       if (!imageBlob) {
@@ -293,75 +293,58 @@ export default function FillIssueRequestForm({
         attributes: attributeMap,
         imageBlob, // Include the image blob
       });
-    } catch {
+    } catch (error) {
+      console.error('❌ Failed to prepare credential:', error);
       alert('Failed to prepare credential. Please try again.');
     }
   };
 
-  // Generate Image Blob (without QR example, just placeholder)
+  // Generate Image Blob using Canvas (direct rendering, simpler than PDF conversion)
   const generateImageBlob = async (): Promise<Blob | null> => {
     try {
-      // Dynamically import html2canvas
-      const { default: html2canvas } = await import('html2canvas');
+      // Import the canvas-based credential image generator
+      const { generateCredentialImage } = await import('@/utils/pdfGenerator');
 
-      if (!previewRef.current) {
+      if (!imageUrl || !attributePositions) {
+        console.error('Missing required data for image generation');
+        console.error('imageUrl:', imageUrl);
+        console.error('attributePositions:', attributePositions);
         return null;
       }
 
-      // Find the credential container inside the preview
-      const credentialElement = previewRef.current.querySelector(
-        '.credential-container'
-      ) as HTMLElement;
-
-      if (!credentialElement) {
-        return null;
-      }
-
-      // Temporarily hide QR code example for image generation
-      // We need to create a clone and modify it
-      const clone = credentialElement.cloneNode(true) as HTMLElement;
-
-      // Find and replace QR code with white placeholder in the clone
-      const qrElements = clone.querySelectorAll('svg');
-      qrElements.forEach((svg) => {
-        // Check if this is the QR code SVG (it has the black rectangles)
-        const hasBlackRects = svg.querySelector('rect[fill="black"]');
-        if (hasBlackRects) {
-          // Replace with white div
-          const whiteDiv = document.createElement('div');
-          whiteDiv.style.width = '100%';
-          whiteDiv.style.height = '100%';
-          whiteDiv.style.backgroundColor = 'white';
-          svg.parentElement?.replaceChild(whiteDiv, svg);
+      // Prepare attribute data from current form values
+      const attributeData: Record<string, string> = {};
+      attributes.forEach((attr) => {
+        // Use changed attributes if available (UPDATE requests), otherwise use current values
+        if (
+          requestType === 'UPDATE' &&
+          changedAttributes &&
+          changedAttributes[attr.name] !== undefined
+        ) {
+          attributeData[attr.name] = String(changedAttributes[attr.name]);
+        } else {
+          attributeData[attr.name] = String(attr.value);
         }
       });
 
-      // Temporarily add clone to DOM for html2canvas
-      clone.style.position = 'absolute';
-      clone.style.left = '-9999px';
-      clone.style.paddingBottom = '20px';
-      document.body.appendChild(clone);
+      console.log('🎨 Generating credential image with Canvas...');
+      console.log('Image URL:', imageUrl);
+      console.log('Attributes:', attributeData);
+      console.log('Positions:', attributePositions);
 
-      // Capture the clone as canvas
-      const canvas = await html2canvas(clone, {
-        scale: 3,
-        useCORS: true, // Allow cross-origin images
-        allowTaint: true,
-        backgroundColor: null,
-        logging: false,
-        windowHeight: clone.scrollHeight + 50,
-      });
+      // Generate image directly using canvas (no QR for initial image)
+      const pngBlob = await generateCredentialImage(
+        imageUrl,
+        attributePositions,
+        attributeData,
+        qrCodePosition,
+        undefined // No VP ID yet, QR will be added later when presenting
+      );
 
-      // Remove the clone
-      document.body.removeChild(clone);
-
-      // Convert canvas to blob (PNG format)
-      return new Promise((resolve) => {
-        canvas.toBlob((blob) => {
-          resolve(blob);
-        }, 'image/png');
-      });
-    } catch {
+      console.log('✅ Image generated successfully');
+      return pngBlob;
+    } catch (error) {
+      console.error('❌ Failed to generate credential image:', error);
       return null;
     }
   };

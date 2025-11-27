@@ -564,7 +564,7 @@ export default function AttributePositionEditor({
             {fields.map((field) => (
               <div
                 key={field.attributeName}
-                className={`absolute cursor-move border-2 flex items-center overflow-hidden ${
+                className={`absolute cursor-move border-2 overflow-hidden ${
                   selectedField === field.attributeName
                     ? 'border-blue-500 shadow-lg'
                     : 'border-blue-300'
@@ -574,29 +574,26 @@ export default function AttributePositionEditor({
                   top: `${field.y}%`,
                   width: `${field.width}%`,
                   height: `${field.height}%`,
-                  fontSize: `${field.fontSize}px`,
-                  fontFamily: field.fontFamily,
                   backgroundColor: field.bgColor,
-                  lineHeight: '1',
-                  padding: '0',
                 }}
                 onMouseDown={(e) => handleMouseDown(e, field.attributeName)}
                 onClick={(e) => e.stopPropagation()}
               >
-                <span
-                  className="font-medium truncate"
+                <div
                   style={{
+                    fontSize: `${field.fontSize}px`,
+                    fontFamily: field.fontFamily,
                     color: field.fontColor,
-                    paddingLeft: '4px',
-                    paddingRight: '4px',
                     lineHeight: '1',
-                    display: 'flex',
-                    alignItems: 'center',
-                    height: '100%',
+                    paddingLeft: '8px', // Match jsPDF and CredentialPreview
+                    paddingTop: '2px', // Match CredentialPreview
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
                   }}
                 >
                   {field.attributeName}
-                </span>
+                </div>
 
                 {/* Resize Handles */}
                 {selectedField === field.attributeName && (

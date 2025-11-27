@@ -69,14 +69,13 @@ export default function CredentialPreview({
             return (
               <div
                 key={attrName}
-                className="absolute flex items-center pl-2"
+                className="absolute overflow-hidden"
                 style={{
                   left: `${position.x}%`,
                   top: `${position.y}%`,
                   width: `${position.width}%`,
                   minHeight: `${position.height}%`,
                   backgroundColor: bgColor,
-                  overflow: 'hidden',
                 }}
               >
                 <div
@@ -89,7 +88,8 @@ export default function CredentialPreview({
                     whiteSpace: 'nowrap',
                     textOverflow: 'ellipsis',
                     lineHeight: '1',
-                    transform: 'translateY(0)',
+                    paddingLeft: '8px', // Match jsPDF 8px padding (pl-2)
+                    paddingTop: '2px', // Small top padding for visual alignment
                   }}
                 >
                   {displayValue}
