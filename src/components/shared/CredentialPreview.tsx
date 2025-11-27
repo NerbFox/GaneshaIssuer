@@ -120,8 +120,8 @@ export default function CredentialPreview({
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    paddingTop: `${position.fontSize * 0.2}px`,
-                    lineHeight: `${position.fontSize * 1.8}px`,
+                    lineHeight: '1',
+                    transform: 'translateY(-5%)',
                   }}
                 >
                   {displayValue}
