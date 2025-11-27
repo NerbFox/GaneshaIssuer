@@ -563,9 +563,16 @@ export async function generateCredentialImageKonva(
       img.src = imageUrl;
     });
 
-    const imageWidth = backgroundImage.naturalWidth;
-    const imageHeight = backgroundImage.naturalHeight;
-    console.log(`✅ Image loaded: ${imageWidth}x${imageHeight}`);
+    const naturalWidth = backgroundImage.naturalWidth;
+    const naturalHeight = backgroundImage.naturalHeight;
+    console.log(`✅ Image loaded: ${naturalWidth}x${naturalHeight}`);
+
+    // Apply same scaling as editor and preview for consistency
+    const MAX_DISPLAY_WIDTH = 800;
+    const scale = naturalWidth > MAX_DISPLAY_WIDTH ? MAX_DISPLAY_WIDTH / naturalWidth : 1;
+    const imageWidth = naturalWidth * scale;
+    const imageHeight = naturalHeight * scale;
+    console.log(`📐 Scaled dimensions: ${imageWidth}x${imageHeight} (scale: ${scale})`);
 
     // Step 2: Create offscreen Konva stage
     const container = document.createElement('div');
@@ -577,7 +584,7 @@ export async function generateCredentialImageKonva(
       container: container,
       width: imageWidth,
       height: imageHeight,
-      pixelRatio: 1, // Match original image resolution
+      pixelRatio: 1,
     });
 
     // Step 3: Add background layer
