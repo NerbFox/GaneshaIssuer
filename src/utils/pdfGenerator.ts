@@ -5,6 +5,7 @@
 
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
+import Konva from 'konva';
 
 export interface QRPosition {
   x: number; // X position as percentage (0-100)
@@ -530,6 +531,180 @@ export async function generateCredentialImage(
     return pngBlob;
   } catch (error) {
     console.error('❌ Credential image generation failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate credential image using Konva.js (consistent rendering across all contexts)
+ * @param imageUrl - Background credential image URL
+ * @param positions - Attribute positions data
+ * @param sampleData - Actual attribute values to render
+ * @param qrPosition - QR code position (optional)
+ * @param vpId - VP ID for QR code (optional, if QR needed)
+ * @returns Promise with PNG blob
+ */
+export async function generateCredentialImageKonva(
+  imageUrl: string,
+  positions: AttributePositionData,
+  sampleData: Record<string, string>,
+  qrPosition?: QRPosition,
+  vpId?: string
+): Promise<Blob> {
+  try {
+    console.log('🎨 Starting Konva credential image generation...');
+
+    // Step 1: Load background image
+    const backgroundImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.crossOrigin = 'anonymous';
+      img.src = imageUrl;
+    });
+
+    const imageWidth = backgroundImage.naturalWidth;
+    const imageHeight = backgroundImage.naturalHeight;
+    console.log(`✅ Image loaded: ${imageWidth}x${imageHeight}`);
+
+    // Step 2: Create offscreen Konva stage
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    document.body.appendChild(container);
+
+    const stage = new Konva.Stage({
+      container: container,
+      width: imageWidth,
+      height: imageHeight,
+      pixelRatio: 1, // Match original image resolution
+    });
+
+    // Step 3: Add background layer
+    const backgroundLayer = new Konva.Layer();
+    const bgKonvaImage = new Konva.Image({
+      x: 0,
+      y: 0,
+      image: backgroundImage,
+      width: imageWidth,
+      height: imageHeight,
+    });
+    backgroundLayer.add(bgKonvaImage);
+    stage.add(backgroundLayer);
+    console.log('✅ Background layer added');
+
+    // Step 4: Add text layer
+    const textLayer = new Konva.Layer();
+    const attributeNames = Object.keys(positions);
+    console.log(`📝 Rendering ${attributeNames.length} attributes with Konva...`);
+
+    for (const attrName of attributeNames) {
+      const position = positions[attrName];
+      const value = sampleData[attrName] || `[${attrName}]`;
+
+      // Convert percentage positions to pixel coordinates
+      const x = (position.x / 100) * imageWidth;
+      const y = (position.y / 100) * imageHeight;
+      const width = (position.width / 100) * imageWidth;
+      const height = (position.height / 100) * imageHeight;
+
+      // Draw background rectangle if bgColor is specified and not transparent
+      if (position.bgColor && position.bgColor !== 'transparent') {
+        const bgRect = new Konva.Rect({
+          x,
+          y,
+          width,
+          height,
+          fill: position.bgColor,
+        });
+        textLayer.add(bgRect);
+      }
+
+      // Add text element with padding (8px left, 2px top)
+      const text = new Konva.Text({
+        x: x + 8,
+        y: y + 2,
+        text: value,
+        fontSize: position.fontSize,
+        fontFamily: position.fontFamily || 'Arial',
+        fill: position.fontColor || '#000000',
+        width: width - 16, // Account for left + right padding
+        align: 'left',
+        verticalAlign: 'top',
+        ellipsis: true,
+        wrap: 'none',
+      });
+      textLayer.add(text);
+
+      console.log(`✅ Rendered attribute: ${attrName}`);
+    }
+
+    stage.add(textLayer);
+
+    // Step 5: Add QR code layer if provided
+    if (qrPosition && vpId) {
+      console.log('📐 Adding QR code with Konva...');
+
+      const qrLayer = new Konva.Layer();
+      const qrSize = (qrPosition.size / 100) * Math.min(imageWidth, imageHeight);
+      const qrX = (qrPosition.x / 100) * imageWidth;
+      const qrY = (qrPosition.y / 100) * imageHeight;
+
+      // White background for QR
+      const qrBg = new Konva.Rect({
+        x: qrX,
+        y: qrY,
+        width: qrSize,
+        height: qrSize,
+        fill: '#FFFFFF',
+      });
+      qrLayer.add(qrBg);
+
+      // Generate QR code image
+      const qrImageSize = Math.floor(qrSize - 16);
+      const qrDataUri = await generateQRCode(vpId, qrImageSize);
+      const qrImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = qrDataUri;
+      });
+
+      // Center QR code within white background
+      const offsetX = (qrSize - qrImageSize) / 2;
+      const offsetY = (qrSize - qrImageSize) / 2;
+
+      const qrKonvaImage = new Konva.Image({
+        x: qrX + offsetX,
+        y: qrY + offsetY,
+        image: qrImage,
+        width: qrImageSize,
+        height: qrImageSize,
+      });
+      qrLayer.add(qrKonvaImage);
+      stage.add(qrLayer);
+
+      console.log('✅ QR code added');
+    }
+
+    // Step 6: Export to PNG blob
+    console.log('🖼️ Exporting Konva stage to PNG...');
+    const dataUrl = stage.toDataURL({
+      pixelRatio: 1,
+      mimeType: 'image/png',
+    });
+
+    // Convert data URL to Blob
+    const pngBlob = await fetch(dataUrl).then((r) => r.blob());
+
+    // Cleanup
+    stage.destroy();
+    document.body.removeChild(container);
+
+    console.log('✅ Konva credential image generated successfully');
+    return pngBlob;
+  } catch (error) {
+    console.error('❌ Konva credential image generation failed:', error);
     throw error;
   }
 }

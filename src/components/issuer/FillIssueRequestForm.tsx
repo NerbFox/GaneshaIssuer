@@ -299,11 +299,11 @@ export default function FillIssueRequestForm({
     }
   };
 
-  // Generate Image Blob using Canvas (direct rendering, simpler than PDF conversion)
+  // Generate Image Blob using Konva.js (consistent canvas rendering)
   const generateImageBlob = async (): Promise<Blob | null> => {
     try {
-      // Import the canvas-based credential image generator
-      const { generateCredentialImage } = await import('@/utils/pdfGenerator');
+      // Import the Konva-based credential image generator
+      const { generateCredentialImageKonva } = await import('@/utils/pdfGenerator');
 
       if (!imageUrl || !attributePositions) {
         console.error('Missing required data for image generation');
@@ -327,13 +327,13 @@ export default function FillIssueRequestForm({
         }
       });
 
-      console.log('🎨 Generating credential image with Canvas...');
+      console.log('🎨 Generating credential image with Konva...');
       console.log('Image URL:', imageUrl);
       console.log('Attributes:', attributeData);
       console.log('Positions:', attributePositions);
 
-      // Generate image directly using canvas (no QR for initial image)
-      const pngBlob = await generateCredentialImage(
+      // Generate image using Konva (no QR for initial image)
+      const pngBlob = await generateCredentialImageKonva(
         imageUrl,
         attributePositions,
         attributeData,
@@ -341,7 +341,7 @@ export default function FillIssueRequestForm({
         undefined // No VP ID yet, QR will be added later when presenting
       );
 
-      console.log('✅ Image generated successfully');
+      console.log('✅ Konva image generated successfully');
       return pngBlob;
     } catch (error) {
       console.error('❌ Failed to generate credential image:', error);
