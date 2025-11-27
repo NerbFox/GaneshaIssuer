@@ -1219,7 +1219,6 @@ export default function SharedWithMePage() {
           <div className="flex items-center justify-center py-20">
             <div className="text-center space-y-4">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-              <ThemedText className="text-gray-600">Loading shared credentials...</ThemedText>
             </div>
           </div>
         ) : (
@@ -1448,7 +1447,6 @@ export default function SharedWithMePage() {
             <div className="flex items-center justify-center py-20">
               <div className="text-center space-y-4">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-                <ThemedText className="text-gray-600">Loading schemas...</ThemedText>
               </div>
             </div>
           ) : (
@@ -1637,7 +1635,6 @@ export default function SharedWithMePage() {
             <div className="flex items-center justify-center py-20">
               <div className="text-center space-y-4">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-                <ThemedText className="text-gray-600">Loading VP details...</ThemedText>
               </div>
             </div>
           ) : selectedVPDetail ? (
