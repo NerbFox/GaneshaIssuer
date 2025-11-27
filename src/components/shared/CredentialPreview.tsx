@@ -108,6 +108,7 @@ export default function CredentialPreview({
                   width: `${position.width}%`,
                   minHeight: `${position.height}%`,
                   backgroundColor: bgColor,
+                  overflow: 'hidden',
                 }}
               >
                 <div
