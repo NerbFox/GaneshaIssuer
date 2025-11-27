@@ -118,10 +118,9 @@ export default function CredentialPreview({
                     opacity: hasValue ? 1 : 0.5,
                     fontStyle: hasValue ? 'normal' : 'italic',
                     whiteSpace: 'nowrap',
-                    overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     lineHeight: '1',
-                    transform: 'translateY(-5%)',
+                    transform: 'translateY(-10%)',
                   }}
                 >
                   {displayValue}
