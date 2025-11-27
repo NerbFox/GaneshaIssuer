@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { Stage, Layer, Image, Text, Rect, Transformer, Group } from 'react-konva';
+import useImage from 'use-image';
+import Konva from 'konva';
 import { ThemedText } from '@/components/shared/ThemedText';
 
 export interface AttributePosition {
@@ -72,32 +75,57 @@ export default function AttributePositionEditor({
   );
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [selectedQR, setSelectedQR] = useState<boolean>(false);
-  const [dragState, setDragState] = useState<{
-    isDragging: boolean;
-    isResizing: boolean;
-    resizeHandle: 'se' | 'sw' | 'ne' | 'nw' | null;
-    startX: number;
-    startY: number;
-    startFieldX: number;
-    startFieldY: number;
-    startFieldWidth: number;
-    startFieldHeight: number;
-    target: 'attribute' | 'qr' | null;
-  }>({
-    isDragging: false,
-    isResizing: false,
-    resizeHandle: null,
-    startX: 0,
-    startY: 0,
-    startFieldX: 0,
-    startFieldY: 0,
-    startFieldWidth: 0,
-    startFieldHeight: 0,
-    target: null,
-  });
+  const [backgroundImage, bgImageStatus] = useImage(imageUrl, 'anonymous');
+  const [qrImage, setQrImage] = useState<HTMLImageElement | null>(null);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
+  // Refs for Konva nodes and transformer
+  const fieldRefs = useRef<Map<string, Konva.Group>>(new Map());
+  const qrRef = useRef<Konva.Group>(null);
+  const transformerRef = useRef<Konva.Transformer>(null);
+  const stageRef = useRef<Konva.Stage>(null);
+
+  // Constants for stage sizing
+  const MAX_DISPLAY_WIDTH = 800;
+  const naturalWidth = backgroundImage?.naturalWidth || 800;
+  const naturalHeight = backgroundImage?.naturalHeight || 1131;
+  const scale = naturalWidth > MAX_DISPLAY_WIDTH ? MAX_DISPLAY_WIDTH / naturalWidth : 1;
+  const stageWidth = naturalWidth * scale;
+  const stageHeight = naturalHeight * scale;
+
+  // Generate QR code placeholder
+  useEffect(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 120;
+    canvas.height = 120;
+    const ctx = canvas.getContext('2d');
+
+    if (ctx) {
+      // White background
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, 120, 120);
+
+      // Simple QR code representation in black
+      ctx.fillStyle = 'black';
+      ctx.fillRect(10, 10, 30, 30);
+      ctx.fillRect(45, 10, 10, 10);
+      ctx.fillRect(60, 10, 10, 10);
+      ctx.fillRect(80, 10, 30, 30);
+      ctx.fillRect(10, 45, 10, 10);
+      ctx.fillRect(25, 45, 10, 10);
+      ctx.fillRect(55, 45, 10, 10);
+      ctx.fillRect(80, 45, 10, 10);
+      ctx.fillRect(95, 45, 10, 10);
+      ctx.fillRect(10, 80, 30, 30);
+      ctx.fillRect(45, 80, 10, 10);
+      ctx.fillRect(60, 95, 10, 10);
+      ctx.fillRect(80, 80, 10, 10);
+      ctx.fillRect(95, 95, 10, 10);
+
+      const img = new window.Image();
+      img.src = canvas.toDataURL();
+      img.onload = () => setQrImage(img);
+    }
+  }, []);
 
   // Initialize fields from initial positions
   useEffect(() => {
@@ -115,6 +143,26 @@ export default function AttributePositionEditor({
     });
     setFields(initialFields);
   }, [attributes, initialPositions]);
+
+  // Update transformer when selection changes
+  useEffect(() => {
+    const transformer = transformerRef.current;
+    if (!transformer) return;
+
+    if (selectedField) {
+      const node = fieldRefs.current.get(selectedField);
+      if (node) {
+        transformer.nodes([node]);
+        transformer.getLayer()?.batchDraw();
+      }
+    } else if (selectedQR && qrRef.current) {
+      transformer.nodes([qrRef.current]);
+      transformer.getLayer()?.batchDraw();
+    } else {
+      transformer.nodes([]);
+      transformer.getLayer()?.batchDraw();
+    }
+  }, [selectedField, selectedQR]);
 
   const handleAddField = (attributeName: string) => {
     // Check if field already exists
@@ -142,268 +190,105 @@ export default function AttributePositionEditor({
 
   const handleRemoveField = (attributeName: string) => {
     setFields(fields.filter((f) => f.attributeName !== attributeName));
+    fieldRefs.current.delete(attributeName);
     if (selectedField === attributeName) {
       setSelectedField(null);
     }
   };
 
-  const handleMouseDown = (
-    e: React.MouseEvent,
-    attributeName: string,
-    resizeHandle?: 'se' | 'sw' | 'ne' | 'nw'
-  ) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // Handle drag end for attribute fields
+  const handleFieldDragEnd = (attributeName: string, e: Konva.KonvaEventObject<DragEvent>) => {
+    const node = e.target;
+    const x = (node.x() / stageWidth) * 100;
+    const y = (node.y() / stageHeight) * 100;
+
+    setFields((prevFields) =>
+      prevFields.map((field) =>
+        field.attributeName === attributeName
+          ? {
+              ...field,
+              x: Math.max(0, Math.min(100 - field.width, x)),
+              y: Math.max(0, Math.min(100 - field.height, y)),
+            }
+          : field
+      )
+    );
+  };
+
+  // Handle transform end (resize) for attribute fields
+  const handleFieldTransformEnd = (attributeName: string, e: Konva.KonvaEventObject<Event>) => {
+    const node = e.target as Konva.Group;
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+
+    // Reset scale
+    node.scaleX(1);
+    node.scaleY(1);
 
     const field = fields.find((f) => f.attributeName === attributeName);
     if (!field) return;
 
-    setSelectedField(attributeName);
-    setSelectedQR(false);
+    const newWidth = (((field.width / 100) * stageWidth * scaleX) / stageWidth) * 100;
+    const newHeight = (((field.height / 100) * stageHeight * scaleY) / stageHeight) * 100;
+    const x = (node.x() / stageWidth) * 100;
+    const y = (node.y() / stageHeight) * 100;
 
-    if (resizeHandle) {
-      setDragState({
-        isDragging: false,
-        isResizing: true,
-        resizeHandle,
-        startX: e.clientX,
-        startY: e.clientY,
-        startFieldX: field.x,
-        startFieldY: field.y,
-        startFieldWidth: field.width,
-        startFieldHeight: field.height,
-        target: 'attribute',
-      });
-    } else {
-      setDragState({
-        isDragging: true,
-        isResizing: false,
-        resizeHandle: null,
-        startX: e.clientX,
-        startY: e.clientY,
-        startFieldX: field.x,
-        startFieldY: field.y,
-        startFieldWidth: field.width,
-        startFieldHeight: field.height,
-        target: 'attribute',
-      });
-    }
-  };
-
-  const handleQRMouseDown = (e: React.MouseEvent, resizeHandle?: 'se' | 'sw' | 'ne' | 'nw') => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    setSelectedQR(true);
-    setSelectedField(null);
-
-    if (resizeHandle) {
-      setDragState({
-        isDragging: false,
-        isResizing: true,
-        resizeHandle,
-        startX: e.clientX,
-        startY: e.clientY,
-        startFieldX: qrCode.x,
-        startFieldY: qrCode.y,
-        startFieldWidth: qrCode.size,
-        startFieldHeight: qrCode.size,
-        target: 'qr',
-      });
-    } else {
-      setDragState({
-        isDragging: true,
-        isResizing: false,
-        resizeHandle: null,
-        startX: e.clientX,
-        startY: e.clientY,
-        startFieldX: qrCode.x,
-        startFieldY: qrCode.y,
-        startFieldWidth: qrCode.size,
-        startFieldHeight: qrCode.size,
-        target: 'qr',
-      });
-    }
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if ((!selectedField && !selectedQR) || (!dragState.isDragging && !dragState.isResizing)) return;
-
-    // Get current image dimensions from the actual rendered image
-    if (!imageRef.current) return;
-    const rect = imageRef.current.getBoundingClientRect();
-    const imageAspectRatio = imageRef.current.naturalWidth / imageRef.current.naturalHeight;
-
-    const deltaX = ((e.clientX - dragState.startX) / rect.width) * 100;
-    const deltaY = ((e.clientY - dragState.startY) / rect.height) * 100;
-
-    if (dragState.target === 'qr') {
-      // Handle QR code movement and resizing
-      if (dragState.isDragging) {
-        // QR is square: width is qrCode.size%, height in % is qrCode.size * imageAspectRatio
-        const qrHeightPercent = qrCode.size * imageAspectRatio;
-        setQrCode({
-          ...qrCode,
-          x: Math.max(0, Math.min(100 - qrCode.size, dragState.startFieldX + deltaX)),
-          y: Math.max(0, Math.min(100 - qrHeightPercent, dragState.startFieldY + deltaY)),
-        });
-      } else if (dragState.isResizing) {
-        // For QR code, maintain square shape
-        // Calculate size change based on the resize handle direction
-        let delta = 0;
-        const handle = dragState.resizeHandle;
-
-        if (handle === 'se') {
-          // Southeast: use maximum of deltaX and deltaY for growth
-          delta = Math.max(deltaX, deltaY);
-        } else if (handle === 'sw') {
-          // Southwest: use maximum of -deltaX and deltaY
-          delta = Math.max(-deltaX, deltaY);
-        } else if (handle === 'ne') {
-          // Northeast: use maximum of deltaX and -deltaY
-          delta = Math.max(deltaX, -deltaY);
-        } else if (handle === 'nw') {
-          // Northwest: use maximum of -deltaX and -deltaY
-          delta = Math.max(-deltaX, -deltaY);
-        }
-
-        // QR is square: limit size so it doesn't overflow vertically
-        // height in % = size * imageAspectRatio, so max size = 100 / imageAspectRatio
-        const maxSizeForHeight = 100 / imageAspectRatio;
-        const maxSize = Math.min(50, maxSizeForHeight);
-        const newSize = Math.max(5, Math.min(maxSize, dragState.startFieldWidth + delta));
-
-        // Adjust position when resizing from west or north handles
-        let newX = qrCode.x;
-        let newY = qrCode.y;
-
-        if (handle === 'sw' || handle === 'nw') {
-          // Moving left edge: adjust x position
-          const sizeDiff = newSize - qrCode.size;
-          newX = Math.max(0, Math.min(100 - newSize, qrCode.x - sizeDiff));
-        }
-
-        if (handle === 'ne' || handle === 'nw') {
-          // Moving top edge: adjust y position
-          const sizeDiff = newSize - qrCode.size;
-          const newHeightPercent = newSize * imageAspectRatio;
-          newY = Math.max(
-            0,
-            Math.min(100 - newHeightPercent, qrCode.y - sizeDiff * imageAspectRatio)
-          );
-        }
-
-        // Ensure final position is within bounds
-        const finalHeightPercent = newSize * imageAspectRatio;
-        newX = Math.max(0, Math.min(100 - newSize, newX));
-        newY = Math.max(0, Math.min(100 - finalHeightPercent, newY));
-
-        setQrCode({
-          x: newX,
-          y: newY,
-          size: newSize,
-        });
-      }
-    } else {
-      // Handle attribute field movement and resizing
-      setFields((prevFields) =>
-        prevFields.map((field) => {
-          if (field.attributeName !== selectedField) return field;
-
-          if (dragState.isDragging) {
-            // Move the field
-            return {
-              ...field,
-              x: Math.max(0, Math.min(100 - field.width, dragState.startFieldX + deltaX)),
-              y: Math.max(0, Math.min(100 - field.height, dragState.startFieldY + deltaY)),
-            };
-          } else if (dragState.isResizing) {
-            // Resize the field based on handle
-            const handle = dragState.resizeHandle;
-            let newX = field.x;
-            let newY = field.y;
-            let newWidth = field.width;
-            let newHeight = field.height;
-
-            if (handle === 'se') {
-              // Southeast: increase width and height
-              newWidth = Math.max(10, Math.min(100 - field.x, dragState.startFieldWidth + deltaX));
-              newHeight = Math.max(3, Math.min(100 - field.y, dragState.startFieldHeight + deltaY));
-            } else if (handle === 'sw') {
-              // Southwest: change x, width, and height
-              const proposedX = dragState.startFieldX + deltaX;
-              const proposedWidth = dragState.startFieldWidth - deltaX;
-              if (proposedWidth >= 10 && proposedX >= 0) {
-                newX = proposedX;
-                newWidth = proposedWidth;
-              }
-              newHeight = Math.max(3, Math.min(100 - field.y, dragState.startFieldHeight + deltaY));
-            } else if (handle === 'ne') {
-              // Northeast: change y, width, and height
-              newWidth = Math.max(10, Math.min(100 - field.x, dragState.startFieldWidth + deltaX));
-              const proposedY = dragState.startFieldY + deltaY;
-              const proposedHeight = dragState.startFieldHeight - deltaY;
-              if (proposedHeight >= 3 && proposedY >= 0) {
-                newY = proposedY;
-                newHeight = proposedHeight;
-              }
-            } else if (handle === 'nw') {
-              // Northwest: change x, y, width, and height
-              const proposedX = dragState.startFieldX + deltaX;
-              const proposedWidth = dragState.startFieldWidth - deltaX;
-              if (proposedWidth >= 10 && proposedX >= 0) {
-                newX = proposedX;
-                newWidth = proposedWidth;
-              }
-              const proposedY = dragState.startFieldY + deltaY;
-              const proposedHeight = dragState.startFieldHeight - deltaY;
-              if (proposedHeight >= 3 && proposedY >= 0) {
-                newY = proposedY;
-                newHeight = proposedHeight;
-              }
+    setFields((prevFields) =>
+      prevFields.map((f) =>
+        f.attributeName === attributeName
+          ? {
+              ...f,
+              x: Math.max(0, Math.min(100 - newWidth, x)),
+              y: Math.max(0, Math.min(100 - newHeight, y)),
+              width: Math.max(10, Math.min(100, newWidth)),
+              height: Math.max(3, Math.min(100, newHeight)),
             }
-
-            return {
-              ...field,
-              x: newX,
-              y: newY,
-              width: newWidth,
-              height: newHeight,
-            };
-          }
-
-          return field;
-        })
-      );
-    }
+          : f
+      )
+    );
   };
 
-  const handleMouseUp = () => {
-    setDragState({
-      isDragging: false,
-      isResizing: false,
-      resizeHandle: null,
-      startX: 0,
-      startY: 0,
-      startFieldX: 0,
-      startFieldY: 0,
-      startFieldWidth: 0,
-      startFieldHeight: 0,
-      target: null,
+  // Handle QR code drag end
+  const handleQRDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const node = e.target;
+    const x = (node.x() / stageWidth) * 100;
+    const y = (node.y() / stageHeight) * 100;
+    const imageAspectRatio = stageWidth / stageHeight;
+    const qrHeightPercent = qrCode.size * imageAspectRatio;
+
+    setQrCode({
+      ...qrCode,
+      x: Math.max(0, Math.min(100 - qrCode.size, x)),
+      y: Math.max(0, Math.min(100 - qrHeightPercent, y)),
     });
   };
 
-  useEffect(() => {
-    if (dragState.isDragging || dragState.isResizing) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragState, selectedField, selectedQR, qrCode]);
+  // Handle QR code transform end (resize)
+  const handleQRTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
+    const node = e.target as Konva.Group;
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+
+    // Use average of scaleX and scaleY to maintain square
+    const scale = (scaleX + scaleY) / 2;
+
+    // Reset scale
+    node.scaleX(1);
+    node.scaleY(1);
+
+    const newSize = (((qrCode.size / 100) * stageWidth * scale) / stageWidth) * 100;
+    const x = (node.x() / stageWidth) * 100;
+    const y = (node.y() / stageHeight) * 100;
+    const imageAspectRatio = stageWidth / stageHeight;
+    const maxSizeForHeight = 100 / imageAspectRatio;
+    const maxSize = Math.min(50, maxSizeForHeight);
+
+    setQrCode({
+      x: Math.max(0, Math.min(100 - newSize, x)),
+      y: Math.max(0, Math.min(100 - newSize * imageAspectRatio, y)),
+      size: Math.max(5, Math.min(maxSize, newSize)),
+    });
+  };
 
   const handleFontSizeChange = (attributeName: string, newSize: number) => {
     setFields((prevFields) =>
@@ -539,151 +424,151 @@ export default function AttributePositionEditor({
         </div>
 
         <div className="flex-1 bg-gray-100 rounded-lg p-4 flex items-center justify-center overflow-auto min-h-0">
-          <div
-            ref={containerRef}
-            className="relative inline-block shadow-lg"
-            style={{
-              maxWidth: '100%',
-            }}
-            onClick={() => {
-              setSelectedField(null);
-              setSelectedQR(false);
-            }}
-          >
-            {/* Background Image - determines all sizing */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              ref={imageRef}
-              src={imageUrl}
-              alt="Template"
-              className="block w-full h-auto"
-              draggable={false}
-            />
-
-            {/* Draggable Fields */}
-            {fields.map((field) => (
-              <div
-                key={field.attributeName}
-                className={`absolute cursor-move border-2 overflow-hidden ${
-                  selectedField === field.attributeName
-                    ? 'border-blue-500 shadow-lg'
-                    : 'border-blue-300'
-                }`}
-                style={{
-                  left: `${field.x}%`,
-                  top: `${field.y}%`,
-                  width: `${field.width}%`,
-                  height: `${field.height}%`,
-                  backgroundColor: field.bgColor,
-                }}
-                onMouseDown={(e) => handleMouseDown(e, field.attributeName)}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div
-                  style={{
-                    fontSize: `${field.fontSize}px`,
-                    fontFamily: field.fontFamily,
-                    color: field.fontColor,
-                    lineHeight: '1',
-                    paddingLeft: '8px', // Match jsPDF and CredentialPreview
-                    paddingTop: '2px', // Match CredentialPreview
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {field.attributeName}
-                </div>
-
-                {/* Resize Handles */}
-                {selectedField === field.attributeName && (
-                  <>
-                    {/* Southeast */}
-                    <div
-                      className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 border border-white cursor-se-resize"
-                      onMouseDown={(e) => handleMouseDown(e, field.attributeName, 'se')}
-                    />
-                    {/* Southwest */}
-                    <div
-                      className="absolute bottom-0 left-0 w-3 h-3 bg-blue-500 border border-white cursor-sw-resize"
-                      onMouseDown={(e) => handleMouseDown(e, field.attributeName, 'sw')}
-                    />
-                    {/* Northeast */}
-                    <div
-                      className="absolute top-0 right-0 w-3 h-3 bg-blue-500 border border-white cursor-ne-resize"
-                      onMouseDown={(e) => handleMouseDown(e, field.attributeName, 'ne')}
-                    />
-                    {/* Northwest */}
-                    <div
-                      className="absolute top-0 left-0 w-3 h-3 bg-blue-500 border border-white cursor-nw-resize"
-                      onMouseDown={(e) => handleMouseDown(e, field.attributeName, 'nw')}
-                    />
-                  </>
-                )}
-              </div>
-            ))}
-
-            {/* QR Code */}
-            <div
-              className={`absolute cursor-move border-2 ${
-                selectedQR ? 'border-green-500 shadow-lg' : 'border-green-300'
-              } bg-white flex items-center justify-center`}
-              style={{
-                left: `${qrCode.x}%`,
-                top: `${qrCode.y}%`,
-                width: `${qrCode.size}%`,
-                aspectRatio: '1 / 1',
-              }}
-              onMouseDown={(e) => handleQRMouseDown(e)}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <svg className="w-full h-full" viewBox="0 0 120 120">
-                {/* White background */}
-                <rect x="0" y="0" width="120" height="120" fill="white" />
-                {/* Simple QR code representation in black with padding */}
-                <rect x="10" y="10" width="30" height="30" fill="black" />
-                <rect x="45" y="10" width="10" height="10" fill="black" />
-                <rect x="60" y="10" width="10" height="10" fill="black" />
-                <rect x="80" y="10" width="30" height="30" fill="black" />
-                <rect x="10" y="45" width="10" height="10" fill="black" />
-                <rect x="25" y="45" width="10" height="10" fill="black" />
-                <rect x="55" y="45" width="10" height="10" fill="black" />
-                <rect x="80" y="45" width="10" height="10" fill="black" />
-                <rect x="95" y="45" width="10" height="10" fill="black" />
-                <rect x="10" y="80" width="30" height="30" fill="black" />
-                <rect x="45" y="80" width="10" height="10" fill="black" />
-                <rect x="60" y="95" width="10" height="10" fill="black" />
-                <rect x="80" y="80" width="10" height="10" fill="black" />
-                <rect x="95" y="95" width="10" height="10" fill="black" />
-              </svg>
-
-              {/* Resize Handles */}
-              {selectedQR && (
-                <>
-                  {/* Southeast */}
-                  <div
-                    className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border border-white cursor-se-resize"
-                    onMouseDown={(e) => handleQRMouseDown(e, 'se')}
-                  />
-                  {/* Southwest */}
-                  <div
-                    className="absolute bottom-0 left-0 w-3 h-3 bg-green-500 border border-white cursor-sw-resize"
-                    onMouseDown={(e) => handleQRMouseDown(e, 'sw')}
-                  />
-                  {/* Northeast */}
-                  <div
-                    className="absolute top-0 right-0 w-3 h-3 bg-green-500 border border-white cursor-ne-resize"
-                    onMouseDown={(e) => handleQRMouseDown(e, 'ne')}
-                  />
-                  {/* Northwest */}
-                  <div
-                    className="absolute top-0 left-0 w-3 h-3 bg-green-500 border border-white cursor-nw-resize"
-                    onMouseDown={(e) => handleQRMouseDown(e, 'nw')}
-                  />
-                </>
-              )}
+          {bgImageStatus === 'loading' && (
+            <div className="flex items-center justify-center">
+              <ThemedText className="text-gray-600">Loading template...</ThemedText>
             </div>
-          </div>
+          )}
+
+          {bgImageStatus === 'failed' && (
+            <div className="flex items-center justify-center">
+              <ThemedText className="text-red-600">Failed to load credential template</ThemedText>
+            </div>
+          )}
+
+          {bgImageStatus === 'loaded' && backgroundImage && (
+            <div className="shadow-lg">
+              <Stage
+                ref={stageRef}
+                width={stageWidth}
+                height={stageHeight}
+                onClick={(e) => {
+                  // Deselect if clicking on stage background
+                  if (e.target === e.target.getStage()) {
+                    setSelectedField(null);
+                    setSelectedQR(false);
+                  }
+                }}
+              >
+                {/* Background Layer */}
+                <Layer>
+                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                  <Image image={backgroundImage} width={stageWidth} height={stageHeight} />
+                </Layer>
+
+                {/* Attribute Fields Layer */}
+                <Layer>
+                  {fields.map((field) => {
+                    const x = (field.x / 100) * stageWidth;
+                    const y = (field.y / 100) * stageHeight;
+                    const width = (field.width / 100) * stageWidth;
+                    const height = (field.height / 100) * stageHeight;
+                    const isSelected = selectedField === field.attributeName;
+
+                    return (
+                      <Group
+                        key={field.attributeName}
+                        x={x}
+                        y={y}
+                        draggable
+                        onDragEnd={(e) => handleFieldDragEnd(field.attributeName, e)}
+                        onTransformEnd={(e) => handleFieldTransformEnd(field.attributeName, e)}
+                        onClick={() => {
+                          setSelectedField(field.attributeName);
+                          setSelectedQR(false);
+                        }}
+                        onTap={() => {
+                          setSelectedField(field.attributeName);
+                          setSelectedQR(false);
+                        }}
+                        ref={(node) => {
+                          if (node) {
+                            fieldRefs.current.set(field.attributeName, node);
+                          }
+                        }}
+                      >
+                        {/* Background Rectangle */}
+                        {field.bgColor !== 'transparent' && (
+                          <Rect width={width} height={height} fill={field.bgColor} />
+                        )}
+
+                        {/* Border Rectangle */}
+                        <Rect
+                          width={width}
+                          height={height}
+                          stroke={isSelected ? '#3B82F6' : '#93C5FD'}
+                          strokeWidth={isSelected ? 2 : 1}
+                        />
+
+                        {/* Text */}
+                        <Text
+                          x={8}
+                          y={2}
+                          text={field.attributeName}
+                          fontSize={field.fontSize}
+                          fontFamily={field.fontFamily}
+                          fill={field.fontColor}
+                          width={width - 16}
+                          align="left"
+                          verticalAlign="top"
+                          ellipsis={true}
+                          wrap="none"
+                        />
+                      </Group>
+                    );
+                  })}
+
+                  {/* QR Code */}
+                  {qrImage && (
+                    <Group
+                      ref={qrRef}
+                      x={(qrCode.x / 100) * stageWidth}
+                      y={(qrCode.y / 100) * stageHeight}
+                      draggable
+                      onDragEnd={handleQRDragEnd}
+                      onTransformEnd={handleQRTransformEnd}
+                      onClick={() => {
+                        setSelectedQR(true);
+                        setSelectedField(null);
+                      }}
+                      onTap={() => {
+                        setSelectedQR(true);
+                        setSelectedField(null);
+                      }}
+                    >
+                      {/* QR Code Image */}
+                      {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                      <Image
+                        image={qrImage}
+                        width={(qrCode.size / 100) * stageWidth}
+                        height={(qrCode.size / 100) * stageWidth}
+                      />
+
+                      {/* Border */}
+                      <Rect
+                        width={(qrCode.size / 100) * stageWidth}
+                        height={(qrCode.size / 100) * stageWidth}
+                        stroke={selectedQR ? '#10B981' : '#6EE7B7'}
+                        strokeWidth={selectedQR ? 2 : 1}
+                      />
+                    </Group>
+                  )}
+
+                  {/* Transformer */}
+                  <Transformer
+                    ref={transformerRef}
+                    boundBoxFunc={(oldBox, newBox) => {
+                      // Limit minimum size
+                      if (newBox.width < 50 || newBox.height < 20) {
+                        return oldBox;
+                      }
+                      return newBox;
+                    }}
+                  />
+                </Layer>
+              </Stage>
+            </div>
+          )}
         </div>
       </div>
 

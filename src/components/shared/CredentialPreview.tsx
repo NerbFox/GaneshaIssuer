@@ -33,9 +33,13 @@ export default function CredentialPreview({
   // State for QR code image
   const [qrImage, setQrImage] = useState<HTMLImageElement | null>(null);
 
-  // Calculate stage dimensions based on loaded image
-  const stageWidth = backgroundImage?.naturalWidth || 800;
-  const stageHeight = backgroundImage?.naturalHeight || 1131;
+  // Calculate stage dimensions based on loaded image with display constraints
+  const MAX_DISPLAY_WIDTH = 800;
+  const naturalWidth = backgroundImage?.naturalWidth || 800;
+  const naturalHeight = backgroundImage?.naturalHeight || 1131;
+  const scale = naturalWidth > MAX_DISPLAY_WIDTH ? MAX_DISPLAY_WIDTH / naturalWidth : 1;
+  const stageWidth = naturalWidth * scale;
+  const stageHeight = naturalHeight * scale;
 
   // Generate simple QR code placeholder
   useEffect(() => {
@@ -106,12 +110,7 @@ export default function CredentialPreview({
           )}
 
           {bgImageStatus === 'loaded' && backgroundImage && (
-            <Stage
-              width={stageWidth}
-              height={stageHeight}
-              pixelRatio={1}
-              style={{ maxWidth: '100%', height: 'auto' }}
-            >
+            <Stage width={stageWidth} height={stageHeight} pixelRatio={1}>
               {/* Background Layer */}
               <Layer>
                 {/* eslint-disable-next-line jsx-a11y/alt-text */}
