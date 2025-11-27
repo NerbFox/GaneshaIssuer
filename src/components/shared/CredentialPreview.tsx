@@ -1,6 +1,5 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
 import { ThemedText } from '@/components/shared/ThemedText';
 import { AttributePositionData, QRCodePosition } from '@/components/issuer/AttributePositionEditor';
 
@@ -21,36 +20,8 @@ export default function CredentialPreview({
   showTitle = true,
   showQRCode = true,
 }: CredentialPreviewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [, setContainerSize] = useState({ width: 800, height: 1131 });
-  const [imageAspectRatio, setImageAspectRatio] = useState<number>(1 / 1.414);
-
   // Use default QR position if not provided
   const effectiveQRPosition = qrPosition || { x: 82, y: 70, size: 15 };
-
-  // Load image and get its natural aspect ratio
-  useEffect(() => {
-    const img = new Image();
-    img.onload = () => {
-      const aspectRatio = img.width / img.height;
-      setImageAspectRatio(aspectRatio);
-    };
-    img.src = imageUrl;
-  }, [imageUrl]);
-
-  // Update container size on mount and window resize
-  useEffect(() => {
-    const updateSize = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setContainerSize({ width: rect.width, height: rect.height });
-      }
-    };
-
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
-  }, []);
 
   const attributeNames = Object.keys(positions);
 
@@ -70,20 +41,17 @@ export default function CredentialPreview({
 
       <div className="bg-gray-100 rounded-lg p-4">
         <div
-          ref={containerRef}
-          className="credential-container relative mx-auto shadow-lg"
+          className="credential-container relative inline-block mx-auto shadow-lg"
           style={{
-            width: '100%',
-            maxWidth: '800px',
-            aspectRatio: `${imageAspectRatio}`,
+            maxWidth: '100%',
           }}
         >
-          {/* Background Image */}
+          {/* Background Image - determines all sizing */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageUrl}
             alt="Credential Template"
-            className="absolute inset-0 w-full h-full object-contain"
+            className="block w-full h-auto"
             draggable={false}
           />
 
@@ -101,7 +69,7 @@ export default function CredentialPreview({
             return (
               <div
                 key={attrName}
-                className="absolute"
+                className="absolute flex items-center pl-2"
                 style={{
                   left: `${position.x}%`,
                   top: `${position.y}%`,
@@ -121,7 +89,7 @@ export default function CredentialPreview({
                     whiteSpace: 'nowrap',
                     textOverflow: 'ellipsis',
                     lineHeight: '1',
-                    transform: 'translateY(-10%)',
+                    transform: 'translateY(0)',
                   }}
                 >
                   {displayValue}

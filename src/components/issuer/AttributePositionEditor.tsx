@@ -98,18 +98,6 @@ export default function AttributePositionEditor({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
-  const [containerSize, setContainerSize] = useState({ width: 800, height: 1131 });
-  const [imageAspectRatio, setImageAspectRatio] = useState<number>(1 / 1.414); // Default A4 ratio
-
-  // Load image and get its natural aspect ratio
-  useEffect(() => {
-    const img = new Image();
-    img.onload = () => {
-      const aspectRatio = img.width / img.height;
-      setImageAspectRatio(aspectRatio);
-    };
-    img.src = imageUrl;
-  }, [imageUrl]);
 
   // Initialize fields from initial positions
   useEffect(() => {
@@ -127,25 +115,6 @@ export default function AttributePositionEditor({
     });
     setFields(initialFields);
   }, [attributes, initialPositions]);
-
-  // Update container size on mount and window resize
-  useEffect(() => {
-    const updateSize = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setContainerSize({ width: rect.width, height: rect.height });
-      }
-    };
-
-    updateSize();
-    // Add a small delay to ensure the image has loaded and container is properly sized
-    const timer = setTimeout(updateSize, 100);
-    window.addEventListener('resize', updateSize);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', updateSize);
-    };
-  }, [imageAspectRatio]);
 
   const handleAddField = (attributeName: string) => {
     // Check if field already exists
@@ -260,8 +229,13 @@ export default function AttributePositionEditor({
   const handleMouseMove = (e: MouseEvent) => {
     if ((!selectedField && !selectedQR) || (!dragState.isDragging && !dragState.isResizing)) return;
 
-    const deltaX = ((e.clientX - dragState.startX) / containerSize.width) * 100;
-    const deltaY = ((e.clientY - dragState.startY) / containerSize.height) * 100;
+    // Get current image dimensions from the actual rendered image
+    if (!imageRef.current) return;
+    const rect = imageRef.current.getBoundingClientRect();
+    const imageAspectRatio = imageRef.current.naturalWidth / imageRef.current.naturalHeight;
+
+    const deltaX = ((e.clientX - dragState.startX) / rect.width) * 100;
+    const deltaY = ((e.clientY - dragState.startY) / rect.height) * 100;
 
     if (dragState.target === 'qr') {
       // Handle QR code movement and resizing
@@ -429,7 +403,7 @@ export default function AttributePositionEditor({
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragState, selectedField, selectedQR, containerSize, qrCode]);
+  }, [dragState, selectedField, selectedQR, qrCode]);
 
   const handleFontSizeChange = (attributeName: string, newSize: number) => {
     setFields((prevFields) =>
@@ -567,24 +541,22 @@ export default function AttributePositionEditor({
         <div className="flex-1 bg-gray-100 rounded-lg p-4 flex items-center justify-center overflow-auto min-h-0">
           <div
             ref={containerRef}
-            className="relative shadow-lg"
+            className="relative inline-block shadow-lg"
             style={{
-              width: '100%',
-              maxWidth: '800px',
-              aspectRatio: `${imageAspectRatio}`,
+              maxWidth: '100%',
             }}
             onClick={() => {
               setSelectedField(null);
               setSelectedQR(false);
             }}
           >
-            {/* Background Image */}
+            {/* Background Image - determines all sizing */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               ref={imageRef}
               src={imageUrl}
               alt="Template"
-              className="absolute inset-0 w-full h-full object-contain"
+              className="block w-full h-auto"
               draggable={false}
             />
 
