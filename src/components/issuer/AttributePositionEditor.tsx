@@ -221,27 +221,69 @@ export default function AttributePositionEditor({
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
 
-    // Reset scale
-    node.scaleX(1);
-    node.scaleY(1);
-
     const field = fields.find((f) => f.attributeName === attributeName);
     if (!field) return;
 
-    const newWidth = (((field.width / 100) * stageWidth * scaleX) / stageWidth) * 100;
-    const newHeight = (((field.height / 100) * stageHeight * scaleY) / stageHeight) * 100;
-    const x = (node.x() / stageWidth) * 100;
-    const y = (node.y() / stageHeight) * 100;
+    // Calculate new dimensions in pixels
+    const oldWidthPx = (field.width / 100) * stageWidth;
+    const oldHeightPx = (field.height / 100) * stageHeight;
+    const newWidthPx = oldWidthPx * scaleX;
+    const newHeightPx = oldHeightPx * scaleY;
 
+    // Convert to percentages
+    const newWidth = (newWidthPx / stageWidth) * 100;
+    const newHeight = (newHeightPx / stageHeight) * 100;
+
+    // Get current position (already in pixels from Konva)
+    const currentX = node.x();
+    const currentY = node.y();
+
+    // Convert to percentages
+    const x = (currentX / stageWidth) * 100;
+    const y = (currentY / stageHeight) * 100;
+
+    // Constrain values
+    const constrainedWidth = Math.max(10, Math.min(100, newWidth));
+    const constrainedHeight = Math.max(3, Math.min(100, newHeight));
+    const constrainedX = Math.max(0, Math.min(100 - constrainedWidth, x));
+    const constrainedY = Math.max(0, Math.min(100 - constrainedHeight, y));
+
+    // Calculate final pixel dimensions
+    const finalWidthPx = (constrainedWidth / 100) * stageWidth;
+    const finalHeightPx = (constrainedHeight / 100) * stageHeight;
+
+    // Update children dimensions BEFORE resetting scale
+    const children = node.getChildren();
+    children.forEach((child) => {
+      if (child instanceof Konva.Rect) {
+        child.width(finalWidthPx);
+        child.height(finalHeightPx);
+      } else if (child instanceof Konva.Text) {
+        child.width(finalWidthPx - 16); // Account for padding
+      }
+    });
+
+    // Reset scale to 1
+    node.scaleX(1);
+    node.scaleY(1);
+
+    // Update node position immediately (convert back to pixels)
+    node.x((constrainedX / 100) * stageWidth);
+    node.y((constrainedY / 100) * stageHeight);
+
+    // Force redraw after all updates
+    node.getLayer()?.batchDraw();
+
+    // Update state
     setFields((prevFields) =>
       prevFields.map((f) =>
         f.attributeName === attributeName
           ? {
               ...f,
-              x: Math.max(0, Math.min(100 - newWidth, x)),
-              y: Math.max(0, Math.min(100 - newHeight, y)),
-              width: Math.max(10, Math.min(100, newWidth)),
-              height: Math.max(3, Math.min(100, newHeight)),
+              x: constrainedX,
+              y: constrainedY,
+              width: constrainedWidth,
+              height: constrainedHeight,
             }
           : f
       )
@@ -272,21 +314,58 @@ export default function AttributePositionEditor({
     // Use average of scaleX and scaleY to maintain square
     const scale = (scaleX + scaleY) / 2;
 
-    // Reset scale
-    node.scaleX(1);
-    node.scaleY(1);
+    // Calculate new size in pixels
+    const oldSizePx = (qrCode.size / 100) * stageWidth;
+    const newSizePx = oldSizePx * scale;
 
-    const newSize = (((qrCode.size / 100) * stageWidth * scale) / stageWidth) * 100;
-    const x = (node.x() / stageWidth) * 100;
-    const y = (node.y() / stageHeight) * 100;
+    // Convert to percentage
+    const newSize = (newSizePx / stageWidth) * 100;
+
+    // Get current position
+    const currentX = node.x();
+    const currentY = node.y();
+    const x = (currentX / stageWidth) * 100;
+    const y = (currentY / stageHeight) * 100;
+
+    // Calculate constraints
     const imageAspectRatio = stageWidth / stageHeight;
     const maxSizeForHeight = 100 / imageAspectRatio;
     const maxSize = Math.min(50, maxSizeForHeight);
 
+    // Constrain values
+    const constrainedSize = Math.max(5, Math.min(maxSize, newSize));
+    const qrHeightPercent = constrainedSize * imageAspectRatio;
+    const constrainedX = Math.max(0, Math.min(100 - constrainedSize, x));
+    const constrainedY = Math.max(0, Math.min(100 - qrHeightPercent, y));
+
+    // Calculate final pixel size
+    const finalSizePx = (constrainedSize / 100) * stageWidth;
+
+    // Update children dimensions BEFORE resetting scale
+    const children = node.getChildren();
+    children.forEach((child) => {
+      if (child instanceof Konva.Image || child instanceof Konva.Rect) {
+        child.width(finalSizePx);
+        child.height(finalSizePx);
+      }
+    });
+
+    // Reset scale to 1
+    node.scaleX(1);
+    node.scaleY(1);
+
+    // Update node position immediately
+    node.x((constrainedX / 100) * stageWidth);
+    node.y((constrainedY / 100) * stageHeight);
+
+    // Force redraw after all updates
+    node.getLayer()?.batchDraw();
+
+    // Update state
     setQrCode({
-      x: Math.max(0, Math.min(100 - newSize, x)),
-      y: Math.max(0, Math.min(100 - newSize * imageAspectRatio, y)),
-      size: Math.max(5, Math.min(maxSize, newSize)),
+      x: constrainedX,
+      y: constrainedY,
+      size: constrainedSize,
     });
   };
 
