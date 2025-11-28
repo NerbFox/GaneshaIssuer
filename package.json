@@ -26,13 +26,17 @@
     "html2canvas": "^1.4.1",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^3.0.3",
+    "konva": "^10.0.12",
     "next": "15.5.4",
     "next-intl": "^3.24.1",
+    "pdfjs-dist": "^5.4.394",
     "qrcode": "^1.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-konva": "^19.2.1",
     "react-select": "^5.10.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "use-image": "^1.1.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

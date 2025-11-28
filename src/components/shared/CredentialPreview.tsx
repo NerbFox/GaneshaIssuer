@@ -1,6 +1,8 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Stage, Layer, Image, Text, Rect } from 'react-konva';
+import useImage from 'use-image';
 import { ThemedText } from '@/components/shared/ThemedText';
 import { AttributePositionData, QRCodePosition } from '@/components/issuer/AttributePositionEditor';
 
@@ -21,38 +23,60 @@ export default function CredentialPreview({
   showTitle = true,
   showQRCode = true,
 }: CredentialPreviewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [, setContainerSize] = useState({ width: 800, height: 1131 });
-  const [imageAspectRatio, setImageAspectRatio] = useState<number>(1 / 1.414);
-
   // Use default QR position if not provided
   const effectiveQRPosition = qrPosition || { x: 82, y: 70, size: 15 };
-
-  // Load image and get its natural aspect ratio
-  useEffect(() => {
-    const img = new Image();
-    img.onload = () => {
-      const aspectRatio = img.width / img.height;
-      setImageAspectRatio(aspectRatio);
-    };
-    img.src = imageUrl;
-  }, [imageUrl]);
-
-  // Update container size on mount and window resize
-  useEffect(() => {
-    const updateSize = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setContainerSize({ width: rect.width, height: rect.height });
-      }
-    };
-
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
-  }, []);
-
   const attributeNames = Object.keys(positions);
+
+  // Load background image using useImage hook
+  const [backgroundImage, bgImageStatus] = useImage(imageUrl, 'anonymous');
+
+  // State for QR code image
+  const [qrImage, setQrImage] = useState<HTMLImageElement | null>(null);
+
+  // Calculate stage dimensions based on loaded image with display constraints
+  const MAX_DISPLAY_WIDTH = 800;
+  const naturalWidth = backgroundImage?.naturalWidth || 800;
+  const naturalHeight = backgroundImage?.naturalHeight || 1131;
+  const scale = naturalWidth > MAX_DISPLAY_WIDTH ? MAX_DISPLAY_WIDTH / naturalWidth : 1;
+  const stageWidth = naturalWidth * scale;
+  const stageHeight = naturalHeight * scale;
+
+  // Generate simple QR code placeholder
+  useEffect(() => {
+    if (!showQRCode) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 120;
+    canvas.height = 120;
+    const ctx = canvas.getContext('2d');
+
+    if (ctx) {
+      // White background
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, 120, 120);
+
+      // Black QR pattern
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(10, 10, 30, 30);
+      ctx.fillRect(45, 10, 10, 10);
+      ctx.fillRect(60, 10, 10, 10);
+      ctx.fillRect(80, 10, 30, 30);
+      ctx.fillRect(10, 45, 10, 10);
+      ctx.fillRect(25, 45, 10, 10);
+      ctx.fillRect(55, 45, 10, 10);
+      ctx.fillRect(80, 45, 10, 10);
+      ctx.fillRect(95, 45, 10, 10);
+      ctx.fillRect(10, 80, 30, 30);
+      ctx.fillRect(45, 80, 10, 10);
+      ctx.fillRect(60, 95, 10, 10);
+      ctx.fillRect(80, 80, 10, 10);
+      ctx.fillRect(95, 95, 10, 10);
+
+      const img = new window.Image();
+      img.src = canvas.toDataURL();
+      img.onload = () => setQrImage(img);
+    }
+  }, [showQRCode]);
 
   return (
     <div className="w-full">
@@ -63,108 +87,103 @@ export default function CredentialPreview({
           </ThemedText>
           <ThemedText className="text-xs text-gray-500 mt-1 block">
             This is how the credential will appear to holders with the configured attribute
-            positions
+            positions (Rendered with Konva.js)
           </ThemedText>
         </div>
       )}
 
       <div className="bg-gray-100 rounded-lg p-4">
         <div
-          ref={containerRef}
-          className="credential-container relative mx-auto shadow-lg"
-          style={{
-            width: '100%',
-            maxWidth: '800px',
-            aspectRatio: `${imageAspectRatio}`,
-          }}
+          className="credential-container inline-block mx-auto shadow-lg"
+          style={{ maxWidth: '100%' }}
         >
-          {/* Background Image */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt="Credential Template"
-            className="absolute inset-0 w-full h-full object-contain"
-            draggable={false}
-          />
+          {bgImageStatus === 'loading' && (
+            <div className="w-full h-64 flex items-center justify-center bg-gray-200 rounded">
+              <ThemedText className="text-gray-500">Loading credential template...</ThemedText>
+            </div>
+          )}
 
-          {/* Positioned Attribute Values */}
-          {attributeNames.map((attrName) => {
-            const position = positions[attrName];
-            const actualValue = sampleData[attrName];
-            // Show actual value if filled, otherwise show sample placeholder
-            const hasValue = actualValue && actualValue.trim() !== '';
-            const displayValue = hasValue ? actualValue : `[${attrName}]`;
-            const bgColor = position.bgColor || 'transparent';
-            const fontColor = position.fontColor || '#000000';
-            const fontFamily = position.fontFamily || 'Arial';
+          {bgImageStatus === 'failed' && (
+            <div className="w-full h-64 flex items-center justify-center bg-red-50 rounded">
+              <ThemedText className="text-red-600">Failed to load credential template</ThemedText>
+            </div>
+          )}
 
-            return (
-              <div
-                key={attrName}
-                className="absolute"
-                style={{
-                  left: `${position.x}%`,
-                  top: `${position.y}%`,
-                  width: `${position.width}%`,
-                  minHeight: `${position.height}%`,
-                  backgroundColor: bgColor,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: `${position.fontSize}px`,
-                    fontFamily: fontFamily,
-                    color: fontColor,
-                    opacity: hasValue ? 1 : 0.5,
-                    fontStyle: hasValue ? 'normal' : 'italic',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    paddingTop: `${position.fontSize * 0.2}px`,
-                    lineHeight: `${position.fontSize * 1.8}px`,
-                  }}
-                >
-                  {displayValue}
-                </div>
-              </div>
-            );
-          })}
+          {bgImageStatus === 'loaded' && backgroundImage && (
+            <Stage width={stageWidth} height={stageHeight} pixelRatio={1}>
+              {/* Background Layer */}
+              <Layer>
+                {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                <Image image={backgroundImage} width={stageWidth} height={stageHeight} />
+              </Layer>
 
-          {/* QR Code - Placeholder or Example */}
-          <div
-            className="absolute bg-white flex items-center justify-center"
-            style={{
-              left: `${effectiveQRPosition.x}%`,
-              top: `${effectiveQRPosition.y}%`,
-              width: `${effectiveQRPosition.size}%`,
-              aspectRatio: '1 / 1',
-            }}
-          >
-            {showQRCode ? (
-              <svg className="w-full h-full" viewBox="0 0 120 120">
-                {/* White background */}
-                <rect x="0" y="0" width="120" height="120" fill="white" />
-                {/* Simple QR code representation in black with padding */}
-                <rect x="10" y="10" width="30" height="30" fill="black" />
-                <rect x="45" y="10" width="10" height="10" fill="black" />
-                <rect x="60" y="10" width="10" height="10" fill="black" />
-                <rect x="80" y="10" width="30" height="30" fill="black" />
-                <rect x="10" y="45" width="10" height="10" fill="black" />
-                <rect x="25" y="45" width="10" height="10" fill="black" />
-                <rect x="55" y="45" width="10" height="10" fill="black" />
-                <rect x="80" y="45" width="10" height="10" fill="black" />
-                <rect x="95" y="45" width="10" height="10" fill="black" />
-                <rect x="10" y="80" width="30" height="30" fill="black" />
-                <rect x="45" y="80" width="10" height="10" fill="black" />
-                <rect x="60" y="95" width="10" height="10" fill="black" />
-                <rect x="80" y="80" width="10" height="10" fill="black" />
-                <rect x="95" y="95" width="10" height="10" fill="black" />
-              </svg>
-            ) : (
-              // Just show white placeholder when QR code is hidden
-              <div className="w-full h-full bg-white" />
-            )}
-          </div>
+              {/* Text Layer */}
+              <Layer>
+                {attributeNames.map((attrName) => {
+                  const position = positions[attrName];
+                  const actualValue = sampleData[attrName];
+                  const hasValue = actualValue && actualValue.trim() !== '';
+                  const displayValue = hasValue ? actualValue : `[${attrName}]`;
+                  const bgColor = position.bgColor || 'transparent';
+                  const fontColor = position.fontColor || '#000000';
+                  const fontFamily = position.fontFamily || 'Arial';
+
+                  // Convert percentage to pixels
+                  const x = (position.x / 100) * stageWidth;
+                  const y = (position.y / 100) * stageHeight;
+                  const width = (position.width / 100) * stageWidth;
+                  const height = (position.height / 100) * stageHeight;
+
+                  return (
+                    <React.Fragment key={attrName}>
+                      {/* Background rectangle */}
+                      {bgColor !== 'transparent' && (
+                        <Rect x={x} y={y} width={width} height={height} fill={bgColor} />
+                      )}
+
+                      {/* Text */}
+                      <Text
+                        x={x + 8} // 8px left padding
+                        y={y + 2} // 2px top padding
+                        text={displayValue}
+                        fontSize={position.fontSize}
+                        fontFamily={fontFamily}
+                        fill={fontColor}
+                        opacity={hasValue ? 1 : 0.5}
+                        fontStyle={hasValue ? 'normal' : 'italic'}
+                        width={width - 16} // Account for padding
+                        align="left"
+                        verticalAlign="top"
+                        ellipsis={true}
+                        wrap="none"
+                      />
+                    </React.Fragment>
+                  );
+                })}
+              </Layer>
+
+              {/* QR Code Layer */}
+              {showQRCode && qrImage && (
+                <Layer>
+                  <Rect
+                    x={(effectiveQRPosition.x / 100) * stageWidth}
+                    y={(effectiveQRPosition.y / 100) * stageHeight}
+                    width={(effectiveQRPosition.size / 100) * Math.min(stageWidth, stageHeight)}
+                    height={(effectiveQRPosition.size / 100) * Math.min(stageWidth, stageHeight)}
+                    fill="#FFFFFF"
+                  />
+                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                  <Image
+                    image={qrImage}
+                    x={(effectiveQRPosition.x / 100) * stageWidth}
+                    y={(effectiveQRPosition.y / 100) * stageHeight}
+                    width={(effectiveQRPosition.size / 100) * Math.min(stageWidth, stageHeight)}
+                    height={(effectiveQRPosition.size / 100) * Math.min(stageWidth, stageHeight)}
+                  />
+                </Layer>
+              )}
+            </Stage>
+          )}
         </div>
       </div>
 
