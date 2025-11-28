@@ -23,7 +23,7 @@ interface VerificationRequest {
   verifier_did: string;
   verifier_name: string;
   purpose: string;
-  status: 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'DECLINE';
+  status: 'PENDING' | 'ACCEPT' | 'DECLINE';
   requested_credentials: RequestedCredential[];
   vp_id: string | null;
   verify_status: string;
@@ -38,7 +38,7 @@ export default function VerifyRequestPage() {
   const [filteredRequests, setFilteredRequests] = useState<VerificationRequest[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState<
-    'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'DECLINE'
+    'all' | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'VERIFIED' | 'NOT_VERIFIED'
   >('all');
   const [filterType, setFilterType] = useState('');
   const [filterButtonPosition, setFilterButtonPosition] = useState({ top: 0, left: 0 });
@@ -52,8 +52,9 @@ export default function VerifyRequestPage() {
   const filterModalRef = useRef<HTMLDivElement>(null);
 
   const pendingCount = requests.filter((r) => r.status === 'PENDING').length;
-  const verifiedCount = requests.filter((r) => r.verify_status === 'VALID_VERIFICATION').length;
+  const acceptedCount = requests.filter((r) => r.status === 'ACCEPT').length;
   const rejectedCount = requests.filter((r) => r.status === 'DECLINE').length;
+  const verifiedCount = requests.filter((r) => r.verify_status === 'VALID_VERIFICATION').length;
 
   // Fetch verification requests from API
   const fetchVerificationRequests = async () => {
@@ -144,13 +145,26 @@ export default function VerifyRequestPage() {
   };
 
   const applyFilters = (
-    status: 'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'DECLINE',
+    status: 'all' | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'VERIFIED' | 'NOT_VERIFIED',
     type: string
   ) => {
     let filtered = requests;
 
     if (status !== 'all') {
-      filtered = filtered.filter((request) => request.status === status);
+      if (status === 'PENDING') {
+        filtered = filtered.filter((request) => request.status === 'PENDING');
+      } else if (status === 'ACCEPTED') {
+        filtered = filtered.filter((request) => request.status === 'ACCEPT');
+      } else if (status === 'REJECTED') {
+        filtered = filtered.filter((request) => request.status === 'DECLINE');
+      } else if (status === 'VERIFIED') {
+        filtered = filtered.filter((request) => request.verify_status === 'VALID_VERIFICATION');
+      } else if (status === 'NOT_VERIFIED') {
+        filtered = filtered.filter(
+          (request) =>
+            request.verify_status !== 'VALID_VERIFICATION' && request.verify_status !== ''
+        );
+      }
     }
 
     if (type) {
@@ -164,7 +178,9 @@ export default function VerifyRequestPage() {
     setFilteredRequests(filtered);
   };
 
-  const handleStatusChange = (status: 'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'DECLINE') => {
+  const handleStatusChange = (
+    status: 'all' | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'VERIFIED' | 'NOT_VERIFIED'
+  ) => {
     setFilterStatus(status);
     applyFilters(status, filterType);
   };
@@ -255,7 +271,7 @@ export default function VerifyRequestPage() {
             row.status
           )}`}
         >
-          {row.status}
+          {getStatusDisplay(row.status)}
         </span>
       ),
     },
@@ -290,14 +306,27 @@ export default function VerifyRequestPage() {
     switch (status) {
       case 'PENDING':
         return 'bg-yellow-100 text-yellow-700';
-      case 'SUBMITTED':
-        return 'bg-blue-100 text-blue-700';
       case 'ACCEPT':
         return 'bg-green-100 text-green-700';
       case 'DECLINE':
         return 'bg-red-100 text-red-700';
       default:
         return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'Pending';
+      case 'ACCEPT':
+        return 'Accepted';
+      case 'DECLINE':
+        return 'Declined';
+      case 'VERIFIED':
+        return 'Verified';
+      default:
+        return status;
     }
   };
 
@@ -329,29 +358,35 @@ export default function VerifyRequestPage() {
         ) : (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 pt-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8 pt-4">
               <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
                 <ThemedText className="text-sm text-gray-600 mb-2">Total Requests</ThemedText>
                 <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                   {requests.length}
                 </ThemedText>
               </div>
-              <div className="bg-purple-50 grid grid-row-2 rounded-2xl p-6">
+              <div className="bg-yellow-50 grid grid-row-2 rounded-2xl p-6">
                 <ThemedText className="text-sm text-gray-600 mb-2">Pending</ThemedText>
                 <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                   {pendingCount}
+                </ThemedText>
+              </div>
+              <div className="bg-purple-50 grid grid-row-2 rounded-2xl p-6">
+                <ThemedText className="text-sm text-gray-600 mb-2">Accepted</ThemedText>
+                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                  {acceptedCount}
+                </ThemedText>
+              </div>
+              <div className="bg-red-50 grid grid-row-2 rounded-2xl p-6">
+                <ThemedText className="text-sm text-gray-600 mb-2">Rejected</ThemedText>
+                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                  {rejectedCount}
                 </ThemedText>
               </div>
               <div className="bg-green-50 grid grid-row-2 rounded-2xl p-6">
                 <ThemedText className="text-sm text-gray-600 mb-2">Verified</ThemedText>
                 <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                   {verifiedCount}
-                </ThemedText>
-              </div>
-              <div className="bg-amber-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Rejected</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {rejectedCount}
                 </ThemedText>
               </div>
             </div>
@@ -513,16 +548,23 @@ export default function VerifyRequestPage() {
               value={filterStatus}
               onChange={(e) =>
                 handleStatusChange(
-                  e.target.value as 'all' | 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'DECLINE'
+                  e.target.value as
+                    | 'all'
+                    | 'PENDING'
+                    | 'ACCEPTED'
+                    | 'REJECTED'
+                    | 'VERIFIED'
+                    | 'NOT_VERIFIED'
                 )
               }
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-black cursor-pointer"
             >
               <option value="all">All</option>
               <option value="PENDING">Pending</option>
-              <option value="SUBMITTED">Submitted</option>
-              <option value="VERIFIED">Verified</option>
+              <option value="ACCEPTED">Accepted</option>
               <option value="REJECTED">Rejected</option>
+              <option value="VERIFIED">Verified</option>
+              <option value="NOT_VERIFIED">Not Verified</option>
             </select>
           </div>
 
@@ -571,7 +613,7 @@ export default function VerifyRequestPage() {
                       selectedRequest.status
                     )}`}
                   >
-                    {selectedRequest.status}
+                    {getStatusDisplay(selectedRequest.status)}
                   </span>
                 </div>
                 <div className="space-x-3">
