@@ -302,8 +302,10 @@ export default function FillIssueRequestForm({
   // Generate Image Blob using Konva.js (consistent canvas rendering)
   const generateImageBlob = async (): Promise<Blob | null> => {
     try {
-      // Import the Konva-based credential image generator
-      const { generateCredentialImageKonva } = await import('@/utils/pdfGenerator');
+      // Import the Konva-based credential image generator and high-res config
+      const { generateCredentialImageKonva, HIGH_RES_RENDERING_CONFIG } = await import(
+        '@/utils/pdfGenerator'
+      );
 
       if (!imageUrl || !attributePositions) {
         console.error('Missing required data for image generation');
@@ -327,21 +329,23 @@ export default function FillIssueRequestForm({
         }
       });
 
-      console.log('🎨 Generating credential image with Konva...');
+      console.log('🎨 Generating high-resolution credential image with Konva...');
       console.log('Image URL:', imageUrl);
       console.log('Attributes:', attributeData);
       console.log('Positions:', attributePositions);
 
-      // Generate image using Konva (no QR for initial image)
+      // Generate high-resolution image using Konva (no QR for initial image)
+      // Using HIGH_RES_RENDERING_CONFIG for print-quality output
       const pngBlob = await generateCredentialImageKonva(
         imageUrl,
         attributePositions,
         attributeData,
         qrCodePosition,
-        undefined // No VP ID yet, QR will be added later when presenting
+        undefined, // No VP ID yet, QR will be added later when presenting
+        HIGH_RES_RENDERING_CONFIG // Use high-resolution configuration
       );
 
-      console.log('✅ Konva image generated successfully');
+      console.log('✅ High-resolution Konva image generated successfully');
       return pngBlob;
     } catch (error) {
       console.error('❌ Failed to generate credential image:', error);

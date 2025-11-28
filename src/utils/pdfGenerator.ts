@@ -28,6 +28,26 @@ export interface AttributePositionData {
   [attributeName: string]: AttributePosition;
 }
 
+export interface RenderingConfig {
+  useNaturalResolution: boolean; // If true, use natural image dimensions; if false, use maxWidth
+  maxWidth: number | null; // Maximum width in pixels (null = no limit)
+  pixelRatio: number; // Super-sampling ratio (1 = normal, 2 = 2x, 3 = 3x for high quality)
+}
+
+// Default configuration for display/preview (800px max, 1x pixel ratio)
+export const DEFAULT_RENDERING_CONFIG: RenderingConfig = {
+  useNaturalResolution: false,
+  maxWidth: 800,
+  pixelRatio: 1,
+};
+
+// High-resolution configuration for print-quality output
+export const HIGH_RES_RENDERING_CONFIG: RenderingConfig = {
+  useNaturalResolution: true,
+  maxWidth: null,
+  pixelRatio: 2, // 2x super-sampling for sharp text
+};
+
 /**
  * Download image from URL as data URI
  * @param url - Image URL
@@ -542,6 +562,7 @@ export async function generateCredentialImage(
  * @param sampleData - Actual attribute values to render
  * @param qrPosition - QR code position (optional)
  * @param vpId - VP ID for QR code (optional, if QR needed)
+ * @param config - Rendering configuration (optional, defaults to DEFAULT_RENDERING_CONFIG)
  * @returns Promise with PNG blob
  */
 export async function generateCredentialImageKonva(
@@ -549,7 +570,8 @@ export async function generateCredentialImageKonva(
   positions: AttributePositionData,
   sampleData: Record<string, string>,
   qrPosition?: QRPosition,
-  vpId?: string
+  vpId?: string,
+  config: RenderingConfig = DEFAULT_RENDERING_CONFIG
 ): Promise<Blob> {
   try {
     console.log('🎨 Starting Konva credential image generation...');
@@ -567,12 +589,44 @@ export async function generateCredentialImageKonva(
     const naturalHeight = backgroundImage.naturalHeight;
     console.log(`✅ Image loaded: ${naturalWidth}x${naturalHeight}`);
 
-    // Apply same scaling as editor and preview for consistency
-    const MAX_DISPLAY_WIDTH = 800;
-    const scale = naturalWidth > MAX_DISPLAY_WIDTH ? MAX_DISPLAY_WIDTH / naturalWidth : 1;
-    const imageWidth = naturalWidth * scale;
-    const imageHeight = naturalHeight * scale;
-    console.log(`📐 Scaled dimensions: ${imageWidth}x${imageHeight} (scale: ${scale})`);
+    // Calculate dimensions based on configuration
+    let imageWidth: number;
+    let imageHeight: number;
+    let resolutionScale: number; // Scale factor relative to natural size
+
+    if (config.useNaturalResolution) {
+      // Use natural resolution (high-quality output)
+      imageWidth = naturalWidth;
+      imageHeight = naturalHeight;
+      resolutionScale = 1;
+      console.log(`📐 Using natural resolution: ${imageWidth}x${imageHeight}`);
+    } else if (config.maxWidth && naturalWidth > config.maxWidth) {
+      // Scale down to maxWidth
+      resolutionScale = config.maxWidth / naturalWidth;
+      imageWidth = config.maxWidth;
+      imageHeight = naturalHeight * resolutionScale;
+      console.log(
+        `📐 Scaled to maxWidth: ${imageWidth}x${imageHeight} (scale: ${resolutionScale})`
+      );
+    } else {
+      // Use natural size (smaller than maxWidth)
+      imageWidth = naturalWidth;
+      imageHeight = naturalHeight;
+      resolutionScale = 1;
+      console.log(`📐 Using natural size: ${imageWidth}x${imageHeight}`);
+    }
+
+    console.log(
+      `🎨 Rendering config: useNatural=${config.useNaturalResolution}, pixelRatio=${config.pixelRatio}`
+    );
+
+    // Calculate font scale factor relative to preview size (800px reference)
+    // Font sizes in schema are defined for 800px preview, need to scale for actual output
+    const PREVIEW_REFERENCE_WIDTH = 800;
+    const fontScaleFactor = imageWidth / PREVIEW_REFERENCE_WIDTH;
+    console.log(
+      `📏 Font scale factor: ${fontScaleFactor.toFixed(2)}x (${imageWidth}px / ${PREVIEW_REFERENCE_WIDTH}px)`
+    );
 
     // Step 2: Create offscreen Konva stage
     const container = document.createElement('div');
@@ -584,7 +638,7 @@ export async function generateCredentialImageKonva(
       container: container,
       width: imageWidth,
       height: imageHeight,
-      pixelRatio: 1,
+      pixelRatio: config.pixelRatio,
     });
 
     // Step 3: Add background layer
@@ -615,6 +669,15 @@ export async function generateCredentialImageKonva(
       const width = (position.width / 100) * imageWidth;
       const height = (position.height / 100) * imageHeight;
 
+      // Scale font size based on preview reference (800px)
+      // fontSize in schema is defined for 800px preview, scale to actual canvas width
+      const scaledFontSize = position.fontSize * fontScaleFactor;
+
+      // Scale padding proportionally based on canvas width (8px and 2px at 800px width)
+      const leftPadding = 8 * fontScaleFactor;
+      const topPadding = 2 * fontScaleFactor;
+      const horizontalPadding = 16 * fontScaleFactor;
+
       // Draw background rectangle if bgColor is specified and not transparent
       if (position.bgColor && position.bgColor !== 'transparent') {
         const bgRect = new Konva.Rect({
@@ -627,15 +690,15 @@ export async function generateCredentialImageKonva(
         textLayer.add(bgRect);
       }
 
-      // Add text element with padding (8px left, 2px top)
+      // Add text element with scaled padding
       const text = new Konva.Text({
-        x: x + 8,
-        y: y + 2,
+        x: x + leftPadding,
+        y: y + topPadding,
         text: value,
-        fontSize: position.fontSize,
+        fontSize: scaledFontSize,
         fontFamily: position.fontFamily || 'Arial',
         fill: position.fontColor || '#000000',
-        width: width - 16, // Account for left + right padding
+        width: width - horizontalPadding, // Account for left + right padding
         align: 'left',
         verticalAlign: 'top',
         ellipsis: true,
@@ -643,7 +706,9 @@ export async function generateCredentialImageKonva(
       });
       textLayer.add(text);
 
-      console.log(`✅ Rendered attribute: ${attrName}`);
+      console.log(
+        `✅ Rendered attribute: ${attrName} (fontSize: ${position.fontSize}px → ${scaledFontSize.toFixed(1)}px)`
+      );
     }
 
     stage.add(textLayer);
@@ -667,8 +732,9 @@ export async function generateCredentialImageKonva(
       });
       qrLayer.add(qrBg);
 
-      // Generate QR code image
-      const qrImageSize = Math.floor(qrSize - 16);
+      // Generate QR code image with scaled padding (16px at 800px reference)
+      const qrPadding = 16 * fontScaleFactor;
+      const qrImageSize = Math.floor(qrSize - qrPadding);
       const qrDataUri = await generateQRCode(vpId, qrImageSize);
       const qrImage = await new Promise<HTMLImageElement>((resolve, reject) => {
         const img = new Image();
@@ -677,9 +743,9 @@ export async function generateCredentialImageKonva(
         img.src = qrDataUri;
       });
 
-      // Center QR code within white background
-      const offsetX = (qrSize - qrImageSize) / 2;
-      const offsetY = (qrSize - qrImageSize) / 2;
+      // Center QR code within white background (using scaled padding)
+      const offsetX = qrPadding / 2;
+      const offsetY = qrPadding / 2;
 
       const qrKonvaImage = new Konva.Image({
         x: qrX + offsetX,
@@ -695,9 +761,11 @@ export async function generateCredentialImageKonva(
     }
 
     // Step 6: Export to PNG blob
-    console.log('🖼️ Exporting Konva stage to PNG...');
+    console.log(
+      `🖼️ Exporting Konva stage to PNG (${imageWidth}x${imageHeight} @ ${config.pixelRatio}x)...`
+    );
     const dataUrl = stage.toDataURL({
-      pixelRatio: 1,
+      pixelRatio: config.pixelRatio,
       mimeType: 'image/png',
     });
 
