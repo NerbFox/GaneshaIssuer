@@ -3,7 +3,6 @@
 import React, { useMemo, useState } from 'react';
 import Select, { StylesConfig } from 'react-select';
 import countriesData from '@/data/countries.json';
-import { ThemedText } from '@/components/shared/ThemedText';
 
 interface PhoneInputProps {
   id: string;
@@ -250,11 +249,12 @@ export default function PhoneInput({
           />
         </div>
       </div>
-      <label htmlFor={id} className="absolute left-3 top-2 z-10 pointer-events-none">
-        <ThemedText fontSize={12} fontWeight={500} className="text-gray-700">
-          {label}
-          {required && <span className="text-red-500">*</span>}
-        </ThemedText>
+      <label
+        htmlFor={id}
+        className="absolute left-3 top-2 z-10 pointer-events-none text-xs font-medium text-xs font-medium text-gray-700"
+      >
+        {label}
+        {required && <span className="text-red-500">*</span>}
       </label>
     </div>
   );

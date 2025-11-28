@@ -430,9 +430,7 @@ export default function AttributePositionEditor({
     <div className="flex h-[80vh] gap-4 p-4">
       {/* Left Sidebar - Available Attributes */}
       <div className="w-64 bg-gray-50 rounded-lg p-4 overflow-y-auto">
-        <ThemedText className="text-sm font-semibold mb-3 text-gray-900">
-          Available Attributes
-        </ThemedText>
+        <span className="text-sm font-semibold mb-3 text-gray-900">Available Attributes</span>
         <div className="space-y-2">
           {availableAttributes.map((attr) => (
             <button
@@ -445,18 +443,16 @@ export default function AttributePositionEditor({
             </button>
           ))}
           {availableAttributes.length === 0 && (
-            <ThemedText className="text-xs text-gray-500 italic">
-              All attributes have been added
-            </ThemedText>
+            <span className="text-xs text-gray-500 italic">All attributes have been added</span>
           )}
         </div>
 
         {/* Added Fields List */}
         {fields.length > 0 && (
           <div className="mt-6">
-            <ThemedText className="text-sm font-semibold mb-3 text-gray-900">
+            <span className="text-sm font-semibold mb-3 text-gray-900">
               Added Fields ({fields.length})
-            </ThemedText>
+            </span>
             <div className="space-y-2">
               {fields.map((field) => (
                 <div
@@ -496,10 +492,10 @@ export default function AttributePositionEditor({
       {/* Center - Canvas */}
       <div className="flex-1 flex flex-col">
         <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <ThemedText className="text-sm text-blue-900">
+          <span className="text-sm text-blue-900">
             <strong>Instructions:</strong> Click on attributes from the left to add them to the
             template. Drag to move, resize from corners, and adjust font size in the right panel.
-          </ThemedText>
+          </span>
         </div>
 
         <div className="flex-1 bg-gray-100 rounded-lg p-4 flex items-center justify-center overflow-auto min-h-0">
@@ -653,7 +649,7 @@ export default function AttributePositionEditor({
 
       {/* Right Sidebar - Properties */}
       <div className="w-64 bg-gray-50 rounded-lg p-4 overflow-y-auto flex flex-col">
-        <ThemedText className="text-sm font-semibold mb-3 text-gray-900">Properties</ThemedText>
+        <span className="text-sm font-semibold mb-3 text-gray-900">Properties</span>
         {selectedFieldData ? (
           <div className="space-y-4 flex-1">
             <div>
@@ -854,9 +850,7 @@ export default function AttributePositionEditor({
                 }}
                 className="w-full px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-900"
               />
-              <ThemedText className="text-xs text-gray-500 mt-1">
-                Size as percentage of template (5-50%)
-              </ThemedText>
+              <p className="text-xs text-gray-500 mt-1">Size as percentage of template (5-50%)</p>
             </div>
 
             <div>
@@ -868,9 +862,9 @@ export default function AttributePositionEditor({
             </div>
           </div>
         ) : (
-          <ThemedText className="text-xs text-gray-500 italic">
+          <span className="text-xs text-gray-500 italic">
             Select a field or QR code to view properties.
-          </ThemedText>
+          </span>
         )}
 
         {/* Bottom Action Buttons */}

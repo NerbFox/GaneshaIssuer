@@ -2,7 +2,6 @@
 
 import { useTranslations, useLocale } from 'next-intl';
 import Image from 'next/image';
-import { ThemedText } from '@/components/shared/ThemedText';
 import Button from '@/components/shared/Button';
 import { useRouter } from 'next/navigation';
 import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
@@ -41,33 +40,25 @@ export default function PrivacyPolicyPage() {
                   <Image src="/GWallet.svg" width={50} height={50} alt="GaneshaWallet Logo" />
                 </div>
               </div>
-              <ThemedText fontSize={20} fontWeight={700} className="text-[#0C2D48]">
-                GaneshaWallet
-              </ThemedText>
+              <span className="text-[#0C2D48]">GaneshaWallet</span>
             </div>
             <LanguageSwitcher preserveQuery={true} />
           </div>
 
           {/* Title */}
           <div className="text-center mb-8">
-            <ThemedText fontSize={40} fontWeight={700} className="text-black block mb-4">
-              {t('title')}
-            </ThemedText>
-            <ThemedText fontSize={14} className="text-gray-600 block">
-              {t('lastUpdated')}
-            </ThemedText>
+            <span className="text-black block mb-4">{t('title')}</span>
+            <span className="text-base text-gray-600 block">{t('lastUpdated')}</span>
           </div>
 
           {/* Content */}
-          <div className="space-y-6 text-gray-700">
+          <div className="space-y-6 text-xs font-medium text-gray-700">
             {content.sections.map((section, index) => (
               <section key={index}>
-                <ThemedText fontSize={20} fontWeight={700} className="text-black block mb-3">
-                  {section.title}
-                </ThemedText>
-                <ThemedText fontSize={14} className="block leading-relaxed whitespace-pre-line">
+                <span className="text-black block mb-3">{section.title}</span>
+                <span className="text-sm block leading-relaxed whitespace-pre-line">
                   {section.content}
-                </ThemedText>
+                </span>
               </section>
             ))}
           </div>

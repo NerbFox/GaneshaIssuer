@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/shared/InstitutionLayout';
-import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import Modal from '@/components/shared/Modal';
 import ViewSchemaForm from '@/components/shared/ViewSchemaForm';
@@ -450,9 +449,7 @@ export default function HistoryPage() {
       id: 'date',
       label: 'DATETIME',
       sortKey: 'date',
-      render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{formatDateTime(row.date)}</ThemedText>
-      ),
+      render: (row) => <span className="text-sm text-gray-900">{formatDateTime(row.date)}</span>,
     },
     {
       id: 'holderDid',
@@ -460,7 +457,7 @@ export default function HistoryPage() {
       sortKey: 'holderDid',
       render: (row) => (
         <div className="flex items-center gap-2">
-          <ThemedText className="text-sm text-gray-900">{truncateDid(row.holderDid)}</ThemedText>
+          <span className="text-sm text-gray-900">{truncateDid(row.holderDid)}</span>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -515,7 +512,7 @@ export default function HistoryPage() {
 
         // If unknown schema, just show text without button
         if (isUnknown || !row.schemaId) {
-          return <ThemedText className="text-sm text-red-600">{row.schemaName}</ThemedText>;
+          return <span className="text-sm text-red-600">{row.schemaName}</span>;
         }
 
         return (
@@ -572,23 +569,17 @@ export default function HistoryPage() {
   return (
     <InstitutionLayout activeTab="history">
       <div className="p-12">
-        <ThemedText fontSize={40} fontWeight={700} className="text-black mb-8">
-          History
-        </ThemedText>
+        <span className="text-[40px] font-bold text-black mb-8">History</span>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <ThemedText className="text-sm text-gray-600 mb-2">Total Activities</ThemedText>
-            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-              {totalActivities}
-            </ThemedText>
+            <span className="text-sm text-gray-600 mb-2">Total Activities</span>
+            <span className="text-[32px] font-semibold text-gray-900">{totalActivities}</span>
           </div>
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <ThemedText className="text-sm text-gray-600 mb-2">Approved Requests</ThemedText>
-            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-              {approvedCount}
-            </ThemedText>
+            <span className="text-sm text-gray-600 mb-2">Approved Requests</span>
+            <span className="text-[32px] font-semibold text-gray-900">{approvedCount}</span>
           </div>
         </div>
 
@@ -602,7 +593,7 @@ export default function HistoryPage() {
         {/* Error State */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <ThemedText className="text-red-800">Error: {error}</ThemedText>
+            <span className="text-red-800">Error: {error}</span>
           </div>
         )}
 
@@ -659,9 +650,7 @@ export default function HistoryPage() {
           }}
         >
           <div className="flex items-center justify-between mb-6">
-            <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
-              Filter History
-            </ThemedText>
+            <span className="text-lg font-semibold text-gray-900">Filter History</span>
             <button
               onClick={() => setShowFilterModal(false)}
               className="text-gray-400 hover:text-gray-600 cursor-pointer"
@@ -679,9 +668,7 @@ export default function HistoryPage() {
 
           {/* Action Type Filter */}
           <div className="mb-4">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              Action Type
-            </ThemedText>
+            <span className="block text-sm font-medium text-gray-900 mb-2">Action Type</span>
             <select
               value={filterActionType}
               onChange={(e) =>
@@ -700,9 +687,7 @@ export default function HistoryPage() {
 
           {/* Action By Filter */}
           <div className="mb-4">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              Action By
-            </ThemedText>
+            <span className="block text-sm font-medium text-gray-900 mb-2">Action By</span>
             <select
               value={filterActionBy}
               onChange={(e) => handleActionByChange(e.target.value as 'all' | 'holder' | 'issuer')}
@@ -716,9 +701,7 @@ export default function HistoryPage() {
 
           {/* Date From Filter */}
           <div className="mb-4">
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              From Date
-            </ThemedText>
+            <span className="block text-sm font-medium text-gray-900 mb-2">From Date</span>
             <input
               type="date"
               value={filterDateFrom}
@@ -729,9 +712,7 @@ export default function HistoryPage() {
 
           {/* Date To Filter */}
           <div>
-            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
-              To Date
-            </ThemedText>
+            <span className="block text-sm font-medium text-gray-900 mb-2">To Date</span>
             <input
               type="date"
               value={filterDateTo}

@@ -3,7 +3,6 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ThemedText } from '@/components/shared/ThemedText';
 import Button from '@/components/shared/Button';
 import Input from '@/components/shared/Input';
 import CountrySelect from '@/components/shared/CountrySelect';
@@ -194,18 +193,14 @@ export default function InstitutionRegisterPage() {
     <AuthContainer backHref="/institution">
       {/* Title */}
       <div className="mb-8">
-        <ThemedText fontSize={32} fontWeight={700} className="text-black mb-1 block">
-          Create an Account
-        </ThemedText>
-        <ThemedText fontSize={16} className="text-gray-600 block">
-          Get an account to get started
-        </ThemedText>
+        <span className="text-[32px] font-bold text-black mb-1 block">Create an Account</span>
+        <span className="text-base text-gray-600 block">Get an account to get started</span>
       </div>
 
       {/* Error Message */}
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          <ThemedText fontSize={14}>{error}</ThemedText>
+          <span className="text-sm">{error}</span>
         </div>
       )}
 
@@ -226,9 +221,7 @@ export default function InstitutionRegisterPage() {
               disabled={loading}
             />
             {validationErrors.name && (
-              <ThemedText fontSize={12} className="text-red-500 mt-1 block">
-                {validationErrors.name}
-              </ThemedText>
+              <span className="text-xs text-red-500 mt-1 block">{validationErrors.name}</span>
             )}
           </div>
 
@@ -245,9 +238,7 @@ export default function InstitutionRegisterPage() {
               disabled={loading}
             />
             {validationErrors.email && (
-              <ThemedText fontSize={12} className="text-red-500 mt-1 block">
-                {validationErrors.email}
-              </ThemedText>
+              <span className="text-xs text-red-500 mt-1 block">{validationErrors.email}</span>
             )}
           </div>
         </div>
@@ -273,9 +264,7 @@ export default function InstitutionRegisterPage() {
               disabled={loading}
             />
             {validationErrors.phone && (
-              <ThemedText fontSize={12} className="text-red-500 mt-1 block">
-                {validationErrors.phone}
-              </ThemedText>
+              <span className="text-xs text-red-500 mt-1 block">{validationErrors.phone}</span>
             )}
           </div>
 
@@ -290,9 +279,7 @@ export default function InstitutionRegisterPage() {
               disabled={loading}
             />
             {validationErrors.country && (
-              <ThemedText fontSize={12} className="text-red-500 mt-1 block">
-                {validationErrors.country}
-              </ThemedText>
+              <span className="text-xs text-red-500 mt-1 block">{validationErrors.country}</span>
             )}
           </div>
         </div>
@@ -313,14 +300,12 @@ export default function InstitutionRegisterPage() {
             style={{ fontSize: '14px' }}
           />
           <label htmlFor="address" className="absolute top-2 left-4">
-            <ThemedText fontSize={12} fontWeight={500} className="text-gray-700">
+            <span className="text-xs font-medium text-xs font-medium text-gray-700">
               Address<span className="text-red-500">*</span>
-            </ThemedText>
+            </span>
           </label>
           {validationErrors.address && (
-            <ThemedText fontSize={12} className="text-red-500 mt-1 block">
-              {validationErrors.address}
-            </ThemedText>
+            <span className="text-xs text-red-500 mt-1 block">{validationErrors.address}</span>
           )}
         </div>
 
@@ -345,20 +330,18 @@ export default function InstitutionRegisterPage() {
             disabled={loading}
           />
           {validationErrors.website && (
-            <ThemedText fontSize={12} className="text-red-500 mt-1 block">
-              {validationErrors.website}
-            </ThemedText>
+            <span className="text-xs text-red-500 mt-1 block">{validationErrors.website}</span>
           )}
         </div>
 
         {/* Privacy Policy Text */}
         <div className="text-center pt-2">
-          <ThemedText fontSize={12} className="text-gray-600">
+          <span className="text-xs text-gray-600">
             By continuing, you agree to the{' '}
             <Link href="/privacy" className="text-[#0D73BA] hover:underline">
               Privacy Policy
             </Link>
-          </ThemedText>
+          </span>
         </div>
 
         {/* Submit Button */}

@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Modal from '@/components/shared/Modal';
-import { ThemedText } from '@/components/shared/ThemedText';
 import { formatDateTime } from '@/utils/dateUtils';
 import { VerifiableCredential } from '@/utils/indexedDB';
 
@@ -45,7 +44,7 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
             {/* Credential ID */}
             <div className="col-span-2">
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Credential ID</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Credential ID</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                 {renewingCredential.id}
@@ -55,9 +54,7 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
             {/* Credential Type */}
             <div>
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">
-                  Credential Type
-                </ThemedText>
+                <span className="text-sm font-medium text-gray-700">Credential Type</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {Array.isArray(renewingCredential.type)
@@ -69,7 +66,7 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
             {/* Status */}
             <div>
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Status</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
@@ -81,7 +78,7 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
             {/* Valid From */}
             <div>
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Valid From</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Valid From</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {formatDateTime(new Date(renewingCredential.validFrom))}
@@ -91,7 +88,7 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
             {/* Expired At */}
             <div>
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Expired At</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {renewingCredential.expiredAt
@@ -103,7 +100,7 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
             {/* Issuer Name */}
             <div>
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Issuer Name</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Issuer Name</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {renewingCredential.issuerName}
@@ -113,7 +110,7 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
             {/* Issuer DID */}
             <div className="col-span-2">
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Issuer DID</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                 {renewingCredential.issuer}
@@ -123,7 +120,7 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
             {/* Holder DID */}
             <div className="col-span-2">
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Holder DID</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                 {renewingCredential.credentialSubject.id}
@@ -135,9 +132,7 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
           {renewingCredential.imageLink && (
             <div className="mb-6">
               <label className="block mb-3">
-                <ThemedText className="text-sm font-semibold text-gray-900">
-                  VC Background Image
-                </ThemedText>
+                <p className="text-sm font-semibold text-gray-900">VC Background Image</p>
               </label>
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -154,9 +149,9 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
           {Object.keys(credentialAttributes).length > 0 && (
             <div className="mb-6">
               <div className="mb-4">
-                <ThemedText className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-gray-900">
                   Credential Attributes ({Object.keys(credentialAttributes).length}) - Read Only
-                </ThemedText>
+                </p>
               </div>
 
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -165,9 +160,7 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
                     <div key={index} className="grid grid-cols-2 gap-4">
                       <div className="flex items-center">
                         <label className="block">
-                          <ThemedText className="text-xs font-medium text-gray-600">
-                            {key}
-                          </ThemedText>
+                          <span className="text-xs font-medium text-gray-600">{key}</span>
                         </label>
                       </div>
                       <div>
@@ -185,9 +178,9 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
           {/* Renewal Reason Input */}
           <div className="mb-6">
             <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-xs font-medium text-gray-700">
                 Reason for Renewal <span className="text-red-500">*</span>
-              </ThemedText>
+              </span>
             </label>
             <textarea
               value={renewalReason}
@@ -197,7 +190,7 @@ export const RenewCredentialModal: React.FC<RenewCredentialModalProps> = ({
               disabled={isRenewing}
             />
             {renewalReason.trim() === '' && (
-              <ThemedText className="text-xs text-gray-500 mt-1">This field is required</ThemedText>
+              <span className="text-xs text-gray-500 mt-1">This field is required</span>
             )}
           </div>
 

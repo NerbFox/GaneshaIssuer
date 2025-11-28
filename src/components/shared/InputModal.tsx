@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { ThemedText } from '@/components/shared/ThemedText';
 
 interface InputModalProps {
   isOpen: boolean;
@@ -100,14 +99,12 @@ export default function InputModal({
         <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
           {/* Header */}
           <div className="mb-4">
-            <ThemedText fontSize={20} fontWeight={600} className="text-gray-900">
-              {title}
-            </ThemedText>
+            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
           </div>
 
           {/* Message */}
           <div className="mb-4">
-            <ThemedText className="text-gray-700 whitespace-pre-line">{message}</ThemedText>
+            <span className="text-gray-700 whitespace-pre-line">{message}</span>
           </div>
 
           {/* Input Field */}

@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Modal from '@/components/shared/Modal';
-import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 
 interface Schema {
@@ -97,9 +96,7 @@ export const RequestCredentialModal: React.FC<RequestCredentialModalProps> = ({
                   <div className="space-y-6 bg-white p-4 rounded-lg">
                     {/* VC Info */}
                     <div>
-                      <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-3">
-                        VC Info
-                      </ThemedText>
+                      <p className="text-base font-semibold text-gray-900 mb-3">VC Info</p>
                       <DataTable
                         data={getVCInfoData(schema)}
                         columns={vcInfoColumns}
@@ -114,9 +111,7 @@ export const RequestCredentialModal: React.FC<RequestCredentialModalProps> = ({
 
                     {/* Attributes */}
                     <div>
-                      <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-3">
-                        Attributes
-                      </ThemedText>
+                      <p className="text-base font-semibold text-gray-900 mb-3">Attributes</p>
                       <DataTable
                         data={getAttributesData(schema)}
                         columns={attributesColumns}
@@ -136,7 +131,7 @@ export const RequestCredentialModal: React.FC<RequestCredentialModalProps> = ({
 
             {filteredSchemas.length === 0 && (
               <div className="text-center py-12">
-                <ThemedText className="text-gray-500">No schemas available</ThemedText>
+                <span className="text-gray-500">No schemas available</span>
               </div>
             )}
           </>

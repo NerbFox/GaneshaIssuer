@@ -1,6 +1,5 @@
 'use client';
 
-import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { formatDateTime } from '@/utils/dateUtils';
 import CredentialPreview from '@/components/shared/CredentialPreview';
@@ -39,7 +38,7 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
       sortKey: 'name',
       align: 'left',
       width: '25%',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
+      render: (row) => <span className="text-sm text-gray-900">{row.name}</span>,
     },
     {
       id: 'type',
@@ -60,9 +59,9 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
       align: 'left',
       width: '25%',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-600">
+        <span className="text-xs text-gray-600">
           {row.description || <span className="text-gray-400 italic">No description</span>}
-        </ThemedText>
+        </span>
       ),
     },
     {
@@ -91,8 +90,8 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* Schema ID */}
         <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Schema ID</ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Schema ID
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {schemaData.id}
@@ -101,8 +100,8 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
 
         {/* Schema Name */}
         <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Schema Name</ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Schema Name
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {schemaData.schemaName}
@@ -111,8 +110,8 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
 
         {/* Version */}
         <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Version</ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Version
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {schemaData.version}
@@ -121,10 +120,8 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
 
         {/* Expired In */}
         <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">
-              Expired In (Years)
-            </ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Expired In (Years)
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {schemaData.expiredIn === 0 ||
@@ -138,8 +135,8 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
         {/* Created At */}
         {schemaData.createdAt && (
           <div>
-            <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">Created At</ThemedText>
+            <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+              Created At
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
               {formatDateTime(schemaData.createdAt)}
@@ -149,8 +146,8 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
 
         {/* Updated At */}
         <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Updated At</ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Updated At
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {formatDateTime(schemaData.updatedAt)}
@@ -159,8 +156,8 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
 
         {/* Status - Full width on last row */}
         <div className="col-span-2">
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Status
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
             <span
@@ -192,10 +189,8 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
             />
           ) : (
             <>
-              <label className="block mb-3">
-                <ThemedText className="text-sm font-semibold text-gray-900">
-                  Credential Template
-                </ThemedText>
+              <label className="block mb-3 text-sm font-semibold text-gray-900">
+                Credential Template
               </label>
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -205,9 +200,9 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
                   className="w-full h-auto max-h-96 object-contain rounded-xl border-2 border-gray-200 shadow-md block bg-gray-50"
                 />
               </div>
-              <ThemedText className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 mt-2">
                 No attribute positions configured for this schema.
-              </ThemedText>
+              </p>
             </>
           )}
         </div>
@@ -216,9 +211,9 @@ export default function ViewSchemaForm({ onClose, schemaData }: ViewSchemaFormPr
       {/* Attributes Section */}
       <div className="mb-6">
         <div className="mb-4">
-          <ThemedText className="text-sm font-medium text-gray-900">
+          <p className="text-sm font-medium text-gray-900">
             Attributes ({schemaData.attributes.length})
-          </ThemedText>
+          </p>
         </div>
 
         <DataTable

@@ -4,7 +4,6 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import Image from 'next/image';
 import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
-import { ThemedText } from '@/components/shared/ThemedText';
 
 export default function HomePage() {
   const t = useTranslations('nav');
@@ -23,12 +22,8 @@ export default function HomePage() {
               <Image src="/GWallet.svg" width={80} height={80} alt="GaneshaWallet Logo" />
             </div>
           </div>
-          <ThemedText fontSize={48} fontWeight={700} className="block mb-4">
-            {tHome('title')}
-          </ThemedText>
-          <ThemedText fontSize={20} className="text-gray-300 block">
-            {tHome('subtitle')}
-          </ThemedText>
+          <span className="block mb-4">{tHome('title')}</span>
+          <span className="text-gray-300 block">{tHome('subtitle')}</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
@@ -37,16 +32,10 @@ export default function HomePage() {
             className="bg-white p-8 rounded-4xl shadow-xl hover:shadow-2xl transition-all text-center group cursor-pointer"
           >
             <div className="text-5xl mb-4">🔐</div>
-            <ThemedText
-              fontSize={24}
-              fontWeight={700}
-              className="text-gray-900 block mb-2 group-hover:text-[#0D2B45] transition"
-            >
+            <span className="text-gray-900 block mb-2 group-hover:text-[#0D2B45] transition">
               {t('admin')}
-            </ThemedText>
-            <ThemedText fontSize={14} className="text-gray-600 block">
-              {tHome('adminAccess')}
-            </ThemedText>
+            </span>
+            <span className="text-base text-gray-600 block">{tHome('adminAccess')}</span>
           </Link>
 
           <Link
@@ -54,16 +43,10 @@ export default function HomePage() {
             className="bg-white p-8 rounded-4xl shadow-xl hover:shadow-2xl transition-all text-center group cursor-pointer"
           >
             <div className="text-5xl mb-4">🏛️</div>
-            <ThemedText
-              fontSize={24}
-              fontWeight={700}
-              className="text-gray-900 block mb-2 group-hover:text-[#0D2B45] transition"
-            >
+            <span className="text-gray-900 block mb-2 group-hover:text-[#0D2B45] transition">
               {t('institution')}
-            </ThemedText>
-            <ThemedText fontSize={14} className="text-gray-600 block">
-              {tHome('registerInstitution')}
-            </ThemedText>
+            </span>
+            <span className="text-base text-gray-600 block">{tHome('registerInstitution')}</span>
           </Link>
         </div>
       </div>

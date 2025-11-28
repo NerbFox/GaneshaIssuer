@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { formatDateTime } from '@/utils/dateUtils';
 import { fetchSchemaByVersion, SchemaProperty } from '@/services/schemaService';
@@ -197,7 +196,7 @@ export default function ViewCredentialForm({
       sortKey: 'name',
       render: (row) => (
         <div className="flex items-center gap-2">
-          <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>
+          <span className="text-sm text-gray-900">{row.name}</span>
           {row.required && <span className="text-red-500 text-sm">*</span>}
         </div>
       ),
@@ -231,9 +230,9 @@ export default function ViewCredentialForm({
       label: 'VALUE',
       sortKey: 'value',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">
+        <span className="text-sm text-gray-900">
           {row.value ? row.value : <em className="text-gray-400">(empty)</em>}
-        </ThemedText>
+        </span>
       ),
     },
   ];
@@ -294,7 +293,7 @@ export default function ViewCredentialForm({
           </button>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-xs font-medium text-gray-700">
               Version {currentIndex + 1} of {vcs.length}
             </span>
           </div>
@@ -320,8 +319,8 @@ export default function ViewCredentialForm({
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* Credential ID */}
         <div className="col-span-2">
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Credential ID</ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Credential ID
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
             {displayData.id}
@@ -331,8 +330,8 @@ export default function ViewCredentialForm({
         {/* Schema ID */}
         {displayData.schemaId && (
           <div className="col-span-2">
-            <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">Schema ID</ThemedText>
+            <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+              Schema ID
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {displayData.schemaId}
@@ -342,8 +341,8 @@ export default function ViewCredentialForm({
 
         {/* Schema Name */}
         <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Schema Name</ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Schema Name
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {displayData.schemaName}
@@ -352,8 +351,8 @@ export default function ViewCredentialForm({
 
         {/* Schema Version */}
         <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Schema Version</ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Schema Version
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {displayData.schemaVersion}
@@ -362,8 +361,8 @@ export default function ViewCredentialForm({
 
         {/* Holder DID */}
         <div className="col-span-2">
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Holder DID
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
             {displayData.holderDid}
@@ -373,8 +372,8 @@ export default function ViewCredentialForm({
         {/* Issuer DID */}
         {displayData.issuerDid && (
           <div className="col-span-2">
-            <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
+            <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+              Issuer DID
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {displayData.issuerDid}
@@ -384,8 +383,8 @@ export default function ViewCredentialForm({
 
         {/* Issued At */}
         <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Issued At</ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Issued At
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {formatDateTime(
@@ -396,8 +395,8 @@ export default function ViewCredentialForm({
 
         {/* Active Until / Expired At */}
         <div>
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Expired At
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {(() => {
@@ -413,8 +412,8 @@ export default function ViewCredentialForm({
 
         {/* Status */}
         <div className="col-span-2">
-          <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+          <label className="block mb-2 text-sm font-medium text-xs font-medium text-gray-700">
+            Status
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
             <span
@@ -430,9 +429,9 @@ export default function ViewCredentialForm({
       {credential.attributes.length > 0 && (
         <div className="mb-6">
           <div className="mb-4">
-            <ThemedText className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900">
               Credential Attributes ({credential.attributes.length})
-            </ThemedText>
+            </p>
           </div>
 
           {!isLoadingSchema ? (

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { sidebarNavigation, NavigationSection, NavigationItem } from '@/constants/navigation';
-import { ThemedText } from '@/components/shared/ThemedText';
 import ConfirmationModal from '@/components/shared/ConfirmationModal';
 import { clearAllVCs, clearAllVPSharings, clearAllSchemaData } from '@/utils/indexedDB';
 
@@ -117,9 +116,9 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
                 <div key={sectionIndex} className="mb-5">
                   {section.title && (
                     <div className="px-2 mb-2">
-                      <ThemedText fontSize={14} className="text-xs font-normal text-gray-500">
+                      <span className="text-xs font-normal text-xs text-gray-500">
                         {section.title}
-                      </ThemedText>
+                      </span>
                     </div>
                   )}
                   <ul className="space-y-0.5">
@@ -145,7 +144,7 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
                               />
                             )}
                           </div>
-                          <ThemedText className="text-sm text-black">{item.label}</ThemedText>
+                          <span className="text-sm text-black">{item.label}</span>
                         </Link>
                       </li>
                     ))}
@@ -160,9 +159,7 @@ export default function InstitutionLayout({ children, activeTab }: InstitutionLa
                 <div className="w-6 h-6 flex items-center justify-center">
                   <Image src="/GWallet.svg" alt="GaneshaWallet" width={24} height={24} />
                 </div>
-                <ThemedText fontSize={20} fontWeight={700} className="text-[#0C2D48]">
-                  GaneshaWallet
-                </ThemedText>
+                <span className="text-[#0C2D48]">GaneshaWallet</span>
               </div>
             </div>
           </aside>

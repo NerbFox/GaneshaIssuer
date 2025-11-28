@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/shared/InstitutionLayout';
-import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import Modal from '@/components/shared/Modal';
 import FillIssueRequestForm, {
@@ -1999,7 +1998,7 @@ export default function IssueRequestPage() {
       sortKey: 'holder_did',
       render: (row) => (
         <div className="flex items-center gap-2">
-          <ThemedText className="text-sm text-gray-900">{truncateDid(row.holder_did)}</ThemedText>
+          <span className="text-sm text-gray-900">{truncateDid(row.holder_did)}</span>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -2058,7 +2057,7 @@ export default function IssueRequestPage() {
 
         // If unknown schema, just show text without button
         if (isUnknown) {
-          return <ThemedText className="text-sm text-red-600">{schemaName} (Not Found)</ThemedText>;
+          return <span className="text-sm text-red-600">{schemaName} (Not Found)</span>;
         }
 
         return (
@@ -2094,7 +2093,7 @@ export default function IssueRequestPage() {
       label: 'REQUESTED AT',
       sortKey: 'createdAt',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">{formatDateTime(row.createdAt)}</ThemedText>
+        <span className="text-sm text-gray-900">{formatDateTime(row.createdAt)}</span>
       ),
     },
     {
@@ -2158,61 +2157,57 @@ export default function IssueRequestPage() {
   return (
     <InstitutionLayout activeTab="issue-request">
       <div className="p-12">
-        <ThemedText fontSize={40} fontWeight={700} className="text-black mb-8">
-          Issue Request
-        </ThemedText>
+        <span className="text-[40px] font-bold text-black mb-8">Issue Request</span>
 
         {/* Stats Cards */}
         <div className="space-y-6 mb-8 pt-4">
           {/* First Row: Total, Active, Inactive */}
           <div className="grid grid-cols-3 gap-6">
             <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-              <ThemedText className="text-sm text-gray-600 mb-2">Total Pending</ThemedText>
-              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              <span className="text-sm text-gray-600 mb-2">Total Pending</span>
+              <span className="text-[32px] font-semibold text-gray-900">
                 {formatNumber(totalPendingCount)}
-              </ThemedText>
+              </span>
             </div>
             <div className="bg-green-50 grid grid-row-2 rounded-2xl p-6">
-              <ThemedText className="text-sm text-gray-600 mb-2">Active Schema Requests</ThemedText>
-              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              <span className="text-sm text-gray-600 mb-2">Active Schema Requests</span>
+              <span className="text-[32px] font-semibold text-gray-900">
                 {formatNumber(activeSchemaCount)}
-              </ThemedText>
+              </span>
             </div>
             <div className="bg-red-50 grid grid-row-2 rounded-2xl p-6">
-              <ThemedText className="text-sm text-gray-600 mb-2">
-                Inactive Schema Requests
-              </ThemedText>
-              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              <span className="text-sm text-gray-600 mb-2">Inactive Schema Requests</span>
+              <span className="text-[32px] font-semibold text-gray-900">
                 {formatNumber(inactiveSchemaCount)}
-              </ThemedText>
+              </span>
             </div>
           </div>
 
           {/* Second Row: Issuance, Renewal, Update, Revoke */}
           <div className="grid grid-cols-4 gap-6">
             <div className="bg-purple-50 grid grid-row-2 rounded-2xl p-6">
-              <ThemedText className="text-sm text-gray-600 mb-2">Issuance</ThemedText>
-              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              <span className="text-sm text-gray-600 mb-2">Issuance</span>
+              <span className="text-[32px] font-semibold text-gray-900">
                 {formatNumber(issuanceCount)}
-              </ThemedText>
+              </span>
             </div>
             <div className="bg-cyan-50 grid grid-row-2 rounded-2xl p-6">
-              <ThemedText className="text-sm text-gray-600 mb-2">Renewal</ThemedText>
-              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              <span className="text-sm text-gray-600 mb-2">Renewal</span>
+              <span className="text-[32px] font-semibold text-gray-900">
                 {formatNumber(renewalCount)}
-              </ThemedText>
+              </span>
             </div>
             <div className="bg-orange-50 grid grid-row-2 rounded-2xl p-6">
-              <ThemedText className="text-sm text-gray-600 mb-2">Update</ThemedText>
-              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              <span className="text-sm text-gray-600 mb-2">Update</span>
+              <span className="text-[32px] font-semibold text-gray-900">
                 {formatNumber(updateCount)}
-              </ThemedText>
+              </span>
             </div>
             <div className="bg-rose-50 grid grid-row-2 rounded-2xl p-6">
-              <ThemedText className="text-sm text-gray-600 mb-2">Revoke</ThemedText>
-              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              <span className="text-sm text-gray-600 mb-2">Revoke</span>
+              <span className="text-[32px] font-semibold text-gray-900">
                 {formatNumber(revocationCount)}
-              </ThemedText>
+              </span>
             </div>
           </div>
         </div>
@@ -2227,7 +2222,7 @@ export default function IssueRequestPage() {
         {/* Error State */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <ThemedText className="text-red-800">Error: {error}</ThemedText>
+            <span className="text-red-800">Error: {error}</span>
           </div>
         )}
 
@@ -2278,10 +2273,10 @@ export default function IssueRequestPage() {
                     <div className="h-8 w-px bg-gray-200" />
                   </>
                 ) : null}
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <ThemedText fontSize={12} className="text-gray-500">
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span className="text-xs text-gray-500">
                     Last updated: {formatTime(lastRefresh)}
-                  </ThemedText>
+                  </span>
                 </div>
                 <button
                   onClick={fetchRequests}
@@ -2329,9 +2324,7 @@ export default function IssueRequestPage() {
           }}
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
-              Filter Requests
-            </ThemedText>
+            <span className="text-[32px] font-semibold text-gray-900">Filter Requests</span>
             <button
               onClick={() => setShowFilterModal(false)}
               className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
@@ -2353,9 +2346,9 @@ export default function IssueRequestPage() {
               {/* Request Type Filter */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  <span className="block text-sm font-medium text-gray-900 mb-1.5">
                     Request Type
-                  </ThemedText>
+                  </span>
                   <select
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value)}
@@ -2371,9 +2364,9 @@ export default function IssueRequestPage() {
 
                 {/* Schema Status Filter */}
                 <div>
-                  <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  <span className="block text-sm font-medium text-gray-900 mb-1.5">
                     Schema Status
-                  </ThemedText>
+                  </span>
                   <select
                     value={filterSchemaStatus}
                     onChange={(e) => setFilterSchemaStatus(e.target.value)}
@@ -2388,9 +2381,7 @@ export default function IssueRequestPage() {
 
               {/* Requested On Date Filter */}
               <div>
-                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
-                  Requested On
-                </ThemedText>
+                <span className="block text-sm font-medium text-gray-900 mb-1.5">Requested On</span>
                 <div className="grid grid-cols-2 gap-4">
                   <DateTimePicker
                     value={filterRequestedOnStart}
@@ -2468,7 +2459,7 @@ export default function IssueRequestPage() {
         {isLoadingSchema ? (
           <div className="flex items-center justify-center gap-3 py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <ThemedText className="text-gray-600">Loading schema and preparing form...</ThemedText>
+            <span className="text-gray-600">Loading schema and preparing form...</span>
           </div>
         ) : selectedRequest && schemaData ? (
           selectedRequest.type === 'UPDATE' ? (
@@ -2584,9 +2575,7 @@ export default function IssueRequestPage() {
                   {/* Request ID */}
                   <div className="col-span-2">
                     <label className="block mb-2">
-                      <ThemedText className="text-sm font-medium text-gray-700">
-                        Request ID
-                      </ThemedText>
+                      <span className="text-sm font-medium text-gray-700">Request ID</span>
                     </label>
                     <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                       {selectedRequest.id}
@@ -2597,9 +2586,7 @@ export default function IssueRequestPage() {
                   {schemaId && (
                     <div className="col-span-2">
                       <label className="block mb-2">
-                        <ThemedText className="text-sm font-medium text-gray-700">
-                          Schema ID
-                        </ThemedText>
+                        <span className="text-sm font-medium text-gray-700">Schema ID</span>
                       </label>
                       <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                         {schemaId}
@@ -2610,9 +2597,7 @@ export default function IssueRequestPage() {
                   {/* Schema Name */}
                   <div>
                     <label className="block mb-2">
-                      <ThemedText className="text-sm font-medium text-gray-700">
-                        Schema Name
-                      </ThemedText>
+                      <span className="text-sm font-medium text-gray-700">Schema Name</span>
                     </label>
                     <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                       {schemaName}
@@ -2622,9 +2607,7 @@ export default function IssueRequestPage() {
                   {/* Schema Version */}
                   <div>
                     <label className="block mb-2">
-                      <ThemedText className="text-sm font-medium text-gray-700">
-                        Schema Version
-                      </ThemedText>
+                      <span className="text-sm font-medium text-gray-700">Schema Version</span>
                     </label>
                     <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                       {schemaVersion}
@@ -2634,9 +2617,7 @@ export default function IssueRequestPage() {
                   {/* Holder DID */}
                   <div className="col-span-2">
                     <label className="block mb-2">
-                      <ThemedText className="text-sm font-medium text-gray-700">
-                        Holder DID
-                      </ThemedText>
+                      <span className="text-sm font-medium text-gray-700">Holder DID</span>
                     </label>
                     <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                       {selectedRequest.holder_did}
@@ -2646,9 +2627,7 @@ export default function IssueRequestPage() {
                   {/* Issuer DID */}
                   <div className="col-span-2">
                     <label className="block mb-2">
-                      <ThemedText className="text-sm font-medium text-gray-700">
-                        Issuer DID
-                      </ThemedText>
+                      <span className="text-sm font-medium text-gray-700">Issuer DID</span>
                     </label>
                     <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                       {selectedRequest.issuer_did}
@@ -2658,9 +2637,7 @@ export default function IssueRequestPage() {
                   {/* Requested At */}
                   <div>
                     <label className="block mb-2">
-                      <ThemedText className="text-sm font-medium text-gray-700">
-                        Requested At
-                      </ThemedText>
+                      <span className="text-sm font-medium text-gray-700">Requested At</span>
                     </label>
                     <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                       {formatDateTime(selectedRequest.createdAt)}
@@ -2670,9 +2647,7 @@ export default function IssueRequestPage() {
                   {/* Will Expired At */}
                   <div>
                     <label className="block mb-2">
-                      <ThemedText className="text-sm font-medium text-gray-700">
-                        Will Expired At
-                      </ThemedText>
+                      <span className="text-sm font-medium text-gray-700">Will Expired At</span>
                     </label>
                     <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                       {willExpiredAtText}
@@ -2682,9 +2657,7 @@ export default function IssueRequestPage() {
                   {/* Request Type */}
                   <div className="col-span-2">
                     <label className="block mb-2">
-                      <ThemedText className="text-sm font-medium text-gray-700">
-                        Request Type
-                      </ThemedText>
+                      <span className="text-sm font-medium text-gray-700">Request Type</span>
                     </label>
                     <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
                       <span

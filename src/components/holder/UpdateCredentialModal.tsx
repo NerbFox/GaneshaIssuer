@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Modal from '@/components/shared/Modal';
-import { ThemedText } from '@/components/shared/ThemedText';
 import { formatDateTime } from '@/utils/dateUtils';
 import { VerifiableCredential } from '@/utils/indexedDB';
 
@@ -38,7 +37,7 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
             {/* Credential ID */}
             <div className="col-span-2">
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Credential ID</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Credential ID</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                 {updatingCredential.id}
@@ -48,9 +47,7 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
             {/* Credential Type */}
             <div>
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">
-                  Credential Type
-                </ThemedText>
+                <span className="text-sm font-medium text-gray-700">Credential Type</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {Array.isArray(updatingCredential.type)
@@ -62,7 +59,7 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
             {/* Status */}
             <div>
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Status</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
@@ -74,7 +71,7 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
             {/* Valid From */}
             <div>
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Valid From</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Valid From</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {formatDateTime(new Date(updatingCredential.validFrom))}
@@ -84,7 +81,7 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
             {/* Expired At */}
             <div>
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Expired At</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {updatingCredential.expiredAt
@@ -96,7 +93,7 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
             {/* Issuer Name */}
             <div>
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Issuer Name</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Issuer Name</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {updatingCredential.issuerName}
@@ -106,7 +103,7 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
             {/* Issuer DID */}
             <div className="col-span-2">
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Issuer DID</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                 {updatingCredential.issuer}
@@ -116,7 +113,7 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
             {/* Holder DID */}
             <div className="col-span-2">
               <label className="block mb-2">
-                <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
+                <span className="text-sm font-medium text-gray-700">Holder DID</span>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                 {updatingCredential.credentialSubject.id}
@@ -128,9 +125,7 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
           {updatingCredential.imageLink && (
             <div className="mb-6">
               <label className="block mb-3">
-                <ThemedText className="text-sm font-semibold text-gray-900">
-                  VC Background Image
-                </ThemedText>
+                <p className="text-sm font-semibold text-gray-900">VC Background Image</p>
               </label>
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -147,9 +142,9 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
           {Object.keys(updatedAttributes).length > 0 && (
             <div className="mb-6">
               <div className="mb-4">
-                <ThemedText className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-gray-900">
                   Credential Attributes ({Object.keys(updatedAttributes).length}) - Editable
-                </ThemedText>
+                </p>
               </div>
 
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -158,9 +153,7 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
                     <div key={index} className="grid grid-cols-2 gap-4">
                       <div className="flex items-center">
                         <label className="block">
-                          <ThemedText className="text-xs font-medium text-gray-600">
-                            {key}
-                          </ThemedText>
+                          <span className="text-xs font-medium text-gray-600">{key}</span>
                         </label>
                       </div>
                       <div>
@@ -182,9 +175,9 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
           {/* Update Reason Input */}
           <div className="mb-6">
             <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-xs font-medium text-gray-700">
                 Reason for Update <span className="text-red-500">*</span>
-              </ThemedText>
+              </span>
             </label>
             <textarea
               value={updateReason}
@@ -194,7 +187,7 @@ export const UpdateCredentialModal: React.FC<UpdateCredentialModalProps> = ({
               disabled={isUpdating}
             />
             {updateReason.trim() === '' && (
-              <ThemedText className="text-xs text-gray-500 mt-1">This field is required</ThemedText>
+              <span className="text-xs text-gray-500 mt-1">This field is required</span>
             )}
           </div>
 

@@ -1,5 +1,4 @@
 import React from 'react';
-import { ThemedText } from '@/components/shared/ThemedText';
 import { formatDate, formatDateTime } from '@/utils/dateUtils';
 import { DataTable, Column } from '@/components/shared/DataTable'; // Import DataTable and Column
 
@@ -88,7 +87,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
       id: 'name',
       label: 'NAME',
       sortKey: 'name',
-      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
+      render: (row) => <span className="text-sm text-gray-900">{row.name}</span>,
     },
     {
       id: 'type',
@@ -119,9 +118,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
       label: 'VALUE',
       sortKey: 'value',
       render: (row) => (
-        <ThemedText className="text-sm text-gray-900">
-          {row.value ? row.value : <em>(empty)</em>}
-        </ThemedText>
+        <span className="text-sm text-gray-900">{row.value ? row.value : <em>(empty)</em>}</span>
       ),
     },
   ];
@@ -133,7 +130,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
         {/* Credential ID */}
         <div>
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Credential ID</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Credential ID</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
             {credentialData.id}
@@ -143,7 +140,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
         {/* Credential Type */}
         <div>
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Credential Type</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Credential Type</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {credentialData.credentialType}
@@ -153,7 +150,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
         {/* Status */}
         <div>
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Status</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
             <span
@@ -167,7 +164,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
         {/* Valid From */}
         <div>
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Issued At</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Issued At</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {formatDateTime(credentialData.validFrom)}
@@ -177,7 +174,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
         {/* Expired At */}
         <div>
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Expired At</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {credentialData.expiredAt ? formatDateTime(credentialData.expiredAt) : 'Lifetime'}
@@ -187,7 +184,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
         {/* Issuer Name */}
         <div>
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Issuer Name</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Issuer Name</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {credentialData.issuerName}
@@ -197,7 +194,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
         {/* Issuer DID */}
         <div className="col-span-2">
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Issuer DID</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
             {credentialData.issuer}
@@ -207,7 +204,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
         {/* Holder DID */}
         <div className="col-span-2">
           <label className="block mb-2">
-            <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
+            <span className="text-sm font-medium text-gray-700">Holder DID</span>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
             {credentialData.holder}
@@ -219,9 +216,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
       {credentialData.imageLink && (
         <div className="mb-6">
           <label className="block mb-3">
-            <ThemedText className="text-sm font-semibold text-gray-900">
-              VC Background Image
-            </ThemedText>
+            <p className="text-sm font-semibold text-gray-900">VC Background Image</p>
           </label>
           <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -238,9 +233,9 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
       {credentialData.attributes.length > 0 && (
         <div className="mb-6">
           <div className="mb-4">
-            <ThemedText className="text-sm font-semibold text-gray-900">
+            <p className="text-sm font-semibold text-gray-900">
               Credential Attributes ({credentialData.attributes.length})
-            </ThemedText>
+            </p>
           </div>
 
           <DataTable
@@ -258,14 +253,14 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
       {/* Proof Information Section */}
       <div className="mb-6">
         <div className="mb-4">
-          <ThemedText className="text-sm font-semibold text-gray-900">Proof Information</ThemedText>
+          <span className="text-sm font-semibold text-gray-900">Proof Information</span>
         </div>
 
         <div className="grid grid-cols-2 gap-6">
           {/* Proof Type */}
           <div>
             <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">Type</ThemedText>
+              <span className="text-sm font-medium text-gray-700">Type</span>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
               {credentialData.proof.type}
@@ -275,7 +270,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
           {/* Cryptosuite */}
           <div>
             <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">Cryptosuite</ThemedText>
+              <span className="text-sm font-medium text-gray-700">Cryptosuite</span>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
               {credentialData.proof.cryptosuite}
@@ -285,7 +280,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
           {/* Created */}
           <div>
             <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">Created</ThemedText>
+              <span className="text-sm font-medium text-gray-700">Created</span>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
               {formatDate(credentialData.proof.created)}
@@ -295,7 +290,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
           {/* Proof Purpose */}
           <div>
             <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">Proof Purpose</ThemedText>
+              <span className="text-sm font-medium text-gray-700">Proof Purpose</span>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
               {credentialData.proof.proofPurpose}
@@ -305,9 +300,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
           {/* Verification Method */}
           <div className="col-span-2">
             <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">
-                Verification Method
-              </ThemedText>
+              <span className="text-sm font-medium text-gray-700">Verification Method</span>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {credentialData.proof.verificationMethod}
@@ -317,7 +310,7 @@ export const ViewCredential: React.FC<ViewCredentialProps> = ({
           {/* Proof Value */}
           <div className="col-span-2">
             <label className="block mb-2">
-              <ThemedText className="text-sm font-medium text-gray-700">Proof Value</ThemedText>
+              <span className="text-sm font-medium text-gray-700">Proof Value</span>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono text-gray-900 break-all">
               {credentialData.proof.proofValue}
