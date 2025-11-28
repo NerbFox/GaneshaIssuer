@@ -5,12 +5,48 @@
 
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
+import Konva from 'konva';
 
 export interface QRPosition {
   x: number; // X position as percentage (0-100)
   y: number; // Y position as percentage (0-100)
   size: number; // Size as percentage (0-100)
 }
+
+export interface AttributePosition {
+  x: number; // percentage from left (0-100)
+  y: number; // percentage from top (0-100)
+  width: number; // percentage width (0-100)
+  height: number; // percentage height (0-100)
+  fontSize: number; // in pixels
+  fontFamily?: string; // font family name
+  bgColor?: string; // background color (can be 'transparent')
+  fontColor?: string; // font color (hex or named)
+}
+
+export interface AttributePositionData {
+  [attributeName: string]: AttributePosition;
+}
+
+export interface RenderingConfig {
+  useNaturalResolution: boolean; // If true, use natural image dimensions; if false, use maxWidth
+  maxWidth: number | null; // Maximum width in pixels (null = no limit)
+  pixelRatio: number; // Super-sampling ratio (1 = normal, 2 = 2x, 3 = 3x for high quality)
+}
+
+// Default configuration for display/preview (800px max, 1x pixel ratio)
+export const DEFAULT_RENDERING_CONFIG: RenderingConfig = {
+  useNaturalResolution: false,
+  maxWidth: 800,
+  pixelRatio: 1,
+};
+
+// High-resolution configuration for print-quality output
+export const HIGH_RES_RENDERING_CONFIG: RenderingConfig = {
+  useNaturalResolution: true,
+  maxWidth: null,
+  pixelRatio: 2, // 2x super-sampling for sharp text
+};
 
 /**
  * Download image from URL as data URI
@@ -213,4 +249,617 @@ export function downloadPDF(blob: Blob, filename: string): void {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Map CSS font families to jsPDF built-in fonts
+ */
+function mapFontFamily(cssFont?: string): { family: string; fallback: boolean } {
+  const fontMap: Record<string, string> = {
+    Arial: 'helvetica',
+    Helvetica: 'helvetica',
+    'Times New Roman': 'times',
+    Times: 'times',
+    'Courier New': 'courier',
+    Courier: 'courier',
+  };
+
+  const normalized = cssFont || 'Arial';
+  const jsPdfFont = fontMap[normalized];
+
+  if (jsPdfFont) {
+    return { family: jsPdfFont, fallback: false };
+  }
+
+  // Fallback to helvetica for unsupported fonts
+  console.warn(`⚠️ Font "${normalized}" not supported, falling back to Helvetica`);
+  return { family: 'helvetica', fallback: true };
+}
+
+/**
+ * Parse hex color to RGB
+ */
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 0, g: 0, b: 0 };
+}
+
+/**
+ * Generate credential PDF with text attributes directly rendered
+ * @param imageUrl - Background credential image URL
+ * @param positions - Attribute positions data
+ * @param sampleData - Actual attribute values to render
+ * @param qrPosition - QR code position (optional)
+ * @param vpId - VP ID for QR code (optional, if QR needed)
+ * @returns Promise with PDF blob
+ */
+export async function generateCredentialPDF(
+  imageUrl: string,
+  positions: AttributePositionData,
+  sampleData: Record<string, string>,
+  qrPosition?: QRPosition,
+  vpId?: string
+): Promise<Blob> {
+  try {
+    console.log('📝 Starting credential PDF generation with jsPDF...');
+
+    // Step 1: Download and load background image
+    const backgroundDataUri = await downloadImageAsDataUri(imageUrl);
+    const { width: imageWidth, height: imageHeight } = await getImageDimensions(backgroundDataUri);
+    console.log(`✅ Image dimensions: ${imageWidth}x${imageHeight}`);
+
+    // Step 2: Initialize jsPDF with image dimensions
+    const pxToMm = (px: number) => (px * 25.4) / 96; // Convert pixels to mm (96 DPI)
+    const pdfWidth = pxToMm(imageWidth);
+    const pdfHeight = pxToMm(imageHeight);
+
+    const pdf = new jsPDF({
+      orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
+      unit: 'mm',
+      format: [pdfWidth, pdfHeight],
+    });
+
+    // Step 3: Add background image
+    pdf.addImage(backgroundDataUri, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    console.log('✅ Background image added');
+
+    // Step 4: Render each attribute
+    const attributeNames = Object.keys(positions);
+    console.log(`📝 Rendering ${attributeNames.length} attributes...`);
+
+    for (const attrName of attributeNames) {
+      const position = positions[attrName];
+      const value = sampleData[attrName] || `[${attrName}]`;
+
+      // Convert percentage positions to PDF coordinates (mm)
+      const x = (position.x / 100) * pdfWidth;
+      const y = (position.y / 100) * pdfHeight;
+      const width = (position.width / 100) * pdfWidth;
+      const height = (position.height / 100) * pdfHeight;
+
+      // Draw background rectangle if bgColor is specified and not transparent
+      if (position.bgColor && position.bgColor !== 'transparent') {
+        const bgColor = hexToRgb(position.bgColor);
+        pdf.setFillColor(bgColor.r, bgColor.g, bgColor.b);
+        pdf.rect(x, y, width, height, 'F');
+      }
+
+      // Set text properties
+      const fontInfo = mapFontFamily(position.fontFamily);
+      pdf.setFont(fontInfo.family, 'normal');
+
+      // Convert px fontSize to PDF points (1px ≈ 0.75pt)
+      const fontSizePt = position.fontSize * 0.75;
+      pdf.setFontSize(fontSizePt);
+
+      // Set text color
+      const textColor = hexToRgb(position.fontColor || '#000000');
+      pdf.setTextColor(textColor.r, textColor.g, textColor.b);
+
+      // Calculate text position with padding
+      // Add 8px (≈2.12mm) left padding to match pl-2 in CredentialPreview
+      const textX = x + pxToMm(8);
+
+      // Position text vertically - align to top with small padding
+      // Using fontSize to calculate baseline position
+      const textY = y + (fontSizePt / 72) * 25.4; // Convert pt to mm for baseline offset
+
+      // Render text
+      pdf.text(value, textX, textY, {
+        maxWidth: width - pxToMm(16), // Account for padding on both sides
+        baseline: 'top',
+      });
+
+      console.log(`✅ Rendered attribute: ${attrName}`);
+    }
+
+    // Step 5: Add QR code if provided
+    if (qrPosition && vpId) {
+      console.log('📐 Adding QR code...');
+
+      const qrSize = (qrPosition.size / 100) * Math.min(imageWidth, imageHeight);
+      const qrX = (qrPosition.x / 100) * imageWidth;
+      const qrY = (qrPosition.y / 100) * imageHeight;
+
+      // Generate QR code
+      const qrImageSize = Math.floor(qrSize - 16);
+      const qrDataUri = await generateQRCode(vpId, qrImageSize);
+
+      // Convert to PDF coordinates
+      const qrPdfX = pxToMm(qrX);
+      const qrPdfY = pxToMm(qrY);
+      const qrPdfSize = pxToMm(qrSize);
+      const qrPdfImageSize = pxToMm(qrImageSize);
+
+      // White background for QR
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(qrPdfX, qrPdfY, qrPdfSize, qrPdfSize, 'F');
+
+      // Center QR code image within white background
+      const offsetX = (qrPdfSize - qrPdfImageSize) / 2;
+      const offsetY = (qrPdfSize - qrPdfImageSize) / 2;
+
+      pdf.addImage(
+        qrDataUri,
+        'PNG',
+        qrPdfX + offsetX,
+        qrPdfY + offsetY,
+        qrPdfImageSize,
+        qrPdfImageSize
+      );
+
+      console.log('✅ QR code added');
+    }
+
+    console.log('✅ Credential PDF generated successfully');
+    return pdf.output('blob');
+  } catch (error) {
+    console.error('❌ Credential PDF generation failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate credential image directly as PNG (bypassing PDF)
+ * @param imageUrl - Background credential image URL
+ * @param positions - Attribute positions data
+ * @param sampleData - Actual attribute values to render
+ * @param qrPosition - QR code position (optional)
+ * @param vpId - VP ID for QR code (optional, if QR needed)
+ * @returns Promise with PNG blob
+ */
+export async function generateCredentialImage(
+  imageUrl: string,
+  positions: AttributePositionData,
+  sampleData: Record<string, string>,
+  qrPosition?: QRPosition,
+  vpId?: string
+): Promise<Blob> {
+  try {
+    console.log('🎨 Starting credential image generation...');
+
+    // Step 1: Download and load background image
+    const backgroundDataUri = await downloadImageAsDataUri(imageUrl);
+    const { width: imageWidth, height: imageHeight } = await getImageDimensions(backgroundDataUri);
+    console.log(`✅ Image dimensions: ${imageWidth}x${imageHeight}`);
+
+    // Step 2: Create canvas with 3x scale for high quality
+    const scale = 3;
+    const canvas = document.createElement('canvas');
+    canvas.width = imageWidth * scale;
+    canvas.height = imageHeight * scale;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Failed to get canvas context');
+
+    // Scale context for high-res rendering
+    ctx.scale(scale, scale);
+
+    // Step 3: Draw background image
+    const bgImage = new Image();
+    await new Promise((resolve, reject) => {
+      bgImage.onload = resolve;
+      bgImage.onerror = reject;
+      bgImage.src = backgroundDataUri;
+    });
+    ctx.drawImage(bgImage, 0, 0, imageWidth, imageHeight);
+    console.log('✅ Background image drawn');
+
+    // Step 4: Render each attribute
+    const attributeNames = Object.keys(positions);
+    console.log(`📝 Rendering ${attributeNames.length} attributes...`);
+
+    for (const attrName of attributeNames) {
+      const position = positions[attrName];
+      const value = sampleData[attrName] || `[${attrName}]`;
+
+      // Convert percentage positions to pixel coordinates
+      const x = (position.x / 100) * imageWidth;
+      const y = (position.y / 100) * imageHeight;
+      const width = (position.width / 100) * imageWidth;
+      const height = (position.height / 100) * imageHeight;
+
+      // Draw background rectangle if bgColor is specified and not transparent
+      if (position.bgColor && position.bgColor !== 'transparent') {
+        ctx.fillStyle = position.bgColor;
+        ctx.fillRect(x, y, width, height);
+      }
+
+      // Set text properties
+      const fontFamily = position.fontFamily || 'Arial';
+      ctx.font = `${position.fontSize}px ${fontFamily}`;
+      ctx.fillStyle = position.fontColor || '#000000';
+      ctx.textBaseline = 'top';
+
+      // Draw text with padding (8px left, 2px top to match preview)
+      const textX = x + 8;
+      const textY = y + 2;
+
+      ctx.fillText(value, textX, textY, width - 16);
+
+      console.log(`✅ Rendered attribute: ${attrName}`);
+    }
+
+    // Step 5: Add QR code if provided
+    if (qrPosition && vpId) {
+      console.log('📐 Adding QR code...');
+
+      const qrSize = (qrPosition.size / 100) * Math.min(imageWidth, imageHeight);
+      const qrX = (qrPosition.x / 100) * imageWidth;
+      const qrY = (qrPosition.y / 100) * imageHeight;
+
+      // Generate QR code
+      const qrImageSize = Math.floor(qrSize - 16);
+      const qrDataUri = await generateQRCode(vpId, qrImageSize);
+
+      // Draw white background for QR
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(qrX, qrY, qrSize, qrSize);
+
+      // Load and draw QR code image
+      const qrImage = new Image();
+      await new Promise((resolve, reject) => {
+        qrImage.onload = resolve;
+        qrImage.onerror = reject;
+        qrImage.src = qrDataUri;
+      });
+
+      // Center QR code within white background
+      const offsetX = (qrSize - qrImageSize) / 2;
+      const offsetY = (qrSize - qrImageSize) / 2;
+      ctx.drawImage(qrImage, qrX + offsetX, qrY + offsetY, qrImageSize, qrImageSize);
+
+      console.log('✅ QR code added');
+    }
+
+    // Step 6: Convert canvas to PNG blob
+    console.log('🖼️ Converting canvas to PNG blob...');
+    const pngBlob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Failed to convert canvas to blob'));
+      }, 'image/png');
+    });
+
+    console.log('✅ Credential image generated successfully');
+    return pngBlob;
+  } catch (error) {
+    console.error('❌ Credential image generation failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate credential image using Konva.js (consistent rendering across all contexts)
+ * @param imageUrl - Background credential image URL
+ * @param positions - Attribute positions data
+ * @param sampleData - Actual attribute values to render
+ * @param qrPosition - QR code position (optional)
+ * @param vpId - VP ID for QR code (optional, if QR needed)
+ * @param config - Rendering configuration (optional, defaults to DEFAULT_RENDERING_CONFIG)
+ * @returns Promise with PNG blob
+ */
+export async function generateCredentialImageKonva(
+  imageUrl: string,
+  positions: AttributePositionData,
+  sampleData: Record<string, string>,
+  qrPosition?: QRPosition,
+  vpId?: string,
+  config: RenderingConfig = DEFAULT_RENDERING_CONFIG
+): Promise<Blob> {
+  try {
+    console.log('🎨 Starting Konva credential image generation...');
+
+    // Step 1: Load background image
+    const backgroundImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.crossOrigin = 'anonymous';
+      img.src = imageUrl;
+    });
+
+    const naturalWidth = backgroundImage.naturalWidth;
+    const naturalHeight = backgroundImage.naturalHeight;
+    console.log(`✅ Image loaded: ${naturalWidth}x${naturalHeight}`);
+
+    // Calculate dimensions based on configuration
+    let imageWidth: number;
+    let imageHeight: number;
+    let resolutionScale: number; // Scale factor relative to natural size
+
+    if (config.useNaturalResolution) {
+      // Use natural resolution (high-quality output)
+      imageWidth = naturalWidth;
+      imageHeight = naturalHeight;
+      resolutionScale = 1;
+      console.log(`📐 Using natural resolution: ${imageWidth}x${imageHeight}`);
+    } else if (config.maxWidth && naturalWidth > config.maxWidth) {
+      // Scale down to maxWidth
+      resolutionScale = config.maxWidth / naturalWidth;
+      imageWidth = config.maxWidth;
+      imageHeight = naturalHeight * resolutionScale;
+      console.log(
+        `📐 Scaled to maxWidth: ${imageWidth}x${imageHeight} (scale: ${resolutionScale})`
+      );
+    } else {
+      // Use natural size (smaller than maxWidth)
+      imageWidth = naturalWidth;
+      imageHeight = naturalHeight;
+      resolutionScale = 1;
+      console.log(`📐 Using natural size: ${imageWidth}x${imageHeight}`);
+    }
+
+    console.log(
+      `🎨 Rendering config: useNatural=${config.useNaturalResolution}, pixelRatio=${config.pixelRatio}`
+    );
+
+    // Calculate font scale factor relative to preview size (800px reference)
+    // Font sizes in schema are defined for 800px preview, need to scale for actual output
+    const PREVIEW_REFERENCE_WIDTH = 800;
+    const fontScaleFactor = imageWidth / PREVIEW_REFERENCE_WIDTH;
+    console.log(
+      `📏 Font scale factor: ${fontScaleFactor.toFixed(2)}x (${imageWidth}px / ${PREVIEW_REFERENCE_WIDTH}px)`
+    );
+
+    // Step 2: Create offscreen Konva stage
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    document.body.appendChild(container);
+
+    const stage = new Konva.Stage({
+      container: container,
+      width: imageWidth,
+      height: imageHeight,
+      pixelRatio: config.pixelRatio,
+    });
+
+    // Step 3: Add background layer
+    const backgroundLayer = new Konva.Layer();
+    const bgKonvaImage = new Konva.Image({
+      x: 0,
+      y: 0,
+      image: backgroundImage,
+      width: imageWidth,
+      height: imageHeight,
+    });
+    backgroundLayer.add(bgKonvaImage);
+    stage.add(backgroundLayer);
+    console.log('✅ Background layer added');
+
+    // Step 4: Add text layer
+    const textLayer = new Konva.Layer();
+    const attributeNames = Object.keys(positions);
+    console.log(`📝 Rendering ${attributeNames.length} attributes with Konva...`);
+
+    for (const attrName of attributeNames) {
+      const position = positions[attrName];
+      const value = sampleData[attrName] || `[${attrName}]`;
+
+      // Convert percentage positions to pixel coordinates
+      const x = (position.x / 100) * imageWidth;
+      const y = (position.y / 100) * imageHeight;
+      const width = (position.width / 100) * imageWidth;
+      const height = (position.height / 100) * imageHeight;
+
+      // Scale font size based on preview reference (800px)
+      // fontSize in schema is defined for 800px preview, scale to actual canvas width
+      const scaledFontSize = position.fontSize * fontScaleFactor;
+
+      // Scale padding proportionally based on canvas width (8px and 2px at 800px width)
+      const leftPadding = 8 * fontScaleFactor;
+      const topPadding = 2 * fontScaleFactor;
+      const horizontalPadding = 16 * fontScaleFactor;
+
+      // Draw background rectangle if bgColor is specified and not transparent
+      if (position.bgColor && position.bgColor !== 'transparent') {
+        const bgRect = new Konva.Rect({
+          x,
+          y,
+          width,
+          height,
+          fill: position.bgColor,
+        });
+        textLayer.add(bgRect);
+      }
+
+      // Add text element with scaled padding
+      const text = new Konva.Text({
+        x: x + leftPadding,
+        y: y + topPadding,
+        text: value,
+        fontSize: scaledFontSize,
+        fontFamily: position.fontFamily || 'Arial',
+        fill: position.fontColor || '#000000',
+        width: width - horizontalPadding, // Account for left + right padding
+        align: 'left',
+        verticalAlign: 'top',
+        ellipsis: true,
+        wrap: 'none',
+      });
+      textLayer.add(text);
+
+      console.log(
+        `✅ Rendered attribute: ${attrName} (fontSize: ${position.fontSize}px → ${scaledFontSize.toFixed(1)}px)`
+      );
+    }
+
+    stage.add(textLayer);
+
+    // Step 5: Add QR code layer if provided
+    if (qrPosition && vpId) {
+      console.log('📐 Adding QR code with Konva...');
+
+      const qrLayer = new Konva.Layer();
+      const qrSize = (qrPosition.size / 100) * Math.min(imageWidth, imageHeight);
+      const qrX = (qrPosition.x / 100) * imageWidth;
+      const qrY = (qrPosition.y / 100) * imageHeight;
+
+      // White background for QR
+      const qrBg = new Konva.Rect({
+        x: qrX,
+        y: qrY,
+        width: qrSize,
+        height: qrSize,
+        fill: '#FFFFFF',
+      });
+      qrLayer.add(qrBg);
+
+      // Generate QR code image with scaled padding (16px at 800px reference)
+      const qrPadding = 16 * fontScaleFactor;
+      const qrImageSize = Math.floor(qrSize - qrPadding);
+      const qrDataUri = await generateQRCode(vpId, qrImageSize);
+      const qrImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = qrDataUri;
+      });
+
+      // Center QR code within white background (using scaled padding)
+      const offsetX = qrPadding / 2;
+      const offsetY = qrPadding / 2;
+
+      const qrKonvaImage = new Konva.Image({
+        x: qrX + offsetX,
+        y: qrY + offsetY,
+        image: qrImage,
+        width: qrImageSize,
+        height: qrImageSize,
+      });
+      qrLayer.add(qrKonvaImage);
+      stage.add(qrLayer);
+
+      console.log('✅ QR code added');
+    }
+
+    // Step 6: Export to PNG blob
+    console.log(
+      `🖼️ Exporting Konva stage to PNG (${imageWidth}x${imageHeight} @ ${config.pixelRatio}x)...`
+    );
+    const dataUrl = stage.toDataURL({
+      pixelRatio: config.pixelRatio,
+      mimeType: 'image/png',
+    });
+
+    // Convert data URL to Blob
+    const pngBlob = await fetch(dataUrl).then((r) => r.blob());
+
+    // Cleanup
+    stage.destroy();
+    document.body.removeChild(container);
+
+    console.log('✅ Konva credential image generated successfully');
+    return pngBlob;
+  } catch (error) {
+    console.error('❌ Konva credential image generation failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Convert PDF blob to PNG image blob using PDF.js (kept for backward compatibility)
+ * @param pdfBlob - PDF blob to convert
+ * @param scale - Scale factor for resolution (default: 3 for high quality)
+ * @returns Promise with PNG blob
+ */
+export async function convertPDFToPNG(pdfBlob: Blob, scale: number = 3): Promise<Blob> {
+  try {
+    console.log('🖼️ Converting PDF to PNG...');
+
+    // Create object URL for PDF
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+
+    try {
+      // Load PDF using PDF.js (dynamically import)
+      const pdfjsLib = await import('pdfjs-dist');
+
+      // Set worker source - try local first, fallback to CDN
+      try {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.mjs',
+          import.meta.url
+        ).toString();
+      } catch {
+        // Fallback to CDN
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+      }
+
+      console.log('📚 Loading PDF document...');
+      const loadingTask = pdfjsLib.getDocument(pdfUrl);
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1);
+
+      // Get viewport at desired scale
+      const viewport = page.getViewport({ scale });
+      console.log(`📐 Viewport: ${viewport.width}x${viewport.height}`);
+
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Failed to get canvas context');
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      console.log('🎨 Rendering PDF to canvas...');
+      // Render PDF page to canvas
+      await page.render({
+        canvasContext: context,
+        viewport: viewport,
+        canvas: canvas,
+      }).promise;
+
+      console.log('🖼️ Converting canvas to PNG blob...');
+      // Convert canvas to PNG blob
+      const pngBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to convert canvas to blob'));
+        }, 'image/png');
+      });
+
+      // Cleanup
+      URL.revokeObjectURL(pdfUrl);
+
+      console.log('✅ PDF converted to PNG successfully');
+      return pngBlob;
+    } catch (pdfjsError) {
+      console.error('⚠️ PDF.js conversion failed, trying alternative method:', pdfjsError);
+
+      // Fallback: Use an image element to render the PDF
+      // This works in some browsers that can display PDFs directly
+      throw new Error('PDF.js conversion failed. Please check console for details: ' + pdfjsError);
+    }
+  } catch (error) {
+    console.error('❌ PDF to PNG conversion failed:', error);
+    throw error;
+  }
 }
