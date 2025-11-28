@@ -357,28 +357,20 @@ export default function VerifyRequestPage() {
                 <span className="text-[32px] font-semibold text-gray-900">{requests.length}</span>
               </div>
               <div className="bg-yellow-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Pending</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {pendingCount}
-                </ThemedText>
+                <span className="text-sm text-gray-600 mb-2">Pending</span>
+                <span className="text-[32px] font-semibold text-gray-900">{pendingCount}</span>
               </div>
               <div className="bg-purple-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Accepted</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {acceptedCount}
-                </ThemedText>
+                <span className="text-sm text-gray-600 mb-2">Accepted</span>
+                <span className="text-[32px] font-semibold text-gray-900">{acceptedCount}</span>
               </div>
               <div className="bg-red-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Rejected</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {rejectedCount}
-                </ThemedText>
+                <span className="text-sm text-gray-600 mb-2">Rejected</span>
+                <span className="text-[32px] font-semibold text-gray-900">{rejectedCount}</span>
               </div>
               <div className="bg-green-50 grid grid-row-2 rounded-2xl p-6">
-                <ThemedText className="text-sm text-gray-600 mb-2">Verified</ThemedText>
-                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
-                  {verifiedCount}
-                </ThemedText>
+                <span className="text-sm text-gray-600 mb-2">Verified</span>
+                <span className="text-[32px] font-semibold text-gray-900">{verifiedCount}</span>
               </div>
             </div>
 

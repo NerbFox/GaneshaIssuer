@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Stage, Layer, Image, Text, Rect, Transformer, Group } from 'react-konva';
 import useImage from 'use-image';
 import Konva from 'konva';
-import { ThemedText } from '@/components/shared/ThemedText';
 
 export interface AttributePosition {
   x: number; // percentage from left
@@ -501,13 +500,13 @@ export default function AttributePositionEditor({
         <div className="flex-1 bg-gray-100 rounded-lg p-4 flex items-center justify-center overflow-auto min-h-0">
           {bgImageStatus === 'loading' && (
             <div className="flex items-center justify-center">
-              <ThemedText className="text-gray-600">Loading template...</ThemedText>
+              <span className="text-gray-600">Loading template...</span>
             </div>
           )}
 
           {bgImageStatus === 'failed' && (
             <div className="flex items-center justify-center">
-              <ThemedText className="text-red-600">Failed to load credential template</ThemedText>
+              <span className="text-red-600">Failed to load credential template</span>
             </div>
           )}
 
