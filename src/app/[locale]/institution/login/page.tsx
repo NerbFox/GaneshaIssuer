@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { ThemedText } from '@/components/shared/ThemedText';
 import Button from '@/components/shared/Button';
 import AuthContainer from '@/components/shared/AuthContainer';
 import { Link } from '@/i18n/routing';
@@ -111,16 +112,18 @@ export default function InstitutionLoginPage() {
     <AuthContainer backHref="/institution">
       {/* Title */}
       <div className="mb-8">
-        <span className="text-[32px] font-bold text-black mb-1 block">Institution Login</span>
-        <span className="text-base text-gray-600 block">
+        <ThemedText fontSize={32} fontWeight={700} className="text-black mb-1 block">
+          Institution Login
+        </ThemedText>
+        <ThemedText fontSize={16} className="text-gray-600 block">
           Enter your seed phrase to access your institution account
-        </span>
+        </ThemedText>
       </div>
 
       {/* Error Message */}
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          <span className="text-sm">{error}</span>
+          <ThemedText fontSize={14}>{error}</ThemedText>
         </div>
       )}
 
@@ -140,20 +143,20 @@ export default function InstitutionLoginPage() {
             className="text-black w-full px-4 pt-7 pb-3 bg-[#E9F2F5] rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-[#0D2B45] disabled:opacity-50 disabled:cursor-not-allowed resize-none text-sm"
           />
           <label htmlFor="seedphrase" className="absolute top-2 left-4">
-            <span className="text-xs font-medium text-xs font-medium text-gray-700">
+            <ThemedText fontSize={12} fontWeight={500} className="text-gray-700">
               Seed Phrase<span className="text-red-500">*</span>
-            </span>
+            </ThemedText>
           </label>
         </div>
 
         {/* Privacy Policy Text */}
         <div className="text-center pt-2">
-          <span className="text-xs text-gray-600">
+          <ThemedText fontSize={12} className="text-gray-600">
             By continuing, you agree to the{' '}
             <Link href="/privacy" className="text-[#0D73BA] hover:underline">
               Privacy Policy
             </Link>
-          </span>
+          </ThemedText>
         </div>
 
         {/* Submit Button */}

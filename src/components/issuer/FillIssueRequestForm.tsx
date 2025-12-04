@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import DatePicker from '@/components/shared/DatePicker';
@@ -302,9 +303,8 @@ export default function FillIssueRequestForm({
   const generateImageBlob = async (): Promise<Blob | null> => {
     try {
       // Import the Konva-based credential image generator and high-res config
-      const { generateCredentialImageKonva, HIGH_RES_RENDERING_CONFIG } = await import(
-        '@/utils/pdfGenerator'
-      );
+      const { generateCredentialImageKonva, HIGH_RES_RENDERING_CONFIG } =
+        await import('@/utils/pdfGenerator');
 
       if (!imageUrl || !attributePositions) {
         console.error('Missing required data for image generation');
@@ -375,7 +375,7 @@ export default function FillIssueRequestForm({
       id: 'name',
       label: 'NAME',
       sortKey: 'name',
-      render: (row) => <span className="text-sm text-gray-900">{row.name}</span>,
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
     },
     {
       id: 'type',
@@ -408,9 +408,9 @@ export default function FillIssueRequestForm({
         // For disabled fields (UPDATE, RENEWAL, REVOKE), show read-only display like View Credential
         if (isFieldsDisabled) {
           return (
-            <span className="text-sm text-gray-900">
+            <ThemedText className="text-sm text-gray-900">
               {row.value ? String(row.value) : <em className="text-gray-400">(empty)</em>}
-            </span>
+            </ThemedText>
           );
         }
 
@@ -672,9 +672,9 @@ export default function FillIssueRequestForm({
         {(requestId || vcId) && (
           <div className="col-span-2">
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">
+              <ThemedText className="text-sm font-medium text-gray-700">
                 {vcId ? 'Credential ID' : 'Request ID'}
-              </span>
+              </ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {vcId || requestId}
@@ -686,7 +686,7 @@ export default function FillIssueRequestForm({
         {schemaId && (
           <div className="col-span-2">
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Schema ID</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Schema ID</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {schemaId}
@@ -697,7 +697,7 @@ export default function FillIssueRequestForm({
         {/* Schema Name */}
         <div>
           <label className="block mb-2">
-            <span className="text-sm font-medium text-gray-700">Schema Name</span>
+            <ThemedText className="text-sm font-medium text-gray-700">Schema Name</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {schemaName}
@@ -707,7 +707,7 @@ export default function FillIssueRequestForm({
         {/* Schema Version */}
         <div>
           <label className="block mb-2">
-            <span className="text-sm font-medium text-gray-700">Schema Version</span>
+            <ThemedText className="text-sm font-medium text-gray-700">Schema Version</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {version}
@@ -718,7 +718,7 @@ export default function FillIssueRequestForm({
         {holderDid && (
           <div className="col-span-2">
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Holder DID</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {holderDid}
@@ -730,7 +730,7 @@ export default function FillIssueRequestForm({
         {issuerDid && (
           <div className="col-span-2">
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Issuer DID</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {issuerDid}
@@ -742,7 +742,7 @@ export default function FillIssueRequestForm({
         {requestedAt && (
           <div>
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Requested At</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Requested At</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
               {formatRequestedAt(requestedAt)}
@@ -753,7 +753,7 @@ export default function FillIssueRequestForm({
         {/* Will Expired At */}
         <div>
           <label className="block mb-2">
-            <span className="text-sm font-medium text-gray-700">Will Expired At</span>
+            <ThemedText className="text-sm font-medium text-gray-700">Will Expired At</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {calculateExpiryDate()}
@@ -766,12 +766,12 @@ export default function FillIssueRequestForm({
         <div className="mb-6 p-4 bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 rounded-lg">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
-              <span className="text-sm font-semibold text-gray-900 block mb-1">
+              <ThemedText className="text-sm font-semibold text-gray-900 block mb-1">
                 Credential Preview
-              </span>
-              <span className="text-xs text-gray-600 block">
+              </ThemedText>
+              <ThemedText className="text-xs text-gray-600 block">
                 Preview how the credential will look with the filled attribute values.
-              </span>
+              </ThemedText>
             </div>
           </div>
 
@@ -815,9 +815,9 @@ export default function FillIssueRequestForm({
           // Merged table for UPDATE requests showing both current and requested values
           <>
             <div className="mb-4">
-              <p className="text-sm font-medium text-gray-900">
+              <ThemedText className="text-sm font-medium text-gray-900">
                 Attributes ({filteredAttributes.length})
-              </p>
+              </ThemedText>
             </div>
             <DataTable
               data={filteredAttributes.map((attr) => ({
@@ -836,7 +836,7 @@ export default function FillIssueRequestForm({
                   sortKey: 'name',
                   render: (row) => (
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-900">{row.name}</span>
+                      <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>
                       {row.required && <span className="text-red-500 text-sm">*</span>}
                     </div>
                   ),
@@ -1004,9 +1004,9 @@ export default function FillIssueRequestForm({
           // Standard single table for other request types
           <>
             <div className="mb-4">
-              <p className="text-sm font-medium text-gray-900">
+              <ThemedText className="text-sm font-medium text-gray-900">
                 Attributes ({filteredAttributes.length})
-              </p>
+              </ThemedText>
             </div>
             <DataTable
               data={filteredAttributes}

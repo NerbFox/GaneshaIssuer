@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import Select, { StylesConfig } from 'react-select';
 import countriesData from '@/data/countries.json';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { useTranslations } from 'next-intl';
 
 interface CountrySelectProps {
@@ -162,12 +163,11 @@ export default function CountrySelect({
         className="react-select-container"
         classNamePrefix="react-select"
       />
-      <label
-        htmlFor={id}
-        className="absolute left-4 top-2 z-10 pointer-events-none text-xs font-medium text-xs font-medium text-gray-700"
-      >
-        {label}
-        {required && <span className="text-red-500">*</span>}
+      <label htmlFor={id} className="absolute left-4 top-2 z-10 pointer-events-none">
+        <ThemedText fontSize={12} fontWeight={500} className="text-gray-700">
+          {label}
+          {required && <span className="text-red-500">*</span>}
+        </ThemedText>
       </label>
     </div>
   );

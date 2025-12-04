@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import Modal from '@/components/shared/Modal';
 import { redirectIfJWTInvalid } from '@/utils/auth';
@@ -217,7 +218,9 @@ export default function VerifyRequestPage() {
       id: 'purpose',
       label: 'PURPOSE',
       sortKey: 'purpose',
-      render: (row) => <span className="text-sm font-medium text-gray-900">{row.purpose}</span>,
+      render: (row) => (
+        <ThemedText className="text-sm font-medium text-gray-900">{row.purpose}</ThemedText>
+      ),
     },
     {
       id: 'holder_did',
@@ -225,9 +228,9 @@ export default function VerifyRequestPage() {
       sortKey: 'holder_did',
       render: (row) => (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 font-mono">
+          <ThemedText className="text-sm text-gray-600 font-mono">
             {row.holder_did.substring(0, 20)}...
-          </span>
+          </ThemedText>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -276,7 +279,9 @@ export default function VerifyRequestPage() {
       id: 'createdAt',
       label: 'CREATED AT',
       sortKey: 'createdAt',
-      render: (row) => <span className="text-sm text-gray-600">{formatDate(row.createdAt)}</span>,
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-600">{formatDate(row.createdAt)}</ThemedText>
+      ),
     },
     {
       id: 'action',
@@ -340,7 +345,9 @@ export default function VerifyRequestPage() {
   return (
     <InstitutionLayout activeTab="verify-request">
       <div className="p-12">
-        <span className="text-[40px] font-bold text-black mb-8">Verify Request</span>
+        <ThemedText fontSize={40} fontWeight={700} className="text-black mb-8">
+          Verify Request
+        </ThemedText>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
@@ -353,8 +360,10 @@ export default function VerifyRequestPage() {
             {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8 pt-4">
               <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-                <span className="text-sm text-gray-600 mb-2">Total Requests</span>
-                <span className="text-[32px] font-semibold text-gray-900">{requests.length}</span>
+                <ThemedText className="text-sm text-gray-600 mb-2">Total Requests</ThemedText>
+                <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+                  {requests.length}
+                </ThemedText>
               </div>
               <div className="bg-yellow-50 grid grid-row-2 rounded-2xl p-6">
                 <ThemedText className="text-sm text-gray-600 mb-2">Pending</ThemedText>
@@ -397,10 +406,10 @@ export default function VerifyRequestPage() {
               defaultSortDirection="desc"
               topRightButtons={
                 <div className="flex gap-3 items-center">
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className="text-xs text-gray-500">
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <ThemedText fontSize={12} className="text-gray-500">
                       Last updated: {formatTime(lastRefresh)}
-                    </span>
+                    </ThemedText>
                   </div>
                   <button
                     onClick={async () => {
@@ -444,7 +453,9 @@ export default function VerifyRequestPage() {
                 expandedRowId: expandedRows.size === 1 ? Array.from(expandedRows)[0] : null,
                 renderExpandedContent: (row) => (
                   <div className="space-y-3 py-4">
-                    <span className="text-gray-900 mb-3">Requested Credentials</span>
+                    <ThemedText fontSize={14} fontWeight={600} className="text-gray-900 mb-3">
+                      Requested Credentials
+                    </ThemedText>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-3">
                       {row.requested_credentials.map((cred, index) => (
                         <div
@@ -452,37 +463,42 @@ export default function VerifyRequestPage() {
                           className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm"
                         >
                           <div className="flex items-start justify-between mb-2">
-                            <span className="text-[32px] font-semibold text-gray-900">
+                            <ThemedText fontSize={13} fontWeight={600} className="text-gray-900">
                               {cred.schema_name}
-                            </span>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-xs text-gray-600">
+                            </ThemedText>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
                               v{cred.schema_version}
                             </span>
                           </div>
-                          <span className="text-gray-500 font-mono break-all">
+                          <ThemedText fontSize={11} className="text-gray-500 font-mono break-all">
                             {cred.schema_id}
-                          </span>
+                          </ThemedText>
                         </div>
                       ))}
                     </div>
                     <div className="mt-4 pt-4 border-t border-gray-200">
                       <div className="grid grid-cols-2 gap-6 text-sm">
                         <div className="space-x-3">
-                          <span className="text-gray-500">Verify Status:</span>
-                          <span className="text-[32px] font-semibold text-gray-900">
+                          <ThemedText className="text-gray-500">Verify Status:</ThemedText>
+                          <ThemedText fontWeight={600} className="text-gray-900">
                             {row.verify_status}
-                          </span>
+                          </ThemedText>
                         </div>
                         <div className="space-x-3">
-                          <span className="text-gray-500">Last Updated:</span>
-                          <span className="text-[32px] font-semibold text-gray-900">
+                          <ThemedText className="text-gray-500">Last Updated:</ThemedText>
+                          <ThemedText fontWeight={600} className="text-gray-900">
                             {formatDate(row.updatedAt)}
-                          </span>
+                          </ThemedText>
                         </div>
                         {row.vp_id && (
                           <div className="col-span-2 space-x-3">
-                            <span className="text-gray-500">VP ID:</span>
-                            <span className="text-gray-900 font-mono break-all">{row.vp_id}</span>
+                            <ThemedText className="text-gray-500">VP ID:</ThemedText>
+                            <ThemedText
+                              fontWeight={600}
+                              className="text-gray-900 font-mono break-all"
+                            >
+                              {row.vp_id}
+                            </ThemedText>
                           </div>
                         )}
                       </div>
@@ -507,7 +523,9 @@ export default function VerifyRequestPage() {
           }}
         >
           <div className="flex items-center justify-between mb-6">
-            <span className="text-[32px] font-semibold text-gray-900">Filter Requests</span>
+            <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
+              Filter Requests
+            </ThemedText>
             <button
               onClick={() => setShowFilterModal(false)}
               className="text-gray-400 hover:text-gray-600"
@@ -525,7 +543,7 @@ export default function VerifyRequestPage() {
 
           {/* Status Filter */}
           <div className="mb-4">
-            <span className="block text-sm font-medium text-gray-900 mb-2">Status</span>
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">Status</ThemedText>
             <select
               value={filterStatus}
               onChange={(e) =>
@@ -552,7 +570,9 @@ export default function VerifyRequestPage() {
 
           {/* Type Filter */}
           <div>
-            <span className="block text-sm font-medium text-gray-900 mb-2">Credential Type</span>
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
+              Credential Type
+            </ThemedText>
             <input
               type="text"
               value={filterType}
@@ -576,16 +596,18 @@ export default function VerifyRequestPage() {
           <div className="px-8 py-6 space-y-6">
             {/* Request Information */}
             <div className="bg-gray-50 rounded-xl p-6">
-              <p className="text-base font-semibold text-gray-900 mb-4">Request Information</p>
+              <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
+                Request Information
+              </ThemedText>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-x-3">
-                  <span className="text-sm text-gray-500">Request ID</span>
-                  <span className="text-sm font-mono text-gray-900 break-all">
+                  <ThemedText className="text-sm text-gray-500">Request ID</ThemedText>
+                  <ThemedText className="text-sm font-mono text-gray-900 break-all">
                     {selectedRequest.id}
-                  </span>
+                  </ThemedText>
                 </div>
                 <div className="space-x-3">
-                  <span className="text-sm text-gray-500">Status</span>
+                  <ThemedText className="text-sm text-gray-500">Status</ThemedText>
                   <span
                     className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
                       selectedRequest.status
@@ -595,37 +617,43 @@ export default function VerifyRequestPage() {
                   </span>
                 </div>
                 <div className="space-x-3">
-                  <span className="text-sm text-gray-500">Purpose</span>
-                  <span className="text-[32px] font-semibold text-gray-900">
+                  <ThemedText className="text-sm text-gray-500">Purpose</ThemedText>
+                  <ThemedText fontWeight={600} className="text-gray-900">
                     {selectedRequest.purpose}
-                  </span>
+                  </ThemedText>
                 </div>
                 <div className="space-x-3">
-                  <span className="text-sm text-gray-500">Verify Status</span>
-                  <span className="text-[32px] font-semibold text-gray-900">
+                  <ThemedText className="text-sm text-gray-500">Verify Status</ThemedText>
+                  <ThemedText fontWeight={600} className="text-gray-900">
                     {selectedRequest.verify_status}
-                  </span>
+                  </ThemedText>
                 </div>
                 <div className="space-x-3">
-                  <span className="text-sm text-gray-500">Created At</span>
-                  <span className="text-gray-900">{formatDate(selectedRequest.createdAt)}</span>
+                  <ThemedText className="text-sm text-gray-500">Created At</ThemedText>
+                  <ThemedText className="text-gray-900">
+                    {formatDate(selectedRequest.createdAt)}
+                  </ThemedText>
                 </div>
                 <div className="space-x-3">
-                  <span className="text-sm text-gray-500">Updated At</span>
-                  <span className="text-gray-900">{formatDate(selectedRequest.updatedAt)}</span>
+                  <ThemedText className="text-sm text-gray-500">Updated At</ThemedText>
+                  <ThemedText className="text-gray-900">
+                    {formatDate(selectedRequest.updatedAt)}
+                  </ThemedText>
                 </div>
               </div>
             </div>
 
             {/* Holder Information */}
             <div className="bg-blue-50 rounded-xl p-6">
-              <p className="text-base font-semibold text-gray-900 mb-4">Holder Information</p>
+              <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
+                Holder Information
+              </ThemedText>
               <div className="space-y-3">
-                <span className="text-sm text-gray-500">Holder DID</span>
+                <ThemedText className="text-sm text-gray-500">Holder DID</ThemedText>
                 <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-blue-200">
-                  <span className="text-sm font-mono text-gray-900 break-all flex-1">
+                  <ThemedText className="text-sm font-mono text-gray-900 break-all flex-1">
                     {selectedRequest.holder_did}
-                  </span>
+                  </ThemedText>
                   <button
                     onClick={() => handleCopyDID(selectedRequest.holder_did)}
                     className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
@@ -646,20 +674,22 @@ export default function VerifyRequestPage() {
 
             {/* Verifier Information */}
             <div className="bg-green-50 rounded-xl p-6">
-              <p className="text-base font-semibold text-gray-900 mb-4">Verifier Information</p>
+              <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
+                Verifier Information
+              </ThemedText>
               <div className="space-y-4">
                 <div className="space-x-3">
-                  <span className="text-sm text-gray-500">Verifier Name</span>
-                  <span className="text-[32px] font-semibold text-gray-900">
+                  <ThemedText className="text-sm text-gray-500">Verifier Name</ThemedText>
+                  <ThemedText fontWeight={600} className="text-gray-900">
                     {selectedRequest.verifier_name}
-                  </span>
+                  </ThemedText>
                 </div>
                 <div className="space-y-3">
-                  <span className="text-sm text-gray-500">Verifier DID</span>
+                  <ThemedText className="text-sm text-gray-500">Verifier DID</ThemedText>
                   <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-green-200">
-                    <span className="text-sm font-mono text-gray-900 break-all flex-1">
+                    <ThemedText className="text-sm font-mono text-gray-900 break-all flex-1">
                       {selectedRequest.verifier_did}
-                    </span>
+                    </ThemedText>
                     <button
                       onClick={() => handleCopyDID(selectedRequest.verifier_did)}
                       className="text-green-500 hover:text-green-700 transition-colors flex-shrink-0"
@@ -686,9 +716,9 @@ export default function VerifyRequestPage() {
 
             {/* Requested Credentials */}
             <div>
-              <p className="text-base font-semibold text-gray-900 mb-4">
+              <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
                 Requested Credentials ({selectedRequest.requested_credentials.length})
-              </p>
+              </ThemedText>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3">
                 {selectedRequest.requested_credentials.map((cred, index) => (
                   <div
@@ -696,18 +726,18 @@ export default function VerifyRequestPage() {
                     className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between mb-3">
-                      <span className="text-[32px] font-semibold text-gray-900">
+                      <ThemedText fontSize={15} fontWeight={600} className="text-gray-900">
                         {cred.schema_name}
-                      </span>
+                      </ThemedText>
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         v{cred.schema_version}
                       </span>
                     </div>
                     <div className="space-x-3">
-                      <span className="text-xs text-gray-500">Schema ID</span>
-                      <span className="text-xs font-mono text-gray-600 break-all bg-gray-50 p-2 rounded">
+                      <ThemedText className="text-xs text-gray-500">Schema ID</ThemedText>
+                      <ThemedText className="text-xs font-mono text-gray-600 break-all bg-gray-50 p-2 rounded">
                         {cred.schema_id}
-                      </span>
+                      </ThemedText>
                     </div>
                   </div>
                 ))}
@@ -716,14 +746,14 @@ export default function VerifyRequestPage() {
 
             {selectedRequest.vp_id && (
               <div className="bg-purple-50 rounded-xl p-6">
-                <p className="text-base font-semibold text-gray-900 mb-4">
+                <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
                   Presentation Information
-                </p>
+                </ThemedText>
                 <div className="space-x-3 space-y-5 pt-5">
-                  <span className="text-sm text-gray-500">VP ID</span>
-                  <span className="text-sm font-mono text-gray-900 break-all bg-white p-3 rounded-lg border border-purple-200">
+                  <ThemedText className="text-sm text-gray-500">VP ID</ThemedText>
+                  <ThemedText className="text-sm font-mono text-gray-900 break-all bg-white p-3 rounded-lg border border-purple-200">
                     {selectedRequest.vp_id}
-                  </span>
+                  </ThemedText>
                 </div>
               </div>
             )}
@@ -752,7 +782,7 @@ export default function VerifyRequestPage() {
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          <span className="text-white">DID copied to clipboard!</span>
+          <ThemedText className="text-white">DID copied to clipboard!</ThemedText>
         </div>
       )}
     </InstitutionLayout>

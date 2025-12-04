@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ThemedText } from '@/components/shared/ThemedText';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -72,12 +73,14 @@ export default function ConfirmationModal({
         <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
           {/* Header */}
           <div className="mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+            <ThemedText fontSize={20} fontWeight={600} className="text-gray-900">
+              {title}
+            </ThemedText>
           </div>
 
           {/* Message */}
           <div className="mb-6">
-            <span className="text-gray-700 whitespace-pre-line">{message}</span>
+            <ThemedText className="text-gray-700 whitespace-pre-line">{message}</ThemedText>
           </div>
 
           {/* Actions */}

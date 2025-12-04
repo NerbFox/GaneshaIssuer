@@ -1,5 +1,7 @@
 'use client';
 
+import { ThemedText } from '@/components/shared/ThemedText';
+
 interface InfoModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -63,7 +65,9 @@ export default function InfoModal({
         <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
           {/* Header */}
           <div className="mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+            <ThemedText fontSize={20} fontWeight={600} className="text-gray-900">
+              {title}
+            </ThemedText>
           </div>
 
           {/* Message */}
@@ -73,9 +77,9 @@ export default function InfoModal({
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               </div>
             )}
-            <p className="text-gray-700 whitespace-pre-line break-words overflow-wrap-anywhere">
+            <ThemedText className="text-gray-700 whitespace-pre-line break-words overflow-wrap-anywhere">
               {message}
-            </p>
+            </ThemedText>
           </div>
 
           {/* Actions */}

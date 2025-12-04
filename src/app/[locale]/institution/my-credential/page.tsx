@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { buildApiUrlWithParams, buildApiUrl, API_ENDPOINTS } from '@/utils/api';
@@ -2229,7 +2230,7 @@ export default function MyCredentialPage() {
       label: 'CREDENTIAL TYPE',
       sortKey: 'credentialType',
       render: (row) => (
-        <span className="text-sm font-medium text-gray-900">{row.credentialType}</span>
+        <ThemedText className="text-sm font-medium text-gray-900">{row.credentialType}</ThemedText>
       ),
     },
     {
@@ -2237,29 +2238,33 @@ export default function MyCredentialPage() {
       label: 'ISSUER DID',
       sortKey: 'issuerDid',
       render: (row) => (
-        <span className="text-sm text-gray-900">{row.issuerDid.substring(0, 25)}...</span>
+        <ThemedText className="text-sm text-gray-900">
+          {row.issuerDid.substring(0, 25)}...
+        </ThemedText>
       ),
     },
     {
       id: 'issuerName',
       label: 'ISSUER NAME',
       sortKey: 'issuerName',
-      render: (row) => <span className="text-sm text-gray-900">{row.issuerName}</span>,
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.issuerName}</ThemedText>,
     },
     {
       id: 'issuedDate',
       label: 'ISSUED DATE',
       sortKey: 'issuedDate',
-      render: (row) => <span className="text-sm text-gray-900">{formatDate(row.issuedDate)}</span>,
+      render: (row) => (
+        <ThemedText className="text-sm text-gray-900">{formatDate(row.issuedDate)}</ThemedText>
+      ),
     },
     {
       id: 'expiryDate',
       label: 'EXPIRY DATE',
       sortKey: 'expiryDate',
       render: (row) => (
-        <span className="text-sm text-gray-900">
+        <ThemedText className="text-sm text-gray-900">
           {row.expiryDate === 'Lifetime' ? 'Lifetime' : formatDate(row.expiryDate)}
-        </span>
+        </ThemedText>
       ),
     },
     {
@@ -2353,16 +2358,16 @@ export default function MyCredentialPage() {
       label: 'SCHEMA NAME',
       sortKey: 'name',
       render: (row) => (
-        <p className="text-sm font-medium text-gray-900">
+        <ThemedText className="text-sm font-medium text-gray-900">
           {row.name} v{row.version}
-        </p>
+        </ThemedText>
       ),
     },
     {
       id: 'issuer_name',
       label: 'ISSUER',
       sortKey: 'issuer_name',
-      render: (row) => <span className="text-sm text-gray-900">{row.issuer_name}</span>,
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.issuer_name}</ThemedText>,
     },
     {
       id: 'action',
@@ -2397,12 +2402,12 @@ export default function MyCredentialPage() {
     {
       id: 'name',
       label: 'NAME',
-      render: (row) => <span className="text-sm text-gray-900">{row.name}</span>,
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
     },
     {
       id: 'value',
       label: 'VALUE',
-      render: (row) => <span className="text-sm text-gray-600">{row.value}</span>,
+      render: (row) => <ThemedText className="text-sm text-gray-600">{row.value}</ThemedText>,
     },
   ];
 
@@ -2411,12 +2416,12 @@ export default function MyCredentialPage() {
     {
       id: 'name',
       label: 'NAME',
-      render: (row) => <span className="text-sm text-gray-900">{row.name}</span>,
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
     },
     {
       id: 'type',
       label: 'TYPE',
-      render: (row) => <span className="text-sm text-blue-600">{row.type}</span>,
+      render: (row) => <ThemedText className="text-sm text-blue-600">{row.type}</ThemedText>,
     },
   ];
 
@@ -2435,21 +2440,23 @@ export default function MyCredentialPage() {
   return (
     <InstitutionLayout activeTab="my-credential">
       <div className="p-12">
-        <span className="text-[40px] font-bold text-black mb-8">My Credential</span>
+        <ThemedText fontSize={40} fontWeight={700} className="text-black mb-8">
+          My Credential
+        </ThemedText>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <span className="text-sm text-gray-600 mb-2">Total Credentials</span>
-            <span className="text-[32px] font-semibold text-gray-900">
+            <ThemedText className="text-sm text-gray-600 mb-2">Total Credentials</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
               {isLoading ? 0 : credentials.length}
-            </span>
+            </ThemedText>
           </div>
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <span className="text-sm text-gray-600 mb-2">Active Credentials</span>
-            <span className="text-[32px] font-semibold text-gray-900">
+            <ThemedText className="text-sm text-gray-600 mb-2">Active Credentials</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
               {isLoading ? 0 : activeCount}
-            </span>
+            </ThemedText>
           </div>
         </div>
 
@@ -2477,10 +2484,10 @@ export default function MyCredentialPage() {
             idKey="id"
             topRightButtons={
               <div className="flex gap-3 items-center">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span className="text-xs text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <ThemedText fontSize={12} className="text-gray-500">
                     Last updated: {formatTime(lastRefresh)}
-                  </span>
+                  </ThemedText>
                 </div>
                 <button
                   onClick={async () => {
@@ -2597,7 +2604,9 @@ export default function MyCredentialPage() {
           }}
         >
           <div className="flex items-center justify-between mb-6">
-            <span className="text-[32px] font-semibold text-gray-900">Filter Credentials</span>
+            <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
+              Filter Credentials
+            </ThemedText>
             <button
               onClick={() => setShowFilterModal(false)}
               className="text-gray-400 hover:text-gray-600"
@@ -2615,7 +2624,7 @@ export default function MyCredentialPage() {
 
           {/* Status Filter */}
           <div className="mb-4">
-            <span className="block text-sm font-medium text-gray-900 mb-2">Status</span>
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">Status</ThemedText>
             <select
               value={filterStatus}
               onChange={(e) =>
@@ -2632,7 +2641,9 @@ export default function MyCredentialPage() {
 
           {/* Type Filter */}
           <div>
-            <span className="block text-sm font-medium text-gray-900 mb-2">Credential Type</span>
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
+              Credential Type
+            </ThemedText>
             <input
               type="text"
               value={filterType}

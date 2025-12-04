@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import Modal from '@/components/shared/Modal';
 import CreateSchemaForm, { SchemaFormData } from '@/components/issuer/CreateSchemaForm';
@@ -1024,22 +1025,24 @@ export default function SchemaPage() {
       id: 'schemaName',
       label: 'SCHEMA NAME',
       sortKey: 'schemaName',
-      render: (row) => <span className="text-sm font-medium text-gray-900">{row.schemaName}</span>,
+      render: (row) => (
+        <ThemedText className="text-sm font-medium text-gray-900">{row.schemaName}</ThemedText>
+      ),
     },
     {
       id: 'attributes',
       label: '# ATTRIBUTES',
       sortKey: 'attributes',
-      render: (row) => <span className="text-sm text-gray-900">{row.attributes}</span>,
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.attributes}</ThemedText>,
     },
     {
       id: 'expiredIn',
       label: 'Expired In (Years)',
       sortKey: 'expiredIn',
       render: (row) => (
-        <span className="text-sm text-gray-900">
+        <ThemedText className="text-sm text-gray-900">
           {row.expiredIn === 0 ? 'Lifetime' : row.expiredIn}
-        </span>
+        </ThemedText>
       ),
     },
     {
@@ -1061,7 +1064,7 @@ export default function SchemaPage() {
       label: 'CREATED AT',
       sortKey: 'createdAt',
       render: (row) => (
-        <span className="text-sm text-gray-900">{formatDateTime(row.createdAt)}</span>
+        <ThemedText className="text-sm text-gray-900">{formatDateTime(row.createdAt)}</ThemedText>
       ),
     },
     {
@@ -1069,7 +1072,7 @@ export default function SchemaPage() {
       label: 'UPDATED AT',
       sortKey: 'updatedAt',
       render: (row) => (
-        <span className="text-sm text-gray-900">{formatDateTime(row.updatedAt)}</span>
+        <ThemedText className="text-sm text-gray-900">{formatDateTime(row.updatedAt)}</ThemedText>
       ),
     },
     {
@@ -1139,19 +1142,23 @@ export default function SchemaPage() {
   return (
     <InstitutionLayout activeTab="schema">
       <div className="p-12">
-        <span className="text-[40px] font-bold text-black mb-8">Schema</span>
+        <ThemedText fontSize={40} fontWeight={700} className="text-black mb-8">
+          Schema
+        </ThemedText>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <span className="text-sm text-gray-600 mb-2">All Schemas</span>
-            <span className="text-[32px] font-semibold text-gray-900">{schemas.length}</span>
+            <ThemedText className="text-sm text-gray-600 mb-2">All Schemas</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              {schemas.length}
+            </ThemedText>
           </div>
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <span className="text-sm text-gray-600 mb-2">Active Schemas</span>
-            <span className="text-[32px] font-semibold text-gray-900">
+            <ThemedText className="text-sm text-gray-600 mb-2">Active Schemas</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
               {formatNumber(activeCount)}
-            </span>
+            </ThemedText>
           </div>
         </div>
 
@@ -1165,7 +1172,7 @@ export default function SchemaPage() {
         {/* Error State */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <span className="text-red-800">Error: {error}</span>
+            <ThemedText className="text-red-800">Error: {error}</ThemedText>
           </div>
         )}
 
@@ -1188,7 +1195,7 @@ export default function SchemaPage() {
                   <>
                     <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm">
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
-                      <span className="text-xs font-medium text-gray-700">
+                      <span className="text-gray-700">
                         {bulkTogglingAction === 'reactivate' ? 'Reactivating' : 'Deactivating'}{' '}
                         {bulkRemainingCount} schema(s)...
                       </span>
@@ -1198,9 +1205,9 @@ export default function SchemaPage() {
                 )}
 
                 {selectedSchemaKeys.size > 0 && (
-                  <span className="text-sm text-gray-700">
+                  <ThemedText className="text-sm text-gray-700">
                     {selectedSchemaKeys.size} schema(s) selected
-                  </span>
+                  </ThemedText>
                 )}
 
                 {selectedSchemaKeys.size > 0 && (
@@ -1294,10 +1301,10 @@ export default function SchemaPage() {
                   </>
                 )}
 
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span className="text-xs text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <ThemedText fontSize={12} className="text-gray-500">
                     Last updated: {formatTime(lastRefresh)}
-                  </span>
+                  </ThemedText>
                 </div>
 
                 <button
@@ -1375,7 +1382,9 @@ export default function SchemaPage() {
           }}
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <span className="text-[32px] font-semibold text-gray-900">Filter Schemas</span>
+            <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
+              Filter Schemas
+            </ThemedText>
             <button
               onClick={() => setShowFilterModal(false)}
               className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
@@ -1397,7 +1406,9 @@ export default function SchemaPage() {
               {/* Status Filter */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="block text-sm font-medium text-gray-900 mb-1.5">Status</span>
+                  <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                    Status
+                  </ThemedText>
                   <select
                     value={filterStatus}
                     onChange={(e) =>
@@ -1414,9 +1425,9 @@ export default function SchemaPage() {
 
               {/* Attribute Count Filter */}
               <div>
-                <span className="block text-sm font-medium text-gray-900 mb-1.5">
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
                   Number of Attributes
-                </span>
+                </ThemedText>
                 <div className="grid grid-cols-2 gap-4">
                   <input
                     type="number"
@@ -1439,9 +1450,9 @@ export default function SchemaPage() {
 
               {/* Expired In Filter */}
               <div>
-                <span className="block text-sm font-medium text-gray-900 mb-1.5">
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
                   Expired In (Years)
-                </span>
+                </ThemedText>
                 <div className="grid grid-cols-2 gap-4">
                   <input
                     type="number"
@@ -1464,7 +1475,9 @@ export default function SchemaPage() {
 
               {/* Created At Date Filter */}
               <div>
-                <span className="block text-sm font-medium text-gray-900 mb-1.5">Created At</span>
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Created At
+                </ThemedText>
                 <div className="grid grid-cols-2 gap-4">
                   <DateTimePicker
                     value={filterCreatedAtStart}
@@ -1503,7 +1516,9 @@ export default function SchemaPage() {
 
               {/* Updated At Date Filter */}
               <div>
-                <span className="block text-sm font-medium text-gray-900 mb-1.5">Updated At</span>
+                <ThemedText className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Updated At
+                </ThemedText>
                 <div className="grid grid-cols-2 gap-4">
                   <DateTimePicker
                     value={filterUpdatedAtStart}

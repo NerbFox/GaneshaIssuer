@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { formatDate, formatTime } from '@/utils/dateUtils';
@@ -276,14 +277,18 @@ export default function MyRequestPage() {
       id: 'credentialType',
       label: 'REQUEST ID',
       sortKey: 'credentialType',
-      render: (row) => <span className="text-sm font-medium text-gray-900">{row.id}</span>,
+      render: (row) => (
+        <ThemedText className="text-sm font-medium text-gray-900">{row.id}</ThemedText>
+      ),
     },
     {
       id: 'issuerDid',
       label: 'ISSUER DID',
       sortKey: 'issuerDid',
       render: (row) => (
-        <span className="text-sm text-gray-900">{row.issuerDid.substring(0, 25)}...</span>
+        <ThemedText className="text-sm text-gray-900">
+          {row.issuerDid.substring(0, 25)}...
+        </ThemedText>
       ),
     },
     {
@@ -291,7 +296,7 @@ export default function MyRequestPage() {
       label: 'REQUESTED DATE',
       sortKey: 'requestedDate',
       render: (row) => (
-        <span className="text-sm text-gray-900">{formatDate(row.requestedDate)}</span>
+        <ThemedText className="text-sm text-gray-900">{formatDate(row.requestedDate)}</ThemedText>
       ),
     },
     {
@@ -335,21 +340,23 @@ export default function MyRequestPage() {
   return (
     <InstitutionLayout activeTab="my-request">
       <div className="p-12">
-        <span className="text-[40px] font-bold text-black mb-8">My Request</span>
+        <ThemedText fontSize={40} fontWeight={700} className="text-black mb-8">
+          My Request
+        </ThemedText>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <span className="text-sm text-gray-600 mb-2">Total Requests</span>
-            <span className="text-[32px] font-semibold text-gray-900">
+            <ThemedText className="text-sm text-gray-600 mb-2">Total Requests</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
               {isLoading ? 0 : requests.length}
-            </span>
+            </ThemedText>
           </div>
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <span className="text-sm text-gray-600 mb-2">Pending</span>
-            <span className="text-[32px] font-semibold text-gray-900">
+            <ThemedText className="text-sm text-gray-600 mb-2">Pending</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
               {isLoading ? 0 : pendingCount}
-            </span>
+            </ThemedText>
           </div>
         </div>
 
@@ -374,10 +381,10 @@ export default function MyRequestPage() {
             idKey="id"
             topRightButtons={
               <div className="flex gap-3 items-center">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span className="text-xs text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <ThemedText fontSize={12} className="text-gray-500">
                     Last updated: {formatTime(lastRefresh)}
-                  </span>
+                  </ThemedText>
                 </div>
                 <button
                   onClick={async () => {
@@ -432,7 +439,9 @@ export default function MyRequestPage() {
           }}
         >
           <div className="flex items-center justify-between mb-6">
-            <span className="text-[32px] font-semibold text-gray-900">Filter Requests</span>
+            <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
+              Filter Requests
+            </ThemedText>
             <button
               onClick={() => setShowFilterModal(false)}
               className="text-gray-400 hover:text-gray-600 cursor-pointer"
@@ -450,7 +459,7 @@ export default function MyRequestPage() {
 
           {/* Status Filter */}
           <div className="mb-4">
-            <span className="block text-sm font-medium text-gray-900 mb-2">Status</span>
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">Status</ThemedText>
             <select
               value={filterStatus}
               onChange={(e) =>
@@ -475,7 +484,9 @@ export default function MyRequestPage() {
 
           {/* Request Type Filter */}
           <div className="mb-4">
-            <span className="block text-sm font-medium text-gray-900 mb-2">Request Type</span>
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
+              Request Type
+            </ThemedText>
             <select
               value={filterRequestType}
               onChange={(e) =>
@@ -505,7 +516,9 @@ export default function MyRequestPage() {
 
           {/* Type Filter */}
           <div>
-            <span className="block text-sm font-medium text-gray-900 mb-2">Credential Type</span>
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
+              Credential Type
+            </ThemedText>
             <input
               type="text"
               value={filterType}

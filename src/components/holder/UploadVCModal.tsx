@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Modal from '@/components/shared/Modal';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { VerifiableCredential } from '@/utils/indexedDB';
 import { formatDate } from '@/utils/dateUtils';
 
@@ -77,7 +78,9 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
       <div className="px-8 py-6">
         <div className="mb-6">
           <label className="block mb-3">
-            <p className="text-sm font-semibold text-gray-900">Select JSON File</p>
+            <ThemedText className="text-sm font-semibold text-gray-900">
+              Select JSON File
+            </ThemedText>
           </label>
 
           <div className="relative">
@@ -128,7 +131,9 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
         {isValidating && (
           <div className="mb-6 flex items-center gap-3 text-blue-700 bg-blue-50 px-4 py-3 rounded-lg">
             <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-700"></div>
-            <span className="text-sm">Validating credential...</span>
+            <ThemedText fontSize={14} fontWeight={600}>
+              Validating credential...
+            </ThemedText>
           </div>
         )}
 
@@ -150,10 +155,12 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
                   />
                 </svg>
                 <div className="grid grid-rows-2">
-                  <span className="text-sm">All validations passed</span>
-                  <span className="text-green-600 mt-1">
+                  <ThemedText fontSize={14} fontWeight={600}>
+                    All validations passed
+                  </ThemedText>
+                  <ThemedText fontSize={12} className="text-green-600 mt-1">
                     Structure validated → API validated → No duplicates found
-                  </span>
+                  </ThemedText>
                 </div>
               </div>
             ) : (
@@ -172,10 +179,10 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
                     />
                   </svg>
                   <div>
-                    <span className="text-sm">
+                    <ThemedText fontSize={14} fontWeight={600}>
                       Validation failed
                       {uploadValidation.stage && ` at ${uploadValidation.stage} stage`}
-                    </span>
+                    </ThemedText>
                   </div>
                 </div>
                 <ul className="list-disc list-inside text-sm space-y-1 mt-2">
@@ -191,52 +198,76 @@ export const UploadVCModal: React.FC<UploadVCModalProps> = ({
         {/* Preview VC */}
         {uploadValidation?.isValid && uploadedVC && (
           <div>
-            <p className="text-base font-semibold text-gray-900 mb-4">Credential Preview</p>
+            <ThemedText fontSize={16} fontWeight={600} className="text-gray-900 mb-4">
+              Credential Preview
+            </ThemedText>
             <div className="border border-gray-200 rounded-lg bg-gray-50 max-h-96 overflow-y-auto">
               <div className="p-6 space-y-6">
                 <div className="bg-white rounded-lg p-4 border border-gray-200 grid grid-cols-2">
-                  <span className="text-gray-500 mb-2">ID</span>
-                  <span className="text-gray-900 break-all leading-relaxed text-right">
+                  <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
+                    ID
+                  </ThemedText>
+                  <ThemedText
+                    fontSize={14}
+                    className="text-gray-900 break-all leading-relaxed text-right"
+                  >
                     {uploadedVC.id}
-                  </span>
+                  </ThemedText>
                 </div>
 
                 <div className="bg-white rounded-lg p-4 border border-gray-200 grid grid-cols-2">
-                  <span className="text-gray-500 mb-2">Type</span>
-                  <span className="text-sm text-gray-900 text-right">
+                  <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
+                    Type
+                  </ThemedText>
+                  <ThemedText fontSize={14} className="text-gray-900 text-right">
                     {uploadedVC.type.join(', ')}
-                  </span>
+                  </ThemedText>
                 </div>
 
                 <div className="bg-white rounded-lg p-4 border border-gray-200 grid grid-cols-2">
-                  <span className="text-gray-500 mb-2">Issuer</span>
-                  <span className="text-gray-900 break-all leading-relaxed text-right">
+                  <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
+                    Issuer
+                  </ThemedText>
+                  <ThemedText
+                    fontSize={14}
+                    className="text-gray-900 break-all leading-relaxed text-right"
+                  >
                     {uploadedVC.issuer}
-                  </span>
+                  </ThemedText>
                 </div>
 
                 <div className="bg-white rounded-lg p-4 border border-gray-200 grid grid-cols-2">
-                  <span className="text-gray-500 mb-2">Issuer Name</span>
-                  <span className="text-sm text-gray-900 text-right">{uploadedVC.issuerName}</span>
+                  <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
+                    Issuer Name
+                  </ThemedText>
+                  <ThemedText fontSize={14} className="text-gray-900 text-right">
+                    {uploadedVC.issuerName}
+                  </ThemedText>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-white rounded-lg p-4 border border-gray-200 grid grid-cols-2">
-                    <span className="text-gray-500 mb-2">Valid From</span>
-                    <span className="text-sm text-gray-900 text-right">
+                    <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
+                      Valid From
+                    </ThemedText>
+                    <ThemedText fontSize={14} className="text-gray-900 text-right">
                       {formatDate(uploadedVC.validFrom)}
-                    </span>
+                    </ThemedText>
                   </div>
                   <div className="bg-white rounded-lg p-4 border border-gray-200 grid grid-cols-2">
-                    <span className="text-gray-500 mb-2">Expired At</span>
-                    <span className="text-sm text-gray-900 text-right">
+                    <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
+                      Expired At
+                    </ThemedText>
+                    <ThemedText fontSize={14} className="text-gray-900 text-right">
                       {uploadedVC.expiredAt ? formatDate(uploadedVC.expiredAt) : 'N/A'}
-                    </span>
+                    </ThemedText>
                   </div>
                 </div>
 
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
-                  <span className="text-gray-500 mb-2">Credential Subject</span>
+                  <ThemedText fontSize={12} fontWeight={600} className="text-gray-500 mb-2">
+                    Credential Subject
+                  </ThemedText>
                   <div className="bg-gray-50 rounded-lg p-4 mt-2">
                     <pre className="whitespace-pre-wrap break-all text-gray-700 text-sm leading-relaxed">
                       {JSON.stringify(uploadedVC.credentialSubject, null, 2)}

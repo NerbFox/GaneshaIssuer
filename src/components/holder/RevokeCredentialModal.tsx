@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Modal from '@/components/shared/Modal';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { formatDateTime } from '@/utils/dateUtils';
 import { VerifiableCredential } from '@/utils/indexedDB';
 
@@ -33,7 +34,7 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
             {/* Credential ID */}
             <div className="col-span-2">
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Credential ID</span>
+                <ThemedText className="text-sm font-medium text-gray-700">Credential ID</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                 {revokingCredential.id}
@@ -43,7 +44,9 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
             {/* Credential Type */}
             <div>
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Credential Type</span>
+                <ThemedText className="text-sm font-medium text-gray-700">
+                  Credential Type
+                </ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {Array.isArray(revokingCredential.type)
@@ -55,7 +58,7 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
             {/* Status */}
             <div>
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Status</span>
+                <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
@@ -67,7 +70,7 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
             {/* Valid From */}
             <div>
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Valid From</span>
+                <ThemedText className="text-sm font-medium text-gray-700">Valid From</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {formatDateTime(new Date(revokingCredential.validFrom))}
@@ -77,7 +80,7 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
             {/* Expired At */}
             <div>
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Expired At</span>
+                <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {revokingCredential.expiredAt
@@ -89,7 +92,7 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
             {/* Issuer Name */}
             <div>
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Issuer Name</span>
+                <ThemedText className="text-sm font-medium text-gray-700">Issuer Name</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {revokingCredential.issuerName}
@@ -99,7 +102,7 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
             {/* Issuer DID */}
             <div className="col-span-2">
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Issuer DID</span>
+                <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                 {revokingCredential.issuer}
@@ -109,7 +112,7 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
             {/* Holder DID */}
             <div className="col-span-2">
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Holder DID</span>
+                <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                 {revokingCredential.credentialSubject.id}
@@ -121,7 +124,9 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
           {revokingCredential.imageLink && (
             <div className="mb-6">
               <label className="block mb-3">
-                <p className="text-sm font-semibold text-gray-900">VC Background Image</p>
+                <ThemedText className="text-sm font-semibold text-gray-900">
+                  VC Background Image
+                </ThemedText>
               </label>
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -139,14 +144,14 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
             0 && (
             <div className="mb-6">
               <div className="mb-4">
-                <p className="text-sm font-semibold text-gray-900">
+                <ThemedText className="text-sm font-semibold text-gray-900">
                   Credential Attributes (
                   {
                     Object.keys(revokingCredential.credentialSubject).filter((key) => key !== 'id')
                       .length
                   }
                   )
-                </p>
+                </ThemedText>
               </div>
 
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -157,7 +162,9 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
                       <div key={index} className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block mb-1">
-                            <span className="text-xs font-medium text-gray-600">{key}</span>
+                            <ThemedText className="text-xs font-medium text-gray-600">
+                              {key}
+                            </ThemedText>
                           </label>
                         </div>
                         <div>
@@ -189,14 +196,14 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
                       clipRule="evenodd"
                     />
                   </svg>
-                  <span className="text-sm font-semibold text-red-800">
+                  <ThemedText className="text-sm font-semibold text-red-800">
                     Warning: This action cannot be undone
-                  </span>
+                  </ThemedText>
                 </div>
-                <span className="text-xs text-red-700">
+                <ThemedText className="text-xs text-red-700">
                   Revoking this credential will permanently invalidate it. The credential will no
                   longer be valid for verification purposes.
-                </span>
+                </ThemedText>
               </div>
             </div>
           </div>
@@ -204,9 +211,9 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
           {/* Revocation Reason Input */}
           <div className="mb-6">
             <label className="block mb-2">
-              <span className="text-sm font-medium text-xs font-medium text-gray-700">
+              <ThemedText className="text-sm font-medium text-gray-700">
                 Reason for Revocation <span className="text-red-500">*</span>
-              </span>
+              </ThemedText>
             </label>
             <textarea
               value={revocationReason}
@@ -216,7 +223,7 @@ export const RevokeCredentialModal: React.FC<RevokeCredentialModalProps> = ({
               disabled={isRevoking}
             />
             {revocationReason.trim() === '' && (
-              <span className="text-xs text-gray-500 mt-1">This field is required</span>
+              <ThemedText className="text-xs text-gray-500 mt-1">This field is required</ThemedText>
             )}
           </div>
 

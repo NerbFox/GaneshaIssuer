@@ -12,6 +12,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Modal from '../shared/Modal';
+import { ThemedText } from '../shared/ThemedText';
 import { VerifiableCredential } from '@/utils/indexedDB';
 import { createVerifiablePresentation, signVPWithStoredKey } from '@/utils/vpSigner';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
@@ -251,9 +252,9 @@ export default function PresentMultipleCredentialsModal({
         {/* Credentials Preview Section */}
         <div className="bg-white rounded-2xl border-2 border-gray-200 overflow-hidden shadow-md">
           <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
-            <h2 className="text-xl font-semibold text-gray-900 block">
+            <ThemedText fontSize={20} fontWeight={600} className="text-gray-900 block">
               Credentials to Present ({credentials.length})
-            </h2>
+            </ThemedText>
           </div>
 
           <div className="p-6 space-y-6">
@@ -295,11 +296,36 @@ export default function PresentMultipleCredentialsModal({
                               : 'bg-red-500'
                         }`}
                       >
-                        <span className="text-white block">{index + 1}</span>
+                        <ThemedText fontSize={16} fontWeight={700} className="text-white block">
+                          {index + 1}
+                        </ThemedText>
                       </div>
                       <div className="space-y-1 text-left">
-                        <span className="text-sm">{credentialType}</span>
-                        <span className="text-sm">Issued by {credential.issuerName}</span>
+                        <ThemedText
+                          fontSize={16}
+                          fontWeight={600}
+                          className={`block ${
+                            credentialStatus === 'Active'
+                              ? 'text-green-800'
+                              : credentialStatus === 'Expired'
+                                ? 'text-gray-800'
+                                : 'text-red-800'
+                          }`}
+                        >
+                          {credentialType}
+                        </ThemedText>
+                        <ThemedText
+                          fontSize={12}
+                          className={`block font-medium ${
+                            credentialStatus === 'Active'
+                              ? 'text-green-700'
+                              : credentialStatus === 'Expired'
+                                ? 'text-gray-700'
+                                : 'text-red-700'
+                          }`}
+                        >
+                          Issued by {credential.issuerName}
+                        </ThemedText>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -339,28 +365,43 @@ export default function PresentMultipleCredentialsModal({
                         {/* Basic Info Grid */}
                         <div className="grid grid-cols-2 gap-6">
                           <div className="space-y-2">
-                            <span className="text-xs text-gray-500 font-bold tracking-wider">
+                            <ThemedText className="text-xs text-gray-500 font-bold tracking-wider">
                               CREDENTIAL ID
-                            </span>
-                            <span className="text-gray-900 break-all block">{credential.id}</span>
+                            </ThemedText>
+                            <ThemedText
+                              fontSize={11}
+                              fontWeight={600}
+                              className="text-gray-900 break-all block"
+                            >
+                              {credential.id}
+                            </ThemedText>
                           </div>
                           <div className="space-y-2">
-                            <span className="text-xs text-gray-500 font-bold tracking-wider">
+                            <ThemedText className="text-xs text-gray-500 font-bold tracking-wider">
                               ISSUER
-                            </span>
-                            <span className="text-gray-900 block">{credential.issuerName}</span>
-                            <span className="text-gray-600 break-all block mt-1">
+                            </ThemedText>
+                            <ThemedText
+                              fontSize={13}
+                              fontWeight={600}
+                              className="text-gray-900 block"
+                            >
+                              {credential.issuerName}
+                            </ThemedText>
+                            <ThemedText
+                              fontSize={10}
+                              className="text-gray-600 break-all block mt-1"
+                            >
                               {credential.issuer}
-                            </span>
+                            </ThemedText>
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-6">
                           <div className="space-y-2">
-                            <span className="text-xs text-gray-500 font-bold tracking-wider">
+                            <ThemedText className="text-xs text-gray-500 font-bold tracking-wider">
                               VALID FROM
-                            </span>
-                            <span className="text-gray-900 block">
+                            </ThemedText>
+                            <ThemedText fontSize={13} className="text-gray-900 block">
                               {new Date(credential.validFrom).toLocaleString('en-US', {
                                 year: 'numeric',
                                 month: 'long',
@@ -368,13 +409,13 @@ export default function PresentMultipleCredentialsModal({
                                 hour: '2-digit',
                                 minute: '2-digit',
                               })}
-                            </span>
+                            </ThemedText>
                           </div>
                           <div className="space-y-2">
-                            <span className="text-xs text-gray-500 font-bold tracking-wider">
+                            <ThemedText className="text-xs text-gray-500 font-bold tracking-wider">
                               EXPIRES AT
-                            </span>
-                            <span className="text-gray-900 block">
+                            </ThemedText>
+                            <ThemedText fontSize={13} className="text-gray-900 block">
                               {credential.expiredAt
                                 ? new Date(credential.expiredAt).toLocaleString('en-US', {
                                     year: 'numeric',
@@ -384,28 +425,34 @@ export default function PresentMultipleCredentialsModal({
                                     minute: '2-digit',
                                   })
                                 : 'Never'}
-                            </span>
+                            </ThemedText>
                           </div>
                         </div>
 
                         {/* Attributes */}
                         {attributes.length > 0 && (
                           <div className="space-y-3">
-                            <span className="text-xs text-gray-500 font-bold tracking-wider block">
+                            <ThemedText className="text-xs text-gray-500 font-bold tracking-wider block">
                               CREDENTIAL SUBJECT
-                            </span>
+                            </ThemedText>
                             <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-100">
                               {attributes.map((attr) => (
                                 <div
                                   key={attr.name}
                                   className="flex justify-between items-start gap-4 border-b border-gray-200 pb-3 last:border-0 last:pb-0"
                                 >
-                                  <span className="text-gray-600 font-medium block capitalize">
+                                  <ThemedText
+                                    fontSize={12}
+                                    className="text-gray-600 font-medium block capitalize"
+                                  >
                                     {attr.name.replace(/_/g, ' ')}:
-                                  </span>
-                                  <span className="text-gray-900 text-right block flex-1">
+                                  </ThemedText>
+                                  <ThemedText
+                                    fontSize={12}
+                                    className="text-gray-900 text-right block flex-1"
+                                  >
                                     {attr.value}
-                                  </span>
+                                  </ThemedText>
                                 </div>
                               ))}
                             </div>
@@ -431,7 +478,9 @@ export default function PresentMultipleCredentialsModal({
 
         {error && (
           <div className="p-4 bg-red-100 border-2 border-red-300 rounded-lg">
-            <span className="text-red-800 font-semibold block">⚠️ Error: {error}</span>
+            <ThemedText fontSize={12} className="text-red-800 font-semibold block">
+              ⚠️ Error: {error}
+            </ThemedText>
           </div>
         )}
 
@@ -439,12 +488,18 @@ export default function PresentMultipleCredentialsModal({
           <div className="space-y-8">
             {/* VP Information */}
             <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-200 space-y-6 shadow-sm">
-              <span className="text-gray-900 block">Presentation Information</span>
+              <ThemedText fontSize={18} fontWeight={600} className="text-gray-900 block">
+                Presentation Information
+              </ThemedText>
               <div className="space-y-2">
-                <span className="text-sm text-gray-600 block">VP ID</span>
-                <span className="text-gray-900 break-all block font-mono bg-white p-4 rounded-lg border border-gray-200">
+                <ThemedText className="text-sm text-gray-600 block">VP ID</ThemedText>
+                <ThemedText
+                  fontSize={11}
+                  fontWeight={600}
+                  className="text-gray-900 break-all block font-mono bg-white p-4 rounded-lg border border-gray-200"
+                >
                   {vpId}
-                </span>
+                </ThemedText>
               </div>
             </div>
 
@@ -452,7 +507,9 @@ export default function PresentMultipleCredentialsModal({
             <div className="bg-white rounded-2xl border-2 border-gray-200 overflow-hidden shadow-md">
               <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-900 block">Scan QR Code to Share VP</span>
+                  <ThemedText fontSize={18} fontWeight={600} className="text-gray-900 block">
+                    Scan QR Code to Share VP
+                  </ThemedText>
                   <button
                     onClick={handleGenerateVP}
                     disabled={isGenerating}
@@ -489,10 +546,10 @@ export default function PresentMultipleCredentialsModal({
                     />
                   )}
                 </div>
-                <span className="text-sm text-gray-500 text-center max-w-md">
+                <ThemedText className="text-sm text-gray-500 text-center max-w-md">
                   This QR code contains the VP ID that can be scanned by verifiers to access your
                   presentation
-                </span>
+                </ThemedText>
               </div>
             </div>
           </div>

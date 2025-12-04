@@ -9,6 +9,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import Button from '@/components/shared/Button';
 import Input from '@/components/shared/Input';
 import { Link } from '@/i18n/routing';
+import { ThemedText } from '@/components/shared/ThemedText';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -93,20 +94,26 @@ export default function AdminLoginPage() {
         <div className="flex justify-center mb-8">
           <div className="flex items-center">
             <Image src="/GWallet.svg" width={50} height={50} alt="GaneshaWallet Logo" />
-            <span className="text-xl font-bold pl-2 text-[#0C2D48]">GaneshaWallet</span>
+            <ThemedText fontSize={20} fontWeight={700} className="pl-2 text-[#0C2D48]">
+              GaneshaWallet
+            </ThemedText>
           </div>
         </div>
 
         {/* Title */}
         <div className="text-center mb-8">
-          <span className="text-[40px] font-bold text-black mb-2 block">{t('title')}</span>
-          <span className="text-base text-gray-600 block">{t('subtitle')}</span>
+          <ThemedText fontSize={40} fontWeight={700} className="text-black mb-2 block">
+            {t('title')}
+          </ThemedText>
+          <ThemedText fontSize={16} className="text-gray-600 block">
+            {t('subtitle')}
+          </ThemedText>
         </div>
 
         {/* Error Message */}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            <span className="text-sm">{error}</span>
+            <ThemedText fontSize={14}>{error}</ThemedText>
           </div>
         )}
 
@@ -138,12 +145,12 @@ export default function AdminLoginPage() {
 
           {/* Register Link */}
           <div className="text-center">
-            <span className="text-xs text-gray-600">
+            <ThemedText fontSize={12} className="text-gray-600">
               {t('forInstitution')}{' '}
               <Link href="/institution" className="text-[#0D2B45] hover:underline font-medium">
                 {t('registerHere')}
               </Link>
-            </span>
+            </ThemedText>
           </div>
 
           {/* Submit Button */}

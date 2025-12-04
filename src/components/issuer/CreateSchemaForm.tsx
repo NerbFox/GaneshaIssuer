@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import Modal from '@/components/shared/Modal';
 import AttributePositionEditor, {
@@ -395,9 +396,9 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
       {/* Schema Name */}
       <div className="mb-6">
         <label className="block mb-2">
-          <span className="text-sm font-medium text-gray-900">
+          <ThemedText className="text-sm font-medium text-gray-900">
             Schema Name<span className="text-red-500">*</span>
-          </span>
+          </ThemedText>
         </label>
         <input
           type="text"
@@ -411,9 +412,9 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
       {/* Expired In (Years) */}
       <div className="mb-6">
         <label className="block mb-2">
-          <span className="text-sm font-medium text-gray-900">
+          <ThemedText className="text-sm font-medium text-gray-900">
             Expired In (Years)<span className="text-red-500">*</span>
-          </span>
+          </ThemedText>
         </label>
         <input
           type="number"
@@ -445,15 +446,17 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
           placeholder="Enter expiration years (0 for lifetime)"
           className="w-full text-black px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
         />
-        <p className="text-xs text-gray-500 mt-1">Enter 0 for lifetime (no expiration)</p>
+        <ThemedText className="text-xs text-gray-500 mt-1">
+          Enter 0 for lifetime (no expiration)
+        </ThemedText>
       </div>
 
       {/* VC Background Image */}
       <div className="mb-6">
         <label className="block mb-3">
-          <span className="text-sm font-semibold text-gray-900">
+          <ThemedText className="text-sm font-semibold text-gray-900">
             Credential Template Image<span className="text-red-500">*</span>
-          </span>
+          </ThemedText>
         </label>
 
         {imageLoading ? (
@@ -563,9 +566,9 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
           </div>
         )}
 
-        <p className="text-xs text-gray-500 mt-3">
+        <ThemedText className="text-xs text-gray-500 mt-3">
           This image will be used as the template for digital credentials and card background
-        </p>
+        </ThemedText>
 
         {imageError && (
           <div className="mt-2 flex items-center text-red-500">
@@ -586,7 +589,7 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
         <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <span className="text-xs text-gray-600 mb-3">
+              <ThemedText className="text-xs text-gray-600 mb-3">
                 <span className="font-semibold text-gray-900">
                   Digital Credential Configuration
                 </span>
@@ -595,7 +598,7 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
                 <br />
                 Position each attribute on the template image so holders can view a professional
                 digital version.
-              </span>
+              </ThemedText>
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -676,9 +679,9 @@ export default function CreateSchemaForm({ onSubmit, onCancel }: CreateSchemaFor
       {/* Attributes Section */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-sm font-medium text-gray-900">
+          <ThemedText className="text-sm font-medium text-gray-900">
             Attributes<span className="text-red-500">*</span>
-          </span>
+          </ThemedText>
           <div className="flex items-center gap-2">
             {selectedAttributeIds.length > 0 && (
               <button

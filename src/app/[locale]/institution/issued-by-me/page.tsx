@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import Modal from '@/components/shared/Modal';
 import IssueNewCredentialForm, {
@@ -912,7 +913,7 @@ export default function IssuedByMePage() {
       sortKey: 'holderDid',
       render: (row) => (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-900">{truncateDid(row.holderDid)}</span>
+          <ThemedText className="text-sm text-gray-900">{truncateDid(row.holderDid)}</ThemedText>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -968,7 +969,7 @@ export default function IssuedByMePage() {
 
         // If unknown schema, just show text without button
         if (isUnknown || !row.schemaId) {
-          return <span className="text-sm text-red-600">{row.schemaName}</span>;
+          return <ThemedText className="text-sm text-red-600">{row.schemaName}</ThemedText>;
         }
 
         return (
@@ -1001,7 +1002,7 @@ export default function IssuedByMePage() {
       label: 'CREATED AT',
       sortKey: 'createdAt',
       render: (row) => (
-        <span className="text-sm text-gray-900">{formatDateTime(row.createdAt)}</span>
+        <ThemedText className="text-sm text-gray-900">{formatDateTime(row.createdAt)}</ThemedText>
       ),
     },
     {
@@ -1009,9 +1010,9 @@ export default function IssuedByMePage() {
       label: 'ACTIVE UNTIL',
       sortKey: 'activeUntil',
       render: (row) => (
-        <span className="text-sm text-gray-900">
+        <ThemedText className="text-sm text-gray-900">
           {row.activeUntil === '-' ? 'Lifetime' : formatDateTime(row.activeUntil)}
-        </span>
+        </ThemedText>
       ),
     },
     {
@@ -1081,17 +1082,23 @@ export default function IssuedByMePage() {
   return (
     <InstitutionLayout activeTab="issued-by-me">
       <div className="p-12">
-        <span className="text-[40px] font-bold text-black mb-8">Issued By Me</span>
+        <ThemedText fontSize={40} fontWeight={700} className="text-black mb-8">
+          Issued By Me
+        </ThemedText>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8 pt-4">
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <span className="text-sm text-gray-600 mb-2">Total Issued</span>
-            <span className="text-[32px] font-semibold text-gray-900">{credentials.length}</span>
+            <ThemedText className="text-sm text-gray-600 mb-2">Total Issued</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              {credentials.length}
+            </ThemedText>
           </div>
           <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-            <span className="text-sm text-gray-600 mb-2">Active Credentials</span>
-            <span className="text-[32px] font-semibold text-gray-900">{activeCount}</span>
+            <ThemedText className="text-sm text-gray-600 mb-2">Active Credentials</ThemedText>
+            <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
+              {activeCount}
+            </ThemedText>
           </div>
         </div>
 
@@ -1105,7 +1112,7 @@ export default function IssuedByMePage() {
         {/* Error State */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <span className="text-red-800">Error: {error}</span>
+            <ThemedText className="text-red-800">Error: {error}</ThemedText>
           </div>
         )}
 
@@ -1119,10 +1126,10 @@ export default function IssuedByMePage() {
             onSearch={handleSearch}
             topRightButtons={
               <div className="flex items-center gap-3 justify-end">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span className="text-xs text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <ThemedText fontSize={12} className="text-gray-500">
                     Last updated: {formatTime(lastRefresh)}
-                  </span>
+                  </ThemedText>
                 </div>
                 <button
                   onClick={fetchCredentials}
@@ -1189,7 +1196,9 @@ export default function IssuedByMePage() {
           }}
         >
           <div className="flex items-center justify-between mb-6">
-            <span className="text-[32px] font-semibold text-gray-900">Filter Credentials</span>
+            <ThemedText fontSize={18} fontWeight={600} className="text-gray-900">
+              Filter Credentials
+            </ThemedText>
             <button
               onClick={() => setShowFilterModal(false)}
               className="text-gray-400 hover:text-gray-600 cursor-pointer"
@@ -1207,7 +1216,7 @@ export default function IssuedByMePage() {
 
           {/* Status Filter */}
           <div className="mb-4">
-            <span className="block text-sm font-medium text-gray-900 mb-2">Status</span>
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">Status</ThemedText>
             <select
               value={filterStatus}
               onChange={(e) =>
@@ -1224,7 +1233,9 @@ export default function IssuedByMePage() {
 
           {/* Schema Name Filter */}
           <div>
-            <span className="block text-sm font-medium text-gray-900 mb-2">Schema Name</span>
+            <ThemedText className="block text-sm font-medium text-gray-900 mb-2">
+              Schema Name
+            </ThemedText>
             <input
               type="text"
               value={filterType}

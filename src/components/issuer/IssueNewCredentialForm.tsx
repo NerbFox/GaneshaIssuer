@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import InfoModal from '@/components/shared/InfoModal';
 import DatePicker from '@/components/shared/DatePicker';
@@ -214,7 +215,7 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
       sortKey: 'name',
       render: (row) => (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-900">{row.name}</span>
+          <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>
           {row.required && <span className="text-red-500 text-sm">*</span>}
         </div>
       ),
@@ -449,9 +450,9 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* DID Prefix */}
         <div>
-          <label className="text-sm text-gray-600 mb-2 block">
+          <ThemedText className="text-sm text-gray-600 mb-2">
             DID Prefix<span className="text-red-500">*</span>
-          </label>
+          </ThemedText>
           <select
             value={didPrefix}
             onChange={(e) => setDidPrefix(e.target.value)}
@@ -467,9 +468,9 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
 
         {/* Holder DID */}
         <div>
-          <label className="text-sm text-gray-600 mb-2 block">
+          <ThemedText className="text-sm text-gray-600 mb-2">
             Holder DID<span className="text-red-500">*</span>
-          </label>
+          </ThemedText>
           <input
             type="text"
             value={holderDid}
@@ -484,9 +485,9 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* Schema Name */}
         <div>
-          <label className="text-sm text-gray-600 mb-2 block">
+          <ThemedText className="text-sm text-gray-600 mb-2">
             Schema Name<span className="text-red-500">*</span>
-          </label>
+          </ThemedText>
           <select
             value={schemaId}
             onChange={(e) => setSchemaId(e.target.value)}
@@ -494,11 +495,7 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
           >
             <option value="">Select schema</option>
             {uniqueSchemas.map((schema) => (
-              <option
-                key={schema.id}
-                value={schema.id}
-                className="text-[32px] font-semibold text-gray-900"
-              >
+              <option key={schema.id} value={schema.id} className="text-gray-900">
                 {schema.name}
               </option>
             ))}
@@ -507,11 +504,11 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
 
         {/* Schema ID (auto-filled) */}
         <div>
-          <label className="text-sm text-gray-600 mb-2 block">Schema ID</label>
+          <ThemedText className="text-sm text-gray-600 mb-2">Schema ID</ThemedText>
           <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <span className={`text-sm ${!schemaId ? 'text-gray-400' : 'text-gray-900'}`}>
+            <ThemedText className={`text-sm ${!schemaId ? 'text-gray-400' : 'text-gray-900'}`}>
               {schemaId || 'Select a schema to see its ID'}
-            </span>
+            </ThemedText>
           </div>
         </div>
       </div>
@@ -520,9 +517,9 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* Schema Version */}
         <div>
-          <label className="text-sm text-gray-600 mb-2 block">
+          <ThemedText className="text-sm text-gray-600 mb-2">
             Schema Version<span className="text-red-500">*</span>
-          </label>
+          </ThemedText>
           <select
             value={version}
             onChange={(e) => setVersion(Number(e.target.value))}
@@ -543,15 +540,15 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
 
         {/* Expired In (Years) - auto-filled */}
         <div>
-          <label className="text-sm text-gray-600 mb-2 block">Expired In (Years)</label>
+          <ThemedText className="text-sm text-gray-600 mb-2">Expired In (Years)</ThemedText>
           <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <span className={`text-sm ${!schemaName ? 'text-gray-400' : 'text-gray-900'}`}>
+            <ThemedText className={`text-sm ${!schemaName ? 'text-gray-400' : 'text-gray-900'}`}>
               {schemaName
                 ? expiredIn === 0 || expiredIn === null || expiredIn === undefined
                   ? 'Lifetime'
                   : expiredIn
                 : 'Select a schema to see expiration'}
-            </span>
+            </ThemedText>
           </div>
         </div>
       </div>
@@ -559,8 +556,10 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
       {/* VC Background Image */}
       {imageUrl && (
         <div className="mb-6">
-          <label className="block mb-3 text-sm font-semibold text-gray-900">
-            VC Background Image
+          <label className="block mb-3">
+            <ThemedText className="text-sm font-semibold text-gray-900">
+              VC Background Image
+            </ThemedText>
           </label>
           <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -576,9 +575,9 @@ export default function IssueNewCredentialForm({ schemas, onSubmit }: IssueNewCr
       {/* Attributes Table */}
       {attributes.length > 0 && (
         <div className="mb-6">
-          <p className="text-sm font-medium text-gray-900 mb-4">
+          <ThemedText className="text-sm font-medium text-gray-900 mb-4">
             Attributes ({filteredAttributes.length})
-          </p>
+          </ThemedText>
           <DataTable
             data={filteredAttributes}
             columns={attributeColumns}

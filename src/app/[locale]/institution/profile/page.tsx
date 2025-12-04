@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 
 interface InstitutionData {
@@ -79,18 +80,22 @@ export default function InstitutionProfilePage() {
     <InstitutionLayout activeTab="profile">
       {/* Profile Content */}
       <div className="p-12 max-w-4xl">
-        <span className="text-[40px] font-bold text-black mb-12">Profile</span>
+        <ThemedText fontSize={40} fontWeight={700} className="text-black mb-12">
+          Profile
+        </ThemedText>
 
         {/* Error Message */}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            <span className="text-sm">{error}</span>
+            <ThemedText fontSize={14}>{error}</ThemedText>
           </div>
         )}
 
         {/* Institution Name Field */}
         <div className="mt-5 mb-5">
-          <span className="block text-sm font-medium text-gray-900 mb-3">Institution Name</span>
+          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">
+            Institution Name
+          </ThemedText>
           <input
             type="text"
             value={institutionData?.name || ''}
@@ -101,7 +106,7 @@ export default function InstitutionProfilePage() {
 
         {/* Email Field */}
         <div className="mb-5">
-          <span className="block text-sm font-medium text-gray-900 mb-3">Email</span>
+          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">Email</ThemedText>
           <input
             type="email"
             value={institutionData?.email || ''}
@@ -112,7 +117,9 @@ export default function InstitutionProfilePage() {
 
         {/* Phone Number Field */}
         <div className="mb-5">
-          <span className="block text-sm font-medium text-gray-900 mb-3">Phone Number</span>
+          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">
+            Phone Number
+          </ThemedText>
           <input
             type="tel"
             value={institutionData?.phone || ''}
@@ -123,7 +130,7 @@ export default function InstitutionProfilePage() {
 
         {/* Country Field */}
         <div className="mb-5">
-          <span className="block text-sm font-medium text-gray-900 mb-3">Country</span>
+          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">Country</ThemedText>
           <input
             type="text"
             value={institutionData?.country || ''}
@@ -134,7 +141,7 @@ export default function InstitutionProfilePage() {
 
         {/* Address Field */}
         <div className="mb-5">
-          <span className="block text-sm font-medium text-gray-900 mb-3">Address</span>
+          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">Address</ThemedText>
           <input
             type="text"
             value={institutionData?.address || ''}
@@ -145,7 +152,7 @@ export default function InstitutionProfilePage() {
 
         {/* Website Field */}
         <div className="mb-5">
-          <span className="block text-sm font-medium text-gray-900 mb-3">Website</span>
+          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">Website</ThemedText>
           <input
             type="text"
             value={institutionData?.website || ''}
@@ -156,7 +163,7 @@ export default function InstitutionProfilePage() {
 
         {/* DID Field */}
         <div className="mb-5">
-          <span className="block text-sm font-medium text-gray-900 mb-3">DID</span>
+          <ThemedText className="block text-sm font-medium text-gray-900 mb-3">DID</ThemedText>
           <input
             type="text"
             value={did}

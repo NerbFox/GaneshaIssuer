@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { DataTable, Column } from '@/components/shared/DataTable';
 import InfoModal from '@/components/shared/InfoModal';
 import { formatDateTime, formatDate } from '@/utils/dateUtils';
@@ -200,7 +201,7 @@ export default function UpdateCredentialForm({
       id: 'name',
       label: 'NAME',
       sortKey: 'name',
-      render: (row) => <span className="text-sm text-gray-900">{row.name}</span>,
+      render: (row) => <ThemedText className="text-sm text-gray-900">{row.name}</ThemedText>,
     },
     {
       id: 'type',
@@ -283,7 +284,7 @@ export default function UpdateCredentialForm({
         {/* Credential ID */}
         <div className="col-span-2">
           <label className="block mb-2">
-            <span className="text-sm font-medium text-gray-700">Credential ID</span>
+            <ThemedText className="text-sm font-medium text-gray-700">Credential ID</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
             {vcId || credentialData.id}
@@ -294,7 +295,7 @@ export default function UpdateCredentialForm({
         {schemaId && (
           <div className="col-span-2">
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Schema ID</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Schema ID</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {schemaId}
@@ -305,7 +306,7 @@ export default function UpdateCredentialForm({
         {/* Schema Name */}
         <div>
           <label className="block mb-2">
-            <span className="text-sm font-medium text-gray-700">Schema Name</span>
+            <ThemedText className="text-sm font-medium text-gray-700">Schema Name</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {schemaName}
@@ -315,7 +316,7 @@ export default function UpdateCredentialForm({
         {/* Schema Version */}
         <div>
           <label className="block mb-2">
-            <span className="text-sm font-medium text-gray-700">Schema Version</span>
+            <ThemedText className="text-sm font-medium text-gray-700">Schema Version</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {version}
@@ -325,7 +326,7 @@ export default function UpdateCredentialForm({
         {/* Holder DID */}
         <div className="col-span-2">
           <label className="block mb-2">
-            <span className="text-sm font-medium text-gray-700">Holder DID</span>
+            <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
             {holderDid}
@@ -336,7 +337,7 @@ export default function UpdateCredentialForm({
         {credentialData.issuerDid && (
           <div className="col-span-2">
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Issuer DID</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {credentialData.issuerDid}
@@ -347,7 +348,7 @@ export default function UpdateCredentialForm({
         {/* Issued At */}
         <div>
           <label className="block mb-2">
-            <span className="text-sm font-medium text-gray-700">Issued At</span>
+            <ThemedText className="text-sm font-medium text-gray-700">Issued At</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {formatDateTime(credentialData.issuedAt)}
@@ -357,7 +358,7 @@ export default function UpdateCredentialForm({
         {/* Expired At */}
         <div>
           <label className="block mb-2">
-            <span className="text-sm font-medium text-gray-700">Expired At</span>
+            <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
             {credentialData.activeUntil === '-'
@@ -369,7 +370,7 @@ export default function UpdateCredentialForm({
         {/* Status */}
         <div className="col-span-2">
           <label className="block mb-2">
-            <span className="text-sm font-medium text-gray-700">Status</span>
+            <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
           </label>
           <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
             <span
@@ -384,9 +385,9 @@ export default function UpdateCredentialForm({
       {/* Attributes Table */}
       {attributes.length > 0 && (
         <div className="mb-6">
-          <p className="text-sm font-semibold text-gray-900 mb-4">
+          <ThemedText className="text-sm font-semibold text-gray-900 mb-4">
             Credential Attributes ({attributes.length})
-          </p>
+          </ThemedText>
           <DataTable
             data={filteredAttributes}
             columns={attributeColumns}

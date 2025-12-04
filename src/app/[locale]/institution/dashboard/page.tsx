@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import InstitutionLayout from '@/components/shared/InstitutionLayout';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { redirectIfJWTInvalid } from '@/utils/auth';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { API_ENDPOINTS, buildApiUrlWithParams } from '@/utils/api';
@@ -315,55 +316,57 @@ export default function InstitutionPage() {
   return (
     <InstitutionLayout activeTab="dashboard">
       <div className="p-12">
-        <span className="text-[40px] font-bold text-black mb-8">Dashboard</span>
+        <ThemedText fontSize={40} fontWeight={700} className="text-black mb-8">
+          Dashboard
+        </ThemedText>
 
         {/* Stats Cards */}
         <div className="space-y-6 mb-8 pt-4">
           {/* First Row: Key Metrics - 4 cards */}
           <div className="grid grid-cols-4 gap-6">
             <div className="bg-blue-50 grid grid-row-2 rounded-2xl p-6">
-              <span className="text-sm text-gray-600 mb-2">Active Schemas</span>
-              <span className="text-[32px] font-semibold text-gray-900">
+              <ThemedText className="text-sm text-gray-600 mb-2">Active Schemas</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                 {isLoading ? 0 : formatNumber(stats.activeSchemas)}
-              </span>
+              </ThemedText>
             </div>
             <div className="bg-purple-50 grid grid-row-2 rounded-2xl p-6">
-              <span className="text-sm text-gray-600 mb-2">Pending Requests</span>
-              <span className="text-[32px] font-semibold text-gray-900">
+              <ThemedText className="text-sm text-gray-600 mb-2">Pending Requests</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                 {isLoading ? 0 : formatNumber(stats.pendingRequests)}
-              </span>
+              </ThemedText>
             </div>
             <div className="bg-green-50 grid grid-row-2 rounded-2xl p-6">
-              <span className="text-sm text-gray-600 mb-2">Active Credentials</span>
-              <span className="text-[32px] font-semibold text-gray-900">
+              <ThemedText className="text-sm text-gray-600 mb-2">Active Credentials</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                 {isLoading ? 0 : formatNumber(stats.activeCredentials)}
-              </span>
+              </ThemedText>
             </div>
             <div className="bg-amber-50 grid grid-row-2 rounded-2xl p-6">
-              <span className="text-sm text-gray-600 mb-2">Success Rate</span>
-              <span className="text-[32px] font-semibold text-gray-900">
+              <ThemedText className="text-sm text-gray-600 mb-2">Success Rate</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                 {isLoading
                   ? '0%'
                   : stats.totalActivities > 0
                     ? `${Math.round((stats.approvedActivities / stats.totalActivities) * 100)}%`
                     : '0%'}
-              </span>
+              </ThemedText>
             </div>
           </div>
 
           {/* Second Row: Total Counts - 2 cards */}
           <div className="grid grid-cols-2 gap-6">
             <div className="bg-cyan-50 grid grid-row-2 rounded-2xl p-6">
-              <span className="text-sm text-gray-600 mb-2">Total Issued</span>
-              <span className="text-[32px] font-semibold text-gray-900">
+              <ThemedText className="text-sm text-gray-600 mb-2">Total Issued</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                 {isLoading ? 0 : formatNumber(stats.totalIssued)}
-              </span>
+              </ThemedText>
             </div>
             <div className="bg-teal-50 grid grid-row-2 rounded-2xl p-6">
-              <span className="text-sm text-gray-600 mb-2">Total Activities</span>
-              <span className="text-[32px] font-semibold text-gray-900">
+              <ThemedText className="text-sm text-gray-600 mb-2">Total Activities</ThemedText>
+              <ThemedText fontSize={32} fontWeight={600} className="text-gray-900">
                 {isLoading ? 0 : formatNumber(stats.totalActivities)}
-              </span>
+              </ThemedText>
             </div>
           </div>
         </div>
@@ -379,7 +382,9 @@ export default function InstitutionPage() {
         {!isLoading && (
           <div className="bg-white rounded-2xl border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-6">
-              <span className="text-xl font-semibold text-gray-900">Recent Activity</span>
+              <ThemedText fontSize={20} fontWeight={600} className="text-gray-900">
+                Recent Activity
+              </ThemedText>
               <button
                 onClick={() => router.push('/en/institution/history')}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
@@ -389,7 +394,7 @@ export default function InstitutionPage() {
             </div>
             {recentActivities.length === 0 ? (
               <div className="text-center py-8">
-                <span className="text-gray-500">No recent activities</span>
+                <ThemedText className="text-gray-500">No recent activities</ThemedText>
               </div>
             ) : (
               <div className="space-y-4">

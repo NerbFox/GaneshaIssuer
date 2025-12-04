@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, ReactNode, Fragment } from 'react';
+import { ThemedText } from '@/components/shared/ThemedText';
 
 export interface Column<T> {
   id: string;
@@ -357,17 +358,17 @@ export function DataTable<T>({
               {/* Drag Handle Column */}
               {enableDragDrop && (
                 <th className="px-4 py-3 text-left w-16">
-                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <ThemedText className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     {/* Empty header for drag handle */}
-                  </span>
+                  </ThemedText>
                 </th>
               )}
 
               {/* # Column */}
               <th className="px-4 py-3 text-left w-16">
-                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <ThemedText className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   #
-                </span>
+                </ThemedText>
               </th>
 
               {/* Dynamic Columns */}
@@ -384,9 +385,12 @@ export function DataTable<T>({
                     }`}
                     disabled={!column.sortKey}
                   >
-                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    <ThemedText
+                      fontWeight={700}
+                      className="text-xs text-gray-600 uppercase tracking-wider"
+                    >
                       {column.label}
-                    </span>
+                    </ThemedText>
                     {column.sortKey && (
                       <div className="flex flex-col">
                         {sortColumn === column.id ? (
@@ -454,8 +458,12 @@ export function DataTable<T>({
                         d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
                       />
                     </svg>
-                    <p className="text-base font-semibold text-gray-500 mb-2">No data available</p>
-                    <p className="text-xs text-gray-400">There are currently no items to display</p>
+                    <ThemedText fontSize={16} fontWeight={600} className="text-gray-500 mb-2">
+                      No data available
+                    </ThemedText>
+                    <ThemedText fontSize={14} className="text-gray-400">
+                      There are currently no items to display
+                    </ThemedText>
                   </div>
                 </td>
               </tr>
@@ -516,7 +524,7 @@ export function DataTable<T>({
 
                       {/* # Cell */}
                       <td className="px-4 py-4">
-                        <span className="text-sm text-gray-900">{actualIndex + 1}</span>
+                        <ThemedText className="text-sm text-gray-900">{actualIndex + 1}</ThemedText>
                       </td>
 
                       {/* Dynamic Cells */}
@@ -526,9 +534,9 @@ export function DataTable<T>({
                           className={`px-4 py-4 text-${column.align || 'left'}`}
                           style={{ width: column.width }}
                         >
-                          <span className="text-sm text-gray-900">
+                          <ThemedText className="text-sm text-gray-900">
                             {column.render(row, paginatedIndex)}
-                          </span>
+                          </ThemedText>
                         </td>
                       ))}
                     </tr>
@@ -563,7 +571,7 @@ export function DataTable<T>({
       {!hideBottomControls && (
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50/50 backdrop-blur-sm">
           {/* Items Count */}
-          <div className="text-xs text-gray-600">
+          <div className="text-sm text-gray-600">
             {startIndex}-{endIndex} of {total}
           </div>
 
@@ -571,7 +579,7 @@ export function DataTable<T>({
           <div className="flex items-center gap-4">
             {/* Rows Per Page */}
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Rows per page:</span>
+              <ThemedText className="text-sm text-gray-600">Rows per page:</ThemedText>
               <select
                 value={rowsPerPage}
                 onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
@@ -607,9 +615,9 @@ export function DataTable<T>({
                 </svg>
               </button>
 
-              <span className="text-xs text-gray-600">
+              <ThemedText className="text-sm text-gray-600">
                 {currentPage}/{totalPages}
-              </span>
+              </ThemedText>
 
               <button
                 onClick={() => handlePageChange(currentPage + 1)}

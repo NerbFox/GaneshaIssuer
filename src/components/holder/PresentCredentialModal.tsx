@@ -13,6 +13,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Modal from '@/components/shared/Modal';
+import { ThemedText } from '@/components/shared/ThemedText';
 import { VerifiableCredential } from '@/utils/indexedDB';
 import { createVerifiablePresentation, signVPWithStoredKey } from '@/utils/vpSigner';
 import { buildApiUrl, API_ENDPOINTS } from '@/utils/api';
@@ -247,7 +248,7 @@ export default function PresentCredentialModal({
         <div className="grid grid-cols-2 gap-6 mb-6">
           <div>
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Credential ID</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Credential ID</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {credential.id}
@@ -256,7 +257,7 @@ export default function PresentCredentialModal({
 
           <div>
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Credential Type</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Credential Type</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
               {credentialType}
@@ -265,7 +266,7 @@ export default function PresentCredentialModal({
 
           <div>
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Status</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Status</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
               <span
@@ -278,7 +279,7 @@ export default function PresentCredentialModal({
 
           <div>
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Valid From</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Valid From</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
               {formatDate(credential.validFrom)}
@@ -287,7 +288,7 @@ export default function PresentCredentialModal({
 
           <div>
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Expired At</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Expired At</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
               {credential.expiredAt ? formatDate(credential.expiredAt) : 'Never'}
@@ -296,7 +297,7 @@ export default function PresentCredentialModal({
 
           <div>
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Issuer Name</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Issuer Name</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
               {credential.issuerName}
@@ -305,7 +306,7 @@ export default function PresentCredentialModal({
 
           <div className="col-span-2">
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Issuer DID</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Issuer DID</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {credential.issuer}
@@ -314,7 +315,7 @@ export default function PresentCredentialModal({
 
           <div className="col-span-2">
             <label className="block mb-2">
-              <span className="text-sm font-medium text-gray-700">Holder DID</span>
+              <ThemedText className="text-sm font-medium text-gray-700">Holder DID</ThemedText>
             </label>
             <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
               {credential.credentialSubject.id}
@@ -325,7 +326,9 @@ export default function PresentCredentialModal({
         {credential.imageLink && (
           <div className="mb-6">
             <label className="block mb-3">
-              <p className="text-sm font-semibold text-gray-900">VC Background Image</p>
+              <ThemedText className="text-sm font-semibold text-gray-900">
+                VC Background Image
+              </ThemedText>
             </label>
             <div className="relative w-full" style={{ maxHeight: '384px' }}>
               <Image
@@ -343,9 +346,9 @@ export default function PresentCredentialModal({
         {attributes.length > 0 && (
           <div className="mb-6">
             <div className="mb-4">
-              <p className="text-sm font-semibold text-gray-900">
+              <ThemedText className="text-sm font-semibold text-gray-900">
                 Credential Attributes ({attributes.length})
-              </p>
+              </ThemedText>
             </div>
 
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -354,7 +357,9 @@ export default function PresentCredentialModal({
                   <div key={index} className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block mb-1">
-                        <span className="text-xs font-medium text-gray-600">{attr.name}</span>
+                        <ThemedText className="text-xs font-medium text-gray-600">
+                          {attr.name}
+                        </ThemedText>
                       </label>
                     </div>
                     <div>
@@ -371,13 +376,15 @@ export default function PresentCredentialModal({
 
         <div className="mb-6">
           <div className="mb-4">
-            <p className="text-sm font-semibold text-gray-900">Proof Information</p>
+            <ThemedText className="text-sm font-semibold text-gray-900">
+              Proof Information
+            </ThemedText>
           </div>
 
           <div className="grid grid-cols-2 gap-6">
             <div>
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Type</span>
+                <ThemedText className="text-sm font-medium text-gray-700">Type</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {credential.proof.type}
@@ -386,7 +393,7 @@ export default function PresentCredentialModal({
 
             <div>
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Cryptosuite</span>
+                <ThemedText className="text-sm font-medium text-gray-700">Cryptosuite</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {credential.proof.cryptosuite}
@@ -395,7 +402,7 @@ export default function PresentCredentialModal({
 
             <div>
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Created</span>
+                <ThemedText className="text-sm font-medium text-gray-700">Created</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {formatDate(credential.proof.created)}
@@ -404,7 +411,7 @@ export default function PresentCredentialModal({
 
             <div>
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Proof Purpose</span>
+                <ThemedText className="text-sm font-medium text-gray-700">Proof Purpose</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
                 {credential.proof.proofPurpose}
@@ -413,7 +420,9 @@ export default function PresentCredentialModal({
 
             <div className="col-span-2">
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Verification Method</span>
+                <ThemedText className="text-sm font-medium text-gray-700">
+                  Verification Method
+                </ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all">
                 {credential.proof.verificationMethod}
@@ -422,7 +431,7 @@ export default function PresentCredentialModal({
 
             <div className="col-span-2">
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">Proof Value</span>
+                <ThemedText className="text-sm font-medium text-gray-700">Proof Value</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono text-gray-900 break-all">
                 {credential.proof.proofValue}
@@ -455,8 +464,10 @@ export default function PresentCredentialModal({
                 />
               </svg>
               <div className="flex-1">
-                <span className="text-sm font-medium text-red-800 mb-1">Error Generating VP</span>
-                <span className="text-sm text-red-700">{error}</span>
+                <ThemedText className="text-sm font-medium text-red-800 mb-1">
+                  Error Generating VP
+                </ThemedText>
+                <ThemedText className="text-sm text-red-700">{error}</ThemedText>
               </div>
             </div>
           </div>
@@ -467,7 +478,7 @@ export default function PresentCredentialModal({
             {/* VP ID */}
             <div>
               <label className="block mb-2">
-                <span className="text-sm font-medium text-gray-700">VP ID</span>
+                <ThemedText className="text-sm font-medium text-gray-700">VP ID</ThemedText>
               </label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 break-all font-mono">
                 {vpId}
@@ -478,7 +489,9 @@ export default function PresentCredentialModal({
             <div className="flex flex-col items-center p-6 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center justify-between w-full mb-4">
                 <div className="flex-1"></div>
-                <span className="text-sm font-medium text-gray-700">Scan QR Code to Share VP</span>
+                <ThemedText className="text-sm font-medium text-gray-700">
+                  Scan QR Code to Share VP
+                </ThemedText>
                 <div className="flex-1 flex justify-end">
                   <button
                     onClick={handleGenerateVP}
@@ -513,9 +526,9 @@ export default function PresentCredentialModal({
                   unoptimized
                 />
               </div>
-              <span className="text-xs text-gray-500 mt-4 text-center">
+              <ThemedText className="text-xs text-gray-500 mt-4 text-center">
                 This QR code contains the VP ID that can be scanned by verifiers
-              </span>
+              </ThemedText>
             </div>
           </div>
         )}

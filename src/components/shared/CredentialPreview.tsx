@@ -82,8 +82,10 @@ export default function CredentialPreview({
     <div className="w-full">
       {showTitle && (
         <div className="mb-4">
-          <span className="text-sm font-semibold text-gray-900 block">Credential Preview</span>
-          <span className="text-xs text-gray-500 mt-1 block">
+          <ThemedText className="text-sm font-semibold text-gray-900 block">
+            Credential Preview
+          </ThemedText>
+          <ThemedText className="text-xs text-gray-500 mt-1 block">
             This is how the credential will appear to holders with the configured attribute
             positions (Rendered with Konva.js)
           </ThemedText>
@@ -188,7 +190,9 @@ export default function CredentialPreview({
       {/* Sample Data Info */}
       {attributeNames.length > 0 && (
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-xs font-medium text-blue-900 mb-2">Configured Attributes:</span>
+          <ThemedText className="text-xs font-medium text-blue-900 mb-2">
+            Configured Attributes:
+          </ThemedText>
           <div className="space-y-1">
             {attributeNames.map((attrName) => (
               <div key={attrName} className="flex items-center gap-2 text-xs">
@@ -202,20 +206,20 @@ export default function CredentialPreview({
 
       {attributeNames.length === 0 && showTitle && (
         <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <span className="text-xs text-yellow-800">
+          <ThemedText className="text-xs text-yellow-800">
             No attributes have been positioned yet. Use the &quot;Configure Positions&quot; button
             to add attributes to the credential template.
-          </span>
+          </ThemedText>
         </div>
       )}
 
       {attributeNames.length === 0 && !showTitle && (
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-xs text-blue-800">
+          <ThemedText className="text-xs text-blue-800">
             💡 <strong>Attribute positions not configured.</strong> To configure attribute positions
             and properties for this credential, go to the <strong>Schema page</strong> and update
             this schema to set the position, font size, and styling for each attribute.
-          </span>
+          </ThemedText>
         </div>
       )}
     </div>
