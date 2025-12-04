@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { Stage, Layer, Image, Text, Rect } from 'react-konva';
 import useImage from 'use-image';
-import { ThemedText } from '@/components/shared/ThemedText';
 import { AttributePositionData, QRCodePosition } from '@/components/issuer/AttributePositionEditor';
 
 interface CredentialPreviewProps {
@@ -86,7 +85,7 @@ export default function CredentialPreview({
           <span className="text-xs text-gray-500 mt-1 block">
             This is how the credential will appear to holders with the configured attribute
             positions (Rendered with Konva.js)
-          </ThemedText>
+          </span>
         </div>
       )}
 
@@ -97,13 +96,13 @@ export default function CredentialPreview({
         >
           {bgImageStatus === 'loading' && (
             <div className="w-full h-64 flex items-center justify-center bg-gray-200 rounded">
-              <ThemedText className="text-gray-500">Loading credential template...</ThemedText>
+              <span className="text-gray-500">Loading credential template...</span>
             </div>
           )}
 
           {bgImageStatus === 'failed' && (
             <div className="w-full h-64 flex items-center justify-center bg-red-50 rounded">
-              <ThemedText className="text-red-600">Failed to load credential template</ThemedText>
+              <span className="text-red-600">Failed to load credential template</span>
             </div>
           )}
 
